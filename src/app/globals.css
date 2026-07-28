@@ -1,0 +1,8 @@
+/* Global styles placeholder — structure only */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* theme tokens will be defined in src/config/theme.ts */
+}
