@@ -1,6 +1,8 @@
 import { supabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/database.types';
 
+const ADMIN_EMAILS = ['joens.contact@gmail.com'];
+
 export interface AuthUser {
   id: string;
   email?: string;
@@ -53,6 +55,12 @@ export async function getUser() {
 }
 
 export function getUserRole(user: AuthUser | null | undefined): string | null {
+  const normalizedEmail = user?.email?.toLowerCase();
+
+  if (normalizedEmail && ADMIN_EMAILS.includes(normalizedEmail)) {
+    return 'admin';
+  }
+
   return user?.user_metadata?.role ?? user?.app_metadata?.role ?? null;
 }
 

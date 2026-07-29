@@ -7,7 +7,7 @@ import { Navbar } from '@/components/layout/Navbar';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
-import { signIn } from '@/services/auth.service';
+import { signIn, getUserRole, type AuthUser } from '@/services/auth.service';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -28,7 +28,7 @@ export default function LoginPage() {
 
     try {
       const response = await signIn(email, password);
-      const role = (response.user?.user_metadata?.role ?? response.user?.app_metadata?.role ?? 'author') as string;
+      const role = getUserRole(response.user as AuthUser | null) ?? 'author';
       router.push(role === 'admin' ? '/admin' : '/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo iniciar sesión.');
