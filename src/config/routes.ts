@@ -8,4 +8,5 @@ export const routes = {
   login: '/login',
   registro: '/registro',
   dashboard: '/dashboard',
+  admin: '/admin',
 };
