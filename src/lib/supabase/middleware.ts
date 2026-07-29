@@ -1,22 +1,23 @@
-import { cookies } from 'next/headers';
-
 /**
- * Middleware helpers for session handling.
+ * Supabase Auth Middleware placeholder for Next.js integration.
  *
- * This file provides lightweight utilities that will be used later to implement
- * route protection, session parsing and refresh. For now it only exposes helpers
- * that read cookies and return token placeholders.
+ * This file intentionally does not implement cookie reading or middleware logic yet.
+ * It serves as a documented placeholder where session-handling utilities will be
+ * implemented in a future phase (e.g., reading HttpOnly cookies, refreshing tokens,
+ * or wiring Supabase auth helpers).
  *
- * Do NOT implement route protection here yet — this is scaffolding only.
+ * Rules for future implementation:
+ * - Do not perform client-side cookie access here.
+ * - Implement cookie parsing using server-only APIs (e.g., next/headers) inside server code paths.
+ * - Ensure service_role keys are never used for user-scoped requests; prefer session tokens.
  */
 
-export function getAuthTokenFromCookies(cookieStore?: ReturnType<typeof cookies>) {
-  const cookieJar = cookieStore ?? cookies();
-  return cookieJar.get('sb-access-token')?.value ?? cookieJar.get('sb:token')?.value ?? cookieJar.get('supabase-auth-token')?.value ?? null;
+export function getAuthTokenFromCookies() {
+  // Placeholder: do not implement cookie reading here yet.
+  return null;
 }
 
 export async function getSessionFromCookies() {
-  // Placeholder: returns null for now. Future implementation will validate and
-  // return a session object using server-side Supabase client.
+  // Placeholder: will eventually return session details using server-side Supabase client.
   return null;
 }
