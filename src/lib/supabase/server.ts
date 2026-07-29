@@ -1,9 +1,12 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import type { Database } from '@/types/database.types';
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://placeholder.supabase.co';
 // SERVICE ROLE MUST BE SERVER-ONLY. Do NOT fallback to anon key here.
-const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
+const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? 'placeholder-service-role';
+
+type CookieStore = Awaited<ReturnType<typeof cookies>>;
 
 if (!url || !serviceRole) {
   // eslint-disable-next-line no-console
@@ -12,7 +15,7 @@ if (!url || !serviceRole) {
 
 /**
  * Create a Supabase client tailored for server-side (Server Components / Route Handlers)
- * 
+ *
  * This function initializes a Supabase client using a server-only key when available
  * and attempts to hydrate it with an access token extracted from the request cookies (if present).
  *
@@ -21,8 +24,8 @@ if (!url || !serviceRole) {
  * - For requests that should act on behalf of a user, prefer using
  *   the user's session token (extracted from cookies) instead of the service role.
  */
-export function createServerSupabaseClient(cookieStore?: ReturnType<typeof cookies>): SupabaseClient {
-  const supabase = createClient(url, serviceRole, {
+export async function createServerSupabaseClient(cookieStore?: CookieStore | Promise<CookieStore>) {
+  const supabase = createClient<Database>(url, serviceRole, {
     auth: {
       persistSession: false,
     },
@@ -32,7 +35,7 @@ export function createServerSupabaseClient(cookieStore?: ReturnType<typeof cooki
   });
 
   try {
-    const cookieJar = cookieStore ?? cookies();
+    const cookieJar = cookieStore ? await cookieStore : await cookies();
     // Common cookie names that may hold Supabase session/token — kept generic for future wiring.
     const token =
       cookieJar.get('sb-access-token')?.value ??
@@ -41,14 +44,12 @@ export function createServerSupabaseClient(cookieStore?: ReturnType<typeof cooki
       null;
 
     if (token) {
-      // If setAuth is available in runtime, set the auth token so requests run as the user.
-      // This is a guarded call to avoid runtime errors in environments where API differs.
-      // @ts-expect-error - setAuth may not be present in all versions/types; this is for future wiring.
-      if (typeof (supabase.auth as any)?.setAuth === 'function') {
-        (supabase.auth as any).setAuth(token);
+      const authWithSetAuth = supabase.auth as typeof supabase.auth & { setAuth?: (token: string) => void };
+      if (typeof authWithSetAuth.setAuth === 'function') {
+        authWithSetAuth.setAuth(token);
       }
     }
-  } catch (e) {
+  } catch {
     // If cookie parsing fails, continue silently — client remains unauthenticated.
   }
 
