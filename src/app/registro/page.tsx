@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Footer } from '@/components/layout/Footer';
 import { Navbar } from '@/components/layout/Navbar';
 import { Button } from '@/components/ui/Button';
@@ -9,13 +10,26 @@ import { Input } from '@/components/ui/Input';
 import { signUp } from '@/services/auth.service';
 
 export default function RegistroPage() {
+  const router = useRouter();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    await signUp(email, password, fullName);
+    setError('');
+    setLoading(true);
+
+    try {
+      await signUp(email, password, fullName);
+      router.push('/dashboard');
+    } catch (err: any) {
+      setError(err.message || 'Ocurrió un error al registrarse.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -33,12 +47,19 @@ export default function RegistroPage() {
               </p>
             </div>
 
+            {error && (
+              <div className="mb-4 rounded-lg bg-red-950/50 p-3 text-sm text-red-400 border border-red-800">
+                {error}
+              </div>
+            )}
+
             <form className="space-y-4" onSubmit={handleSubmit}>
-              <Input label="Nombre completo" value={fullName} onChange={(event) => setFullName(event.target.value)} placeholder="Ana Pérez" />
-              <Input label="Correo" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="autor@ejemplo.com" />
-              <Input label="Contraseña" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••••" />
-              <Button variant="primary" className="w-full" type="submit">
-                Crear cuenta
+              <Input label="Nombre completo" value={fullName} onChange={(event) => setFullName(event.target.value)} placeholder="Ana Pérez" required />
+              <Input label="Correo" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="autor@ejemplo.com" required />
+              <Input label="Contraseña" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••••" required />
+              
+              <Button variant="primary" className="w-full" type="submit" disabled={loading}>
+                {loading ? 'Creando cuenta...' : 'Crear cuenta'}
               </Button>
             </form>
           </Card>
