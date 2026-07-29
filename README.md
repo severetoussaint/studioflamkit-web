@@ -46,3 +46,22 @@ Notas de seguridad y buenas prácticas
 Siguientes pasos recomendados
 - Añadir ESLint/Prettier en CI y habilitar pre-commit hooks (husky + lint-staged).
 - Implementar la plantilla de feature en `src/features/` para mantener consistencia.
+
+## Supabase Setup
+
+Dónde colocar las variables de entorno
+- En desarrollo local: crea un archivo `.env.local` en la raíz del repositorio (no subirlo al control de versiones). Copia desde `.env.example` y rellena los valores.
+- En Netlify (producción): configura las variables de entorno en el panel de settings del site (Site settings → Build & deploy → Environment).
+
+Diferencia entre claves públicas y privadas
+- Claves públicas (prefijo `NEXT_PUBLIC_`) se pueden exponer en el navegador y son usadas por el cliente web para operaciones públicas con Supabase (por ejemplo lectura pública, sign-in con OAuth, etc.).
+  - NEXT_PUBLIC_SUPABASE_URL
+  - NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+- Claves privadas / server-only (SIN prefijo `NEXT_PUBLIC_`) son secretas y no deben ser enviadas al cliente. Se deben usar únicamente en código que ejecuta en el servidor (server components, route handlers, server actions) o en el entorno del host (Netlify env vars). Ejemplos:
+  - SUPABASE_SERVICE_ROLE_KEY (service_role) — da permisos elevados y debe mantenerse fuera del cliente.
+
+Nunca exponer la service_role
+- La clave `SUPABASE_SERVICE_ROLE_KEY` permite operaciones administrativas y acceso completo a la base de datos. NUNCA la incluyas en variables públicas ni en el código que pueda correr en el navegador.
+- Usar la `SERVICE_ROLE` exclusivamente en operaciones server-side y proteger su uso mediante funciones server-only o route handlers.
+
