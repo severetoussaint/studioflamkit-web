@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Footer } from '@/components/layout/Footer';
 import { Navbar } from '@/components/layout/Navbar';
 import { Button } from '@/components/ui/Button';
@@ -9,12 +10,31 @@ import { Input } from '@/components/ui/Input';
 import { signIn } from '@/services/auth.service';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    await signIn(email, password);
+
+    if (isLoading) {
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await signIn(email, password);
+      const role = (response.user?.user_metadata?.role ?? response.user?.app_metadata?.role ?? 'author') as string;
+      router.push(role === 'admin' ? '/admin' : '/dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo iniciar sesión.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -35,8 +55,9 @@ export default function LoginPage() {
             <form className="space-y-4" onSubmit={handleSubmit}>
               <Input label="Correo" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="autor@ejemplo.com" />
               <Input label="Contraseña" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••••" />
-              <Button variant="primary" className="w-full" type="submit">
-                Iniciar sesión
+              {error ? <p className="text-sm text-rose-400">{error}</p> : null}
+              <Button variant="primary" className="w-full" type="submit" disabled={isLoading}>
+                {isLoading ? 'Ingresando...' : 'Iniciar sesión'}
               </Button>
             </form>
           </Card>

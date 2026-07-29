@@ -30,7 +30,7 @@ export function Navbar() {
           <Link href={routes.dashboard} className="text-sm text-stone-300 transition hover:text-white">
             Centro del Autor
           </Link>
-          <Link href={routes.login}>
+          <Link href={routes.login} className="inline-flex">
             <Button variant="primary">Iniciar sesión</Button>
           </Link>
         </div>
