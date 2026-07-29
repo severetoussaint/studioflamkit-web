@@ -1,7 +1,6 @@
-// Service stubs (structure only)
-export const authService = {} as const;
-export const clientService = {} as const;
-export const projectService = {} as const;
-export const paymentService = {} as const;
-export const storageService = {} as const;
-export * from './admin.service';
+export * from './auth.service';
+export * from './client.service';
+export * from './project.service';
+export * from './payment.service';
+export * from './storage.service';
+export { adminService, type AdminProject, type AdminProjectStatus, type AudioDeliverable, type QuotationRequest, type QuotationRequestStatus } from './admin.service';
