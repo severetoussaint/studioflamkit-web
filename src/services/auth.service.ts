@@ -6,6 +6,15 @@ export interface AuthUser {
   email?: string;
   full_name?: string;
   accessToken?: string;
+  user_metadata?: {
+    role?: string;
+    full_name?: string;
+    [key: string]: unknown;
+  };
+  app_metadata?: {
+    role?: string;
+    [key: string]: unknown;
+  };
 }
 
 export type UserProfileRow = Database['public']['Tables']['users']['Row'];
@@ -41,6 +50,10 @@ export async function getUser() {
   const { data, error } = await supabaseClient.auth.getUser();
   if (error) throw error;
   return data.user as AuthUser | null;
+}
+
+export function getUserRole(user: AuthUser | null | undefined): string | null {
+  return user?.user_metadata?.role ?? user?.app_metadata?.role ?? null;
 }
 
 export async function upsertUserProfile(input: UserProfileInsert) {

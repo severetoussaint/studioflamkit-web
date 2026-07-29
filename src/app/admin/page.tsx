@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Footer } from '@/components/layout/Footer';
 import { Navbar } from '@/components/layout/Navbar';
 import { Button } from '@/components/ui/Button';
@@ -12,6 +13,7 @@ import {
   type QuotationRequest,
   type QuotationRequestStatus,
 } from '@/services/admin.service';
+import { getUser, getUserRole } from '@/services/auth.service';
 
 const statusLabels: Record<AdminProjectStatus, string> = {
   analisis: 'Análisis',
@@ -34,9 +36,47 @@ const statusStyles: Record<AdminProjectStatus, string> = {
 };
 
 export default function AdminPage() {
+  const router = useRouter();
   const [requests, setRequests] = useState<QuotationRequest[]>(() => adminService.listQuotationRequests());
   const [projects, setProjects] = useState<AdminProject[]>(() => adminService.listAdminProjects());
   const [deliverableTitle, setDeliverableTitle] = useState<string>('');
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function verifyAccess() {
+      try {
+        const user = await getUser();
+        const role = getUserRole(user);
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (user && role === 'admin') {
+          setIsAuthorized(true);
+        } else {
+          router.replace('/login');
+        }
+      } catch {
+        if (isMounted) {
+          router.replace('/login');
+        }
+      } finally {
+        if (isMounted) {
+          setIsChecking(false);
+        }
+      }
+    }
+
+    verifyAccess();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [router]);
 
   const summary = useMemo(() => {
     const activeProjects = projects.filter((project) => project.status !== 'completado').length;
@@ -101,6 +141,24 @@ export default function AdminPage() {
 
     setProjects((current) => current.map((project) => (project.id === projectId ? updated : project)));
   };
+
+  if (isChecking) {
+    return (
+      <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.16),_transparent_25%),linear-gradient(135deg,_#09090b_0%,_#111827_50%,_#030712_100%)] text-stone-100">
+        <Navbar />
+        <section className="mx-auto max-w-7xl px-6 py-20 lg:px-8">
+          <Card className="border-stone-800/80 bg-stone-950/80">
+            <p className="text-sm text-stone-400">Verificando acceso...</p>
+          </Card>
+        </section>
+        <Footer />
+      </main>
+    );
+  }
+
+  if (!isAuthorized) {
+    return null;
+  }
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.16),_transparent_25%),linear-gradient(135deg,_#09090b_0%,_#111827_50%,_#030712_100%)] text-stone-100">
