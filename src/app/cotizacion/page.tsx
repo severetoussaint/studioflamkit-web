@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from 'react';
+import React, { Suspense, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Footer } from '@/components/layout/Footer';
 import { Navbar } from '@/components/layout/Navbar';
@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/Input';
 import { formatCurrency } from '@/features/quotations/utils/calculator';
 import { getBillingStatus, createPaymentPlan } from '@/services/payment.service';
 
-export default function CotizacionPage() {
+function CotizacionContent() {
   const searchParams = useSearchParams();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -106,5 +106,13 @@ export default function CotizacionPage() {
 
       <Footer />
     </main>
+  );
+}
+
+export default function CotizacionPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-stone-950" />}> 
+      <CotizacionContent />
+    </Suspense>
   );
 }
