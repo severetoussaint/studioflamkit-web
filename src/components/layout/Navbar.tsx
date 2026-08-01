@@ -15,7 +15,7 @@ export function Navbar() {
     <header className="sticky top-0 z-20 border-b border-stone-800/80 bg-stone-950/80 backdrop-blur">
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
         <Link href={routes.home} className="text-lg font-semibold tracking-[0.24em] text-white uppercase">
-          Studio Flamekit & Art
+          Studio Flamkit & Art
         </Link>
 
         <div className="hidden items-center gap-6 text-sm text-stone-400 md:flex">

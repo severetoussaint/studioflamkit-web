@@ -1,6 +1,6 @@
-STUDIO FLAMEKIT — ESTRUCTURA COMPLETA DEL PROYECTO
+STUDIO FLAMKIT — ESTRUCTURA COMPLETA DEL PROYECTO
 1. ÁRBOL DE CARPETAS
-studio-flamekit/
+studio-flamkit/
 ├── .env.example
 ├── .prettierrc
 ├── eslint.config.js
@@ -106,7 +106,7 @@ index.html
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Studio Flamekit</title>
+    <title>Studio Flamkit</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -121,7 +121,7 @@ index.html
 </html>
 package.json
 {
-  "name": "studio-flamekit",
+  "name": "studio-flamkit",
   "private": true,
   "version": "0.0.1",
   "type": "module",
@@ -272,7 +272,7 @@ export function Navbar() {
         <Link to="/" className="flex items-center gap-2">
           <Flame className="h-6 w-6 text-primary" />
           <span className="text-lg font-bold tracking-tight text-foreground">
-            Studio Flamekit
+            Studio Flamkit
           </span>
         </Link>
 
@@ -324,7 +324,7 @@ export function Sidebar() {
       <div className="flex h-16 items-center gap-2 border-b border-background-lighter/30 px-6">
         <Flame className="h-6 w-6 text-primary" />
         <span className="text-lg font-bold tracking-tight text-foreground">
-          Studio Flamekit
+          Studio Flamkit
         </span>
       </div>
 
@@ -901,7 +901,7 @@ export function Home() {
         <div className="mx-auto max-w-3xl text-center">
           <div className="mb-6 inline-flex items-center justify-center rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
             <Flame className="mr-2 h-4 w-4" />
-            Studio Flamekit
+            Studio Flamkit
           </div>
           <h1 className="mb-6 text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl md:text-6xl">
             Professional Audio Production

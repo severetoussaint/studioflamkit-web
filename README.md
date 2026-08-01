@@ -1,4 +1,4 @@
-# Studio Flamekit — Project skeleton
+# Studio Flamkit — Project skeleton
 
 Esta rama contiene la estructura inicial del proyecto siguiendo docs/docs/PROJECT_ARCHITECTURE.md.
 

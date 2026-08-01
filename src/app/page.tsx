@@ -34,7 +34,7 @@ export default function Page() {
             Convertimos libros en experiencias sonoras que atraviesan la imaginación.
           </h1>
           <p className="mt-6 text-lg leading-8 text-stone-300">
-            Studio Flamekit & Art transforma narrativa, voz y diseño sonoro en una propuesta editorial inmersiva para quienes desean publicar más allá de lo convencional.
+            Studio Flamkit & Art transforma narrativa, voz y diseño sonoro en una propuesta editorial inmersiva para quienes desean publicar más allá de lo convencional.
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3">

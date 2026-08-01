@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/Card';
 const faqs = [
   {
     question: '¿Quién conserva la titularidad de los derechos?',
-    answer: 'El 100% de los derechos permanece en manos del autor. Studio Flamekit & Art participa como socio creativo en la producción del proyecto, sin asumir la titularidad de la obra.',
+    answer: 'El 100% de los derechos permanece en manos del autor. Studio Flamkit & Art participa como socio creativo en la producción del proyecto, sin asumir la titularidad de la obra.',
   },
   {
     question: '¿Cuántas revisiones incluye cada capítulo?',
