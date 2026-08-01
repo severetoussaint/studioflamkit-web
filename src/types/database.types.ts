@@ -1,323 +1,459 @@
-type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
-export interface Database {
+export type Database = {
   public: {
     Tables: {
-      users: {
-        Row: {
-          id: string;
-          email: string;
-          full_name: string;
-          role: 'author' | 'admin';
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Partial<Omit<Database['public']['Tables']['users']['Row'], 'id' | 'created_at' | 'updated_at'>> & {
-          id?: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<Database['public']['Tables']['users']['Insert']>;
-      };
       authors: {
         Row: {
-          id: string;
-          user_id: string;
-          name: string;
-          alias?: string;
-          bio?: string;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Partial<Omit<Database['public']['Tables']['authors']['Row'], 'id' | 'created_at' | 'updated_at'>> & {
-          id?: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<Database['public']['Tables']['authors']['Insert']>;
-      };
-      manuscripts: {
+          bio: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          bio?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          bio?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      chapters: {
         Row: {
-          id: string;
-          project_id?: string;
-          title: string;
-          content?: string;
-          status: 'draft' | 'submitted' | 'approved' | 'rejected';
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Partial<Omit<Database['public']['Tables']['manuscripts']['Row'], 'id' | 'created_at' | 'updated_at'>> & {
-          id?: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<Database['public']['Tables']['manuscripts']['Insert']>;
-      };
-      project_requests: {
-        Row: {
-          id: string;
-          author_id: string;
-          title: string;
-          summary?: string;
-          status: 'draft' | 'submitted' | 'approved' | 'rejected';
-          requested_at: string;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Partial<Omit<Database['public']['Tables']['project_requests']['Row'], 'id' | 'created_at' | 'updated_at'>> & {
-          id?: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<Database['public']['Tables']['project_requests']['Insert']>;
-      };
-      evaluations: {
-        Row: {
-          id: string;
-          project_request_id: string;
-          reviewer_id: string;
-          score: number;
-          notes?: string;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Partial<Omit<Database['public']['Tables']['evaluations']['Row'], 'id' | 'created_at' | 'updated_at'>> & {
-          id?: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<Database['public']['Tables']['evaluations']['Insert']>;
-      };
-      proposals: {
-        Row: {
-          id: string;
-          project_request_id: string;
-          amount: number;
-          deposit_percentage: number;
-          status: 'draft' | 'sent' | 'accepted' | 'rejected';
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Partial<Omit<Database['public']['Tables']['proposals']['Row'], 'id' | 'created_at' | 'updated_at'>> & {
-          id?: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<Database['public']['Tables']['proposals']['Insert']>;
-      };
-      projects: {
-        Row: {
-          id: string;
-          title: string;
-          author_id?: string;
-          client_id?: string;
-          status: 'analisis' | 'produccion' | 'revisiones' | 'completado';
-          word_count?: number;
-          page_count?: number;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Partial<Omit<Database['public']['Tables']['projects']['Row'], 'id' | 'created_at' | 'updated_at'>> & {
-          id?: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<Database['public']['Tables']['projects']['Insert']>;
-      };
-      production_stages: {
-        Row: {
-          id: string;
-          project_id: string;
-          name: string;
-          status: 'pending' | 'in_progress' | 'complete';
-          order_index: number;
-          started_at?: string;
-          completed_at?: string;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Partial<Omit<Database['public']['Tables']['production_stages']['Row'], 'id' | 'created_at' | 'updated_at'>> & {
-          id?: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<Database['public']['Tables']['production_stages']['Insert']>;
-      };
-      deliverables: {
-        Row: {
-          id: string;
-          project_id: string;
-          stage_id?: string;
-          title: string;
-          type: 'final' | 'sample' | 'review';
-          url?: string;
-          status: 'pending' | 'ready' | 'reviewed';
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Partial<Omit<Database['public']['Tables']['deliverables']['Row'], 'id' | 'created_at' | 'updated_at'>> & {
-          id?: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<Database['public']['Tables']['deliverables']['Insert']>;
-      };
-      reviews: {
-        Row: {
-          id: string;
-          deliverable_id: string;
-          reviewer_id?: string;
-          comments?: string;
-          status: 'pending' | 'approved' | 'changes_requested';
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Partial<Omit<Database['public']['Tables']['reviews']['Row'], 'id' | 'created_at' | 'updated_at'>> & {
-          id?: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<Database['public']['Tables']['reviews']['Insert']>;
-      };
-      payment_plans: {
-        Row: {
-          id: string;
-          project_id: string;
-          name: string;
-          total_amount: number;
-          currency: string;
-          status: 'draft' | 'active' | 'completed';
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Partial<Omit<Database['public']['Tables']['payment_plans']['Row'], 'id' | 'created_at' | 'updated_at'>> & {
-          id?: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<Database['public']['Tables']['payment_plans']['Insert']>;
-      };
-      payments: {
-        Row: {
-          id: string;
-          payment_plan_id: string;
-          amount: number;
-          status: 'pending' | 'partial' | 'paid';
-          paid_at?: string;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Partial<Omit<Database['public']['Tables']['payments']['Row'], 'id' | 'created_at' | 'updated_at'>> & {
-          id?: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<Database['public']['Tables']['payments']['Insert']>;
-      };
-      invoices: {
-        Row: {
-          id: string;
-          payment_plan_id: string;
-          invoice_number: string;
-          amount: number;
-          status: 'draft' | 'issued' | 'paid' | 'overdue';
-          issued_at?: string;
-          paid_at?: string;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Partial<Omit<Database['public']['Tables']['invoices']['Row'], 'id' | 'created_at' | 'updated_at'>> & {
-          id?: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<Database['public']['Tables']['invoices']['Insert']>;
-      };
+          chapter_number: number
+          created_at: string
+          currency: string
+          duration_minutes: number | null
+          id: string
+          pfh_rate_used: number
+          price: number | null
+          project_id: string
+          status: string
+          tier: string | null
+          title: string | null
+          updated_at: string
+          word_count: number
+        }
+        Insert: {
+          chapter_number: number
+          created_at?: string
+          currency?: string
+          duration_minutes?: number | null
+          id?: string
+          pfh_rate_used?: number
+          price?: number | null
+          project_id: string
+          status?: string
+          tier?: string | null
+          title?: string | null
+          updated_at?: string
+          word_count: number
+        }
+        Update: {
+          chapter_number?: number
+          created_at?: string
+          currency?: string
+          duration_minutes?: number | null
+          id?: string
+          pfh_rate_used?: number
+          price?: number | null
+          project_id?: string
+          status?: string
+          tier?: string | null
+          title?: string | null
+          updated_at?: string
+          word_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'chapters_project_id_fkey'
+            columns: ['project_id']
+            isOneToOne: false
+            referencedRelation: 'projects'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       files: {
         Row: {
-          id: string;
-          project_id?: string;
-          bucket: string;
-          path: string;
-          mime_type?: string;
-          size_bytes?: number;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Partial<Omit<Database['public']['Tables']['files']['Row'], 'id' | 'created_at' | 'updated_at'>> & {
-          id?: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<Database['public']['Tables']['files']['Insert']>;
-      };
-      notifications: {
+          created_at: string
+          id: string
+          mime_type: string | null
+          name: string | null
+          project_id: string
+          size: number | null
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mime_type?: string | null
+          name?: string | null
+          project_id: string
+          size?: number | null
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mime_type?: string | null
+          name?: string | null
+          project_id?: string
+          size?: number | null
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
+      invoices: {
         Row: {
-          id: string;
-          user_id: string;
-          title: string;
-          body?: string;
-          is_read: boolean;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Partial<Omit<Database['public']['Tables']['notifications']['Row'], 'id' | 'created_at' | 'updated_at'>> & {
-          id?: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<Database['public']['Tables']['notifications']['Insert']>;
-      };
-      timeline: {
+          amount: number
+          created_at: string
+          id: string
+          payment_plan_id: string | null
+          project_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          id?: string
+          payment_plan_id?: string | null
+          project_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          payment_plan_id?: string | null
+          project_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      manuscripts: {
         Row: {
-          id: string;
-          project_id: string;
-          event_type: string;
-          message: string;
-          created_at: string;
-        };
-        Insert: Partial<Omit<Database['public']['Tables']['timeline']['Row'], 'id' | 'created_at'>> & {
-          id?: string;
-          created_at?: string;
-        };
-        Update: Partial<Database['public']['Tables']['timeline']['Insert']>;
-      };
-      internal_notes: {
+          content: string | null
+          created_at: string
+          id: string
+          project_id: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          project_id: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          project_id?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      payment_plans: {
         Row: {
-          id: string;
-          project_id: string;
-          author_id: string;
-          content: string;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Partial<Omit<Database['public']['Tables']['internal_notes']['Row'], 'id' | 'created_at' | 'updated_at'>> & {
-          id?: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<Database['public']['Tables']['internal_notes']['Insert']>;
-      };
-      audit_logs: {
+          amount: number
+          created_at: string
+          currency: string
+          id: string
+          project_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          project_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          project_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      payments: {
         Row: {
-          id: string;
-          entity_type: string;
-          entity_id: string;
-          action: string;
-          user_id?: string;
-          details?: JsonValue;
-          created_at: string;
-        };
-        Insert: Partial<Omit<Database['public']['Tables']['audit_logs']['Row'], 'id' | 'created_at'>> & {
-          id?: string;
-          created_at?: string;
-        };
-        Update: Partial<Database['public']['Tables']['audit_logs']['Insert']>;
-      };
-    };
-    Views: Record<string, never>;
-    Functions: Record<string, never>;
-    Enums: Record<string, never>;
-    CompositeTypes: Record<string, never>;
-  };
+          amount: number | null
+          chapter_id: string | null
+          created_at: string | null
+          id: string
+          payment_plan_id: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount?: number | null
+          chapter_id?: string | null
+          created_at?: string | null
+          id?: string
+          payment_plan_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number | null
+          chapter_id?: string | null
+          created_at?: string | null
+          id?: string
+          payment_plan_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'payments_chapter_id_fkey'
+            columns: ['chapter_id']
+            isOneToOne: false
+            referencedRelation: 'chapters'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          author_id: string | null
+          client_id: string | null
+          created_at: string
+          id: string
+          page_count: number | null
+          status: string
+          title: string | null
+          updated_at: string
+          word_count: number | null
+        }
+        Insert: {
+          author_id?: string | null
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          page_count?: number | null
+          status?: string
+          title?: string | null
+          updated_at?: string
+          word_count?: number | null
+        }
+        Update: {
+          author_id?: string | null
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          page_count?: number | null
+          status?: string
+          title?: string | null
+          updated_at?: string
+          word_count?: number | null
+        }
+        Relationships: []
+      }
+      users: {
+        Row: {
+          app_metadata: Json | null
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          role: string | null
+          updated_at: string
+          user_metadata: Json | null
+        }
+        Insert: {
+          app_metadata?: Json | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          role?: string | null
+          updated_at?: string
+          user_metadata?: Json | null
+        }
+        Update: {
+          app_metadata?: Json | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          role?: string | null
+          updated_at?: string
+          user_metadata?: Json | null
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
 }
+
+type DatabaseWithoutInternals = Omit<Database, '__InternalSupabase'>
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, 'public'>]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema['Tables'] & DefaultSchema['Views'])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema['Tables'] &
+        DefaultSchema['Views'])
+    ? (DefaultSchema['Tables'] &
+        DefaultSchema['Views'])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema['Tables']
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
+    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema['Tables']
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
+    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema['Enums']
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums']
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums'][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema['Enums']
+    ? DefaultSchema['Enums'][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema['CompositeTypes']
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes']
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes'][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema['CompositeTypes']
+    ? DefaultSchema['CompositeTypes'][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const
