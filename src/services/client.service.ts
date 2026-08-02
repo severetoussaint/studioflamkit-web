@@ -12,7 +12,7 @@ export async function listAuthors() {
 }
 
 export async function getAuthorByUserId(userId: string) {
-  const { data, error } = await supabaseClient.from('authors').select('*').eq('user_id', userId).maybeSingle();
+  const { data, error } = await supabaseClient.from('authors').select('*').eq('id', userId).maybeSingle();
   if (error) throw error;
   return data as AuthorRow | null;
 }

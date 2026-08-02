@@ -31,8 +31,8 @@ export async function updateProjectStatus(id: string, status: ProjectRow['status
   return updateProject(id, { status, updated_at: new Date().toISOString() });
 }
 
-export async function listManuscripts(projectId: string) {
-  const { data, error } = await supabaseClient.from('manuscripts').select('*').eq('project_id', projectId).order('created_at', { ascending: false });
+export async function listManuscriptsByAuthor(authorId: string) {
+  const { data, error } = await supabaseClient.from('manuscripts').select('*').eq('author_id', authorId).order('created_at', { ascending: false });
   if (error) throw error;
   return (data ?? []) as ManuscriptRow[];
 }

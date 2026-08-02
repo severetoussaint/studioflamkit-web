@@ -19,9 +19,9 @@ export interface AuthUser {
   };
 }
 
-export type UserProfileRow = Database['public']['Tables']['users']['Row'];
-export type UserProfileInsert = Database['public']['Tables']['users']['Insert'];
-export type UserProfileUpdate = Database['public']['Tables']['users']['Update'];
+export type UserProfileRow = Database['public']['Tables']['authors']['Row'];
+export type UserProfileInsert = Database['public']['Tables']['authors']['Insert'];
+export type UserProfileUpdate = Database['public']['Tables']['authors']['Update'];
 
 export async function signIn(email: string, password: string) {
   const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
@@ -65,13 +65,13 @@ export function getUserRole(user: AuthUser | null | undefined): string | null {
 }
 
 export async function upsertUserProfile(input: UserProfileInsert) {
-  const { data, error } = await supabaseClient.from('users').upsert(input as never).select().single();
+  const { data, error } = await supabaseClient.from('authors').upsert(input as never).select().single();
   if (error) throw error;
   return data as UserProfileRow | null;
 }
 
 export async function updateUserProfile(id: string, updates: UserProfileUpdate) {
-  const { data, error } = await supabaseClient.from('users').update(updates as never).eq('id', id).select().single();
+  const { data, error } = await supabaseClient.from('authors').update(updates as never).eq('id', id).select().single();
   if (error) throw error;
   return data as UserProfileRow | null;
 }
