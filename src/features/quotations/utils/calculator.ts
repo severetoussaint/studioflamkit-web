@@ -1,46 +1,40 @@
-import type { ProductionLevel, QuotationInput, QuotationResult } from '@/types/quotation';
+import type { ChapterCalculatorInput, ChapterCalculatorResult, ChapterTier } from '@/types/quotation';
 
-const WORDS_PER_HOUR = 9000;
-const BASE_RATE_PER_HOUR = 45;
+const WORDS_PER_MINUTE = 155;
+const PFH_RATE = 400; // USD por hora de audio terminado
+const MIN_PRICE = 30; // piso mínimo para evitar precios irrisorios con conteos muy bajos
 
-const productionMultipliers: Record<ProductionLevel, number> = {
-  basico: 1,
-  estandar: 1.25,
-  cinematografico: 1.6,
-};
+function getTier(wordCount: number): ChapterTier {
+  if (wordCount <= 1500) return 'entrada';
+  if (wordCount <= 4000) return 'intermedio';
+  return 'completo';
+}
 
-export function calculateQuotation(input: QuotationInput): QuotationResult {
-  const safeWordCount = Math.max(0, input.wordCount);
-  const safePageCount = Math.max(0, input.pageCount);
-  const estimatedHours = safeWordCount / WORDS_PER_HOUR;
-  const basePrice = estimatedHours * BASE_RATE_PER_HOUR;
-  const multiplier = productionMultipliers[input.productionLevel] ?? 1;
-  const totalCost = Math.round(basePrice * multiplier);
+export function calculateChapterPrice(input: ChapterCalculatorInput): ChapterCalculatorResult {
+  const wordCount = Math.max(0, Math.round(input.wordCount));
+  const durationMinutes = wordCount / WORDS_PER_MINUTE;
+  const rawPrice = (durationMinutes / 60) * PFH_RATE;
+  const price = Math.max(MIN_PRICE, Math.round(rawPrice * 100) / 100);
 
   return {
-    estimatedHours: Number(estimatedHours.toFixed(2)),
-    basePrice: Number(basePrice.toFixed(2)),
-    totalCost,
+    wordCount,
+    durationMinutes: Math.round(durationMinutes),
+    price,
+    currency: 'USD',
+    tier: getTier(wordCount),
+    pfhRate: PFH_RATE,
   };
 }
 
-export function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('es-ES', {
-    style: 'currency',
-    currency: 'EUR',
-    maximumFractionDigits: 0,
-  }).format(value);
+export function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
 }
 
-export function getProductionLabel(level: ProductionLevel): string {
-  switch (level) {
-    case 'basico':
-      return 'Básico / Demo';
-    case 'estandar':
-      return 'Estándar';
-    case 'cinematografico':
-      return 'Cinematográfico';
-    default:
-      return 'Estándar';
-  }
+export function getTierLabel(tier: ChapterTier): string {
+  const labels: Record<ChapterTier, string> = {
+    entrada: 'Entrada',
+    intermedio: 'Intermedio',
+    completo: 'Completo',
+  };
+  return labels[tier];
 }

@@ -1,13 +1,14 @@
-export type ProductionLevel = 'basico' | 'estandar' | 'cinematografico';
+export type ChapterTier = 'entrada' | 'intermedio' | 'completo';
 
-export interface QuotationInput {
+export interface ChapterCalculatorInput {
   wordCount: number;
-  pageCount: number;
-  productionLevel: ProductionLevel;
 }
 
-export interface QuotationResult {
-  estimatedHours: number;
-  basePrice: number;
-  totalCost: number;
+export interface ChapterCalculatorResult {
+  wordCount: number;
+  durationMinutes: number;
+  price: number;
+  currency: 'USD';
+  tier: ChapterTier;
+  pfhRate: number;
 }
