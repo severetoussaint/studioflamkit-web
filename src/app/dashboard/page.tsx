@@ -13,85 +13,92 @@ const deliverables = ['Versión de prueba', 'Muestra de audio 01', 'Entrega fina
 
 export default function DashboardPage() {
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.16),_transparent_25%),linear-gradient(135deg,_#09090b_0%,_#111827_50%,_#030712_100%)] text-stone-100">
+    <main className="min-h-screen bg-surface text-ink">
       <Navbar />
 
-      <section className="mx-auto max-w-7xl px-6 py-20 lg:px-8">
-        <div className="max-w-3xl">
-          <p className="text-sm font-medium uppercase tracking-[0.32em] text-amber-400">Centro del Autor</p>
-          <h1 className="mt-4 text-4xl font-semibold text-white sm:text-5xl">
-            Tu obra en proceso, organizada y visible.
-          </h1>
-          <p className="mt-5 text-lg leading-8 text-stone-300">
-            Revisa el estado de producción, el avance de los capítulos y el panel de entregables desde un solo lugar.
-          </p>
-        </div>
-
-        <div className="mt-10 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <Card className="border-stone-800/80 bg-stone-950/80">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-stone-400">Resumen del proyecto</p>
-                <h2 className="mt-1 text-2xl font-semibold text-white">El jardín de las sombras</h2>
-              </div>
-              <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-sm text-amber-200">
-                Producción
-              </span>
-            </div>
-
-            <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <div className="rounded-2xl border border-stone-800 bg-stone-900/70 p-4">
-                <p className="text-sm text-stone-400">Estado</p>
-                <p className="mt-1 text-lg font-semibold text-white">Producción</p>
-              </div>
-              <div className="rounded-2xl border border-stone-800 bg-stone-900/70 p-4">
-                <p className="text-sm text-stone-400">Progreso general</p>
-                <p className="mt-1 text-lg font-semibold text-white">74%</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="border-amber-500/20 bg-gradient-to-br from-stone-950/90 to-stone-900/70">
-            <p className="text-sm text-stone-400">Límite de revisiones</p>
-            <p className="mt-2 text-3xl font-semibold text-white">2 revisiones por capítulo</p>
-            <p className="mt-4 text-sm leading-7 text-stone-400">
-              Tu contrato incluye un máximo de dos revisiones por capítulo para mantener el flujo de producción claro y controlado.
+      <section className="relative overflow-hidden border-b border-edge">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_-10%,_var(--color-accent)_0%,_transparent_28%)] opacity-[0.10]" />
+        <div className="relative mx-auto max-w-6xl px-6 py-24 lg:px-8">
+          <div className="max-w-3xl">
+            <p className="text-xs font-medium uppercase tracking-[0.32em] text-accent">Centro del Autor</p>
+            <h1 className="mt-4 font-serif text-4xl font-medium text-ink sm:text-5xl lg:text-6xl">
+              Tu obra en proceso, organizada y visible.
+            </h1>
+            <p className="mt-6 text-lg leading-8 text-ink-muted">
+              Revisa el estado de producción, el avance de los capítulos y el panel de entregables desde un solo lugar.
             </p>
-          </Card>
-        </div>
+          </div>
 
-        <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_0.8fr]">
-          <Card className="border-stone-800/80 bg-stone-950/80">
-            <h2 className="text-xl font-semibold text-white">Capítulos</h2>
-            <div className="mt-6 space-y-4">
-              {chapters.map((chapter) => (
-                <div key={chapter.title} className="rounded-2xl border border-stone-800 bg-stone-900/70 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-white">{chapter.title}</p>
-                      <p className="mt-1 text-sm text-stone-400">{chapter.status}</p>
-                    </div>
-                    <span className="text-sm text-stone-400">{chapter.revisions}/2 revisiones</span>
-                  </div>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-stone-800">
-                    <div className="h-full rounded-full bg-amber-400" style={{ width: `${chapter.progress}%` }} />
-                  </div>
+          <div className="mt-10 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+            <Card>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm text-ink-muted">Resumen del proyecto</p>
+                  <h2 className="mt-1 text-2xl font-semibold text-ink">El jardín de las sombras</h2>
                 </div>
-              ))}
-            </div>
-          </Card>
+                <span className="rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-sm text-accent">
+                  Producción
+                </span>
+              </div>
 
-          <Card className="border-stone-800/80 bg-stone-950/80">
-            <h2 className="text-xl font-semibold text-white">Entregables y muestras</h2>
-            <ul className="mt-6 space-y-3 text-sm text-stone-300">
-              {deliverables.map((item) => (
-                <li key={item} className="flex items-start gap-2">
-                  <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-amber-400" />
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          </Card>
+              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                <div className="rounded-2xl border border-edge bg-surface p-4">
+                  <p className="text-sm text-ink-muted">Estado</p>
+                  <p className="mt-1 text-lg font-semibold text-ink">Producción</p>
+                </div>
+                <div className="rounded-2xl border border-edge bg-surface p-4">
+                  <p className="text-sm text-ink-muted">Progreso general</p>
+                  <p className="mt-1 text-lg font-semibold text-ink">74%</p>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="border-accent/20">
+              <p className="text-sm text-ink-muted">Límite de revisiones</p>
+              <p className="mt-2 text-3xl font-semibold text-ink">2 revisiones por capítulo</p>
+              <p className="mt-4 text-sm leading-7 text-ink-muted">
+                Tu contrato incluye un máximo de dos revisiones por capítulo para mantener el flujo de producción claro y controlado.
+              </p>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-b border-edge bg-surface-elevated">
+        <div className="mx-auto max-w-6xl px-6 py-20 lg:px-8">
+          <div className="grid gap-6 lg:grid-cols-[1fr_0.8fr]">
+            <Card>
+              <h2 className="text-xl font-semibold text-ink">Capítulos</h2>
+              <div className="mt-6 space-y-4">
+                {chapters.map((chapter) => (
+                  <div key={chapter.title} className="rounded-2xl border border-edge bg-surface p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-ink">{chapter.title}</p>
+                        <p className="mt-1 text-sm text-ink-muted">{chapter.status}</p>
+                      </div>
+                      <span className="text-sm text-ink-muted">{chapter.revisions}/2 revisiones</span>
+                    </div>
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface-elevated">
+                      <div className="h-full rounded-full bg-accent" style={{ width: `${chapter.progress}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <Card>
+              <h2 className="text-xl font-semibold text-ink">Entregables y muestras</h2>
+              <ul className="mt-6 space-y-3 text-sm text-ink-muted">
+                {deliverables.map((item) => (
+                  <li key={item} className="flex items-start gap-2">
+                    <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-accent" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          </div>
         </div>
       </section>
 

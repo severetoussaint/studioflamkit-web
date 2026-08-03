@@ -37,6 +37,25 @@ const pillars = [
   },
 ];
 
+const aboutPoints = [
+  {
+    title: 'Una mirada editorial',
+    description: 'Entendemos que cada libro tiene una identidad propia y un público distinto. Por eso cada propuesta se adapta a la obra, no al revés.',
+  },
+  {
+    title: 'Una producción cercana',
+    description: 'Trabajamos con una lógica de acompañamiento más humana: cercana, clara y orientada a que el autor se sienta acompañado en cada etapa.',
+  },
+  {
+    title: 'Sonido con propósito',
+    description: 'La música, la voz y la mezcla no decoran: sostienen la emoción, la tensión y la memoria de la historia.',
+  },
+  {
+    title: 'Escucha, no solo producción',
+    description: 'Creemos en construir una experiencia sensorial que ayude a que la obra llegue a más personas y se recuerde con más fuerza.',
+  },
+];
+
 export default function HomePage() {
   return (
     <main className="min-h-screen bg-surface text-ink">
@@ -79,6 +98,32 @@ export default function HomePage() {
           <p className="mt-6 text-sm uppercase tracking-[0.28em] text-ink-muted">
             Nuestra filosofía
           </p>
+        </div>
+      </section>
+
+      {/* Sobre nosotros */}
+      <section className="border-b border-edge bg-surface-elevated">
+        <div className="mx-auto max-w-6xl px-6 py-24 lg:px-8">
+          <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
+            <div className="max-w-2xl">
+              <p className="text-xs font-medium uppercase tracking-[0.32em] text-accent">Sobre nosotros</p>
+              <h2 className="mt-4 font-serif text-3xl font-medium text-ink sm:text-4xl">
+                Studio Flamkit & Art transforma la lectura en una experiencia íntima y cinematográfica.
+              </h2>
+              <p className="mt-6 text-base leading-8 text-ink-muted">
+                Nacemos para acompañar a autores independientes que quieren llevar su obra más allá del papel y hacerla sentir, escuchar y recordar con mayor fuerza.
+              </p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              {aboutPoints.map((point) => (
+                <div key={point.title} className="rounded-3xl border border-edge bg-surface p-6">
+                  <h3 className="font-serif text-xl font-medium text-ink">{point.title}</h3>
+                  <p className="mt-3 text-sm leading-7 text-ink-muted">{point.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
