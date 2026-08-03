@@ -1,115 +1,149 @@
-import React from 'react';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
+import Link from 'next/link';
 import { Footer } from '@/components/layout/Footer';
 import { Navbar } from '@/components/layout/Navbar';
+import { Button } from '@/components/ui/Button';
+import { routes } from '@/config/routes';
 
-const pillars = [
+const steps = [
   {
-    title: 'Dirección narrativa',
-    description: 'Alineamos el tono, el ritmo y la dramaturgia para que cada escena suene con intención cinematográfica.',
+    number: '01',
+    title: 'Escucha una muestra',
+    description: 'Un Audio Trailer o Capítulo Piloto para que evalúes la calidad real antes de comprometerte con la obra completa.',
   },
   {
-    title: 'Diseño sonoro',
-    description: 'Construimos paisajes sonoros, voces y atmósferas que elevan la lectura a una experiencia inmersiva.',
+    number: '02',
+    title: 'Avanza capítulo a capítulo',
+    description: 'Si decides continuar, la producción avanza y se factura por capítulo — transparente y sin grandes pagos por adelantado.',
   },
   {
-    title: 'Transparencia operacional',
-    description: 'Seguimiento claro, entregas cronológicas y decisiones documentadas para que el proceso sea sencillo.',
+    number: '03',
+    title: 'Tu obra, lista para el mundo',
+    description: 'Entrega final master, lista para publicación, con el mismo cuidado narrativo de principio a fin.',
   },
 ];
 
-export default function Page() {
+const pillars = [
+  {
+    title: 'Respeto por la obra',
+    description: 'Tratamos cada libro como una creación única — nunca como un simple proyecto de audio.',
+  },
+  {
+    title: 'Calidad sin compromisos',
+    description: 'Cada producción cumple un estándar profesional, desde la narración hasta la entrega final.',
+  },
+  {
+    title: 'Narrativa primero',
+    description: 'El universo creativo del autor siempre está por encima de la tecnología. El audio existe para potenciar la obra, nunca para opacarla.',
+  },
+];
+
+export default function HomePage() {
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(251,191,36,0.16),_transparent_30%),linear-gradient(135deg,_#09090b_0%,_#111827_50%,_#030712_100%)] text-stone-100">
+    <main className="min-h-screen bg-surface text-ink">
       <Navbar />
 
-      <section className="mx-auto grid max-w-7xl gap-10 px-6 py-20 lg:grid-cols-[1.2fr_0.8fr] lg:px-8 lg:py-28">
-        <div className="max-w-2xl">
-          <p className="text-sm font-medium uppercase tracking-[0.32em] text-amber-400">
+      {/* Hero */}
+      <section className="relative overflow-hidden border-b border-edge">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_-10%,_var(--color-accent)_0%,_transparent_28%)] opacity-[0.10]" />
+        <div className="relative mx-auto max-w-5xl px-6 py-28 text-center lg:px-8">
+          <p className="text-xs font-medium uppercase tracking-[0.36em] text-accent">
             Audiolibros cinematográficos para autores independientes
           </p>
-          <h1 className="mt-6 text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-6xl">
-            Convertimos libros en experiencias sonoras que atraviesan la imaginación.
+          <h1 className="mt-6 font-serif text-5xl font-medium leading-tight text-ink sm:text-6xl lg:text-7xl">
+            Ayudamos a que tu libro
+            <br />
+            llegue más lejos.
           </h1>
-          <p className="mt-6 text-lg leading-8 text-stone-300">
-            Studio Flamkit & Art transforma narrativa, voz y diseño sonoro en una propuesta editorial inmersiva para quienes desean publicar más allá de lo convencional.
+          <p className="mx-auto mt-7 max-w-2xl text-lg leading-8 text-ink-muted">
+            Studio Flamkit & Art transforma libros en experiencias de audio cinematográficas —
+            diseñadas para ampliar el alcance de tu obra, fortalecer tu marca como autor
+            y conectar con nuevos lectores.
           </p>
-
-          <div className="mt-8 flex flex-wrap gap-3">
-            <a href="#cotizacion">
-              <Button variant="primary">Solicitar cotización</Button>
-            </a>
-            <a href="#servicios">
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
+            <Link href={routes.calculadora}>
+              <Button variant="primary">Calcular mi capítulo</Button>
+            </Link>
+            <Link href={routes.servicios}>
               <Button variant="secondary">Ver servicios</Button>
-            </a>
+            </Link>
           </div>
         </div>
-
-        <Card className="border-amber-500/20 bg-stone-950/80">
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-stone-800 bg-stone-900/70 p-4">
-              <p className="text-xs uppercase tracking-[0.3em] text-stone-500">Proceso</p>
-              <p className="mt-2 text-lg font-medium text-white">Narrativa • Dirección • Postproducción</p>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-stone-800 bg-stone-900/50 p-4">
-                <p className="text-sm text-stone-400">Tiempo estimado</p>
-                <p className="mt-1 text-2xl font-semibold text-white">2 a 4 semanas</p>
-              </div>
-              <div className="rounded-2xl border border-stone-800 bg-stone-900/50 p-4">
-                <p className="text-sm text-stone-400">Modalidad</p>
-                <p className="mt-1 text-2xl font-semibold text-white">Remoto</p>
-              </div>
-            </div>
-            <div className="rounded-2xl border border-stone-800 bg-stone-900/50 p-4 text-sm leading-6 text-stone-400">
-              Cada proyecto recibe una guía operativa clara con decisiones creativas, tono editorial y estructura de entrega.
-            </div>
-          </div>
-        </Card>
       </section>
 
-      <section id="servicios" className="mx-auto max-w-7xl px-6 py-8 lg:px-8">
-        <div className="mb-8 max-w-2xl">
-          <p className="text-sm font-medium uppercase tracking-[0.32em] text-amber-400">Pilares del servicio</p>
-          <h2 className="mt-3 text-3xl font-semibold text-white sm:text-4xl">
-            Un método sobrio, íntimo y orientado a resultados.
+      {/* Filosofía */}
+      <section className="border-b border-edge bg-surface-elevated">
+        <div className="mx-auto max-w-3xl px-6 py-24 text-center lg:px-8">
+          <p className="font-serif text-3xl italic leading-relaxed text-ink sm:text-4xl">
+            &ldquo;No solo producimos audio; damos una nueva forma de vivir tu historia.&rdquo;
+          </p>
+          <p className="mt-6 text-sm uppercase tracking-[0.28em] text-ink-muted">
+            Nuestra filosofía
+          </p>
+        </div>
+      </section>
+
+      {/* Cómo trabajamos */}
+      <section className="border-b border-edge">
+        <div className="mx-auto max-w-6xl px-6 py-24 lg:px-8">
+          <div className="max-w-2xl">
+            <p className="text-xs font-medium uppercase tracking-[0.32em] text-accent">Cómo trabajamos</p>
+            <h2 className="mt-4 font-serif text-3xl font-medium text-ink sm:text-4xl">
+              Un proceso por etapas, pensado para reducir tu riesgo.
+            </h2>
+          </div>
+
+          <div className="mt-14 grid gap-10 md:grid-cols-3">
+            {steps.map((step) => (
+              <div key={step.number} className="border-t border-edge pt-6">
+                <span className="font-serif text-4xl text-accent">{step.number}</span>
+                <h3 className="mt-4 text-lg font-semibold text-ink">{step.title}</h3>
+                <p className="mt-3 text-sm leading-7 text-ink-muted">{step.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pilares */}
+      <section className="border-b border-edge bg-surface-elevated">
+        <div className="mx-auto max-w-6xl px-6 py-24 lg:px-8">
+          <div className="max-w-2xl">
+            <p className="text-xs font-medium uppercase tracking-[0.32em] text-accent">Lo que nos guía</p>
+            <h2 className="mt-4 font-serif text-3xl font-medium text-ink sm:text-4xl">
+              Tres principios detrás de cada producción.
+            </h2>
+          </div>
+
+          <div className="mt-14 grid gap-6 md:grid-cols-3">
+            {pillars.map((pillar) => (
+              <div key={pillar.title} className="rounded-3xl border border-edge bg-surface p-8">
+                <h3 className="font-serif text-xl font-medium text-ink">{pillar.title}</h3>
+                <p className="mt-4 text-sm leading-7 text-ink-muted">{pillar.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Cierre */}
+      <section>
+        <div className="mx-auto max-w-4xl px-6 py-28 text-center lg:px-8">
+          <h2 className="font-serif text-3xl font-medium text-ink sm:text-4xl">
+            Tu historia recibirá una producción digna de ser escuchada.
           </h2>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-3">
-          {pillars.map((pillar) => (
-            <Card key={pillar.title} title={pillar.title} description={pillar.description} />
-          ))}
-        </div>
-      </section>
-
-      <section id="cotizacion" className="mx-auto max-w-7xl px-6 py-20 lg:px-8">
-        <Card className="border-amber-500/20 bg-gradient-to-br from-stone-950/90 to-stone-900/70">
-          <div className="grid gap-8 lg:grid-cols-[1fr_0.7fr] lg:items-center">
-            <div>
-              <p className="text-sm font-medium uppercase tracking-[0.32em] text-amber-400">Cierre de proyecto</p>
-              <h2 className="mt-3 text-3xl font-semibold text-white sm:text-4xl">
-                Tu libro merece una presentación sonora con identidad.
-              </h2>
-              <p className="mt-4 max-w-xl text-lg leading-8 text-stone-300">
-                Cuéntanos sobre tu obra y te devolvemos una propuesta clara, con alcance creativo, tiempos y presupuesto orientativo.
-              </p>
-            </div>
-
-            <div className="rounded-3xl border border-stone-800 bg-stone-950/70 p-5">
-              <div className="space-y-3">
-                <Input label="Nombre" placeholder="Tu nombre" />
-                <Input label="Correo" type="email" placeholder="correo@ejemplo.com" />
-                <Input label="Proyecto" placeholder="Título o idea" />
-                <Button variant="primary" className="w-full">
-                  Solicitar propuesta
-                </Button>
-              </div>
-            </div>
+          <p className="mx-auto mt-6 max-w-xl text-base leading-7 text-ink-muted">
+            Empieza con una muestra de bajo riesgo. Sin grandes compromisos, sin presión —
+            solo la calidad hablando por sí misma.
+          </p>
+          <div className="mt-9 flex flex-wrap items-center justify-center gap-4">
+            <Link href={routes.calculadora}>
+              <Button variant="primary">Calcular mi capítulo</Button>
+            </Link>
+            <Link href={routes.contacto}>
+              <Button variant="secondary">Hablar con el equipo</Button>
+            </Link>
           </div>
-        </Card>
+        </div>
       </section>
 
       <Footer />

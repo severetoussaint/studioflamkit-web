@@ -1,7 +1,8 @@
 import React from 'react';
+import { ThemeProvider } from '@/components/theme/ThemeProvider';
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return <ThemeProvider>{children}</ThemeProvider>;
 }
 
 export default Providers;

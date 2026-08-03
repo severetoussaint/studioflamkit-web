@@ -1,8 +1,32 @@
-/* Global styles placeholder — structure only */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  /* theme tokens will be defined in src/config/theme.ts */
+  --color-bg: #F7F3EA;
+  --color-bg-elevated: #FFFFFF;
+  --color-text: #17151A;
+  --color-text-muted: #5C564A;
+  --color-accent: #96723D;
+  --color-accent-hover: #7E5F32;
+  --color-border: #E3DBC7;
+  --color-night: #1C2333;
+}
+
+.dark {
+  --color-bg: #0A0A0C;
+  --color-bg-elevated: #18171A;
+  --color-text: #F3EEE3;
+  --color-text-muted: #ABA495;
+  --color-accent: #B08D57;
+  --color-accent-hover: #C6A46E;
+  --color-border: #2A2823;
+  --color-night: #141B2E;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-inter), sans-serif;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }

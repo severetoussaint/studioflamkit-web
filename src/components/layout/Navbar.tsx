@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { routes } from '@/config/routes';
 
 const links = [
@@ -12,22 +13,23 @@ const links = [
 
 export function Navbar() {
   return (
-    <header className="sticky top-0 z-20 border-b border-stone-800/80 bg-stone-950/80 backdrop-blur">
+    <header className="sticky top-0 z-20 border-b border-edge bg-surface/85 backdrop-blur">
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-        <Link href={routes.home} className="text-lg font-semibold tracking-[0.24em] text-white uppercase">
+        <Link href={routes.home} className="font-serif text-lg font-semibold tracking-[0.18em] text-ink uppercase">
           Studio Flamkit & Art
         </Link>
 
-        <div className="hidden items-center gap-6 text-sm text-stone-400 md:flex">
+        <div className="hidden items-center gap-6 text-sm text-ink-muted md:flex">
           {links.map((link) => (
-            <Link key={link.label} href={link.href} className="transition hover:text-white">
+            <Link key={link.label} href={link.href} className="transition hover:text-ink">
               {link.label}
             </Link>
           ))}
         </div>
 
         <div className="flex items-center gap-3">
-          <Link href={routes.dashboard} className="text-sm text-stone-300 transition hover:text-white">
+          <ThemeToggle />
+          <Link href={routes.dashboard} className="hidden text-sm text-ink-muted transition hover:text-ink sm:inline">
             Centro del Autor
           </Link>
           <Link href={routes.login} className="inline-flex">

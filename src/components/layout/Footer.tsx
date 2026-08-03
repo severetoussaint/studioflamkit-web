@@ -9,25 +9,25 @@ const institutionalLinks = [
 
 export function Footer() {
   return (
-    <footer className="border-t border-stone-800/80 bg-stone-950/80">
-      <div className="mx-auto flex max-w-7xl flex-col gap-8 px-6 py-10 text-sm text-stone-400 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+    <footer className="border-t border-edge bg-surface">
+      <div className="mx-auto flex max-w-7xl flex-col gap-8 px-6 py-10 text-sm text-ink-muted lg:flex-row lg:items-center lg:justify-between lg:px-8">
         <div>
-          <p className="text-base font-semibold uppercase tracking-[0.24em] text-white">Studio Flamkit & Art</p>
-          <p className="mt-2 max-w-xl text-sm leading-6 text-stone-400">
-            Producción sonora cinematográfica para autores que desean publicar una versión inmersiva de sus libros.
+          <p className="font-serif text-base font-semibold uppercase tracking-[0.18em] text-ink">Studio Flamkit & Art</p>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-ink-muted">
+            Ayudamos a autores independientes a convertir sus libros en experiencias de audio que amplían el alcance de su obra.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
           {institutionalLinks.map((link) => (
-            <Link key={link.label} href={link.href} className="transition hover:text-white">
+            <Link key={link.label} href={link.href} className="transition hover:text-ink">
               {link.label}
             </Link>
           ))}
         </div>
       </div>
 
-      <div className="border-t border-stone-800/70 px-6 py-4 text-center text-xs uppercase tracking-[0.24em] text-stone-500 lg:px-8">
+      <div className="border-t border-edge px-6 py-4 text-center text-xs uppercase tracking-[0.24em] text-ink-muted/70 lg:px-8">
         © 2026 Studio Flamkit & Art. Todos los derechos reservados.
       </div>
     </footer>
