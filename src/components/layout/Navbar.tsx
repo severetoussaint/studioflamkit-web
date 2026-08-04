@@ -105,9 +105,15 @@ export function Navbar() {
         {/* Brand Identity logo */}
         <Link 
           href={routes.home} 
-          className="font-serif text-base sm:text-lg font-semibold tracking-[0.16em] text-ink uppercase hover:text-accent transition duration-150"
+          className="flex items-center gap-2.5 font-serif text-base sm:text-lg font-semibold tracking-[0.16em] text-ink uppercase hover:text-accent transition duration-150"
         >
-          Studio Flamkit & Art
+          <img 
+            src="/logo.svg" 
+            alt="Studio Flamkit & Art" 
+            className="h-12 sm:h-16 w-auto object-contain rounded-md" 
+            referrerPolicy="no-referrer"
+          />
+          <span>Studio Flamkit & Art</span>
         </Link>
 
         {/* Navigation - Hidden when user is logged in */}

@@ -48,10 +48,27 @@ export async function signOut() {
   if (error) throw error;
 }
 
-export async function getUser() {
-  const { data, error } = await supabaseClient.auth.getUser();
-  if (error) throw error;
-  return data.user as AuthUser | null;
+export async function getUser(): Promise<AuthUser | null> {
+  try {
+    const {
+      data: { user },
+      error,
+    } = await supabaseClient.auth.getUser();
+
+    if (error) {
+      if (error.name === "AuthSessionMissingError") {
+        return null;
+      }
+
+      console.error(error);
+      return null;
+    }
+
+    return user as AuthUser | null;
+  } catch (err) {
+    console.error(err);
+    return null;
+  }
 }
 
 export function getUserRole(user: AuthUser | null | undefined): string | null {
