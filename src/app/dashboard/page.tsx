@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { getUser } from '@/services/auth.service';
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
 import {
@@ -47,6 +49,7 @@ import {
 import { Footer } from '@/components/layout/Footer';
 import { Navbar } from '@/components/layout/Navbar';
 import { Card } from '@/components/ui/Card';
+import { LoadingScreen } from '@/components/ui/LoadingScreen';
 
 type SectionId = 'resumen' | 'capitulos' | 'entregables' | 'pagos' | 'perfil';
 
@@ -180,6 +183,26 @@ function StatusPill({ status }: { status: string }) {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const [isChecking, setIsChecking] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function checkAuth() {
+      const u = await getUser();
+      if (!isMounted) return;
+      if (!u) {
+        router.replace('/login');
+      } else {
+        setIsChecking(false);
+      }
+    }
+    checkAuth();
+    return () => {
+      isMounted = false;
+    };
+  }, [router]);
+
   const [active, setActive] = useState<SectionId>('resumen');
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioProgress, setAudioProgress] = useState(35);
@@ -346,11 +369,16 @@ export default function DashboardPage() {
     }, 4000);
   };
 
+  if (isChecking) {
+    return <LoadingScreen message="Verificando acceso al Centro del Autor..." />;
+  }
+
   return (
     <main className="min-h-screen bg-surface text-ink transition-colors duration-200">
       <Navbar />
 
-      
+
+
       {/* Header Banner principal */}
       <div className="relative overflow-hidden border-b border-edge bg-surface-elevated">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_-10%,_var(--color-accent)_0%,_transparent_35%)] opacity-[0.14]" />
