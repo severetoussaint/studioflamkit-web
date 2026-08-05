@@ -26,6 +26,21 @@ export type UserProfileUpdate = Database['public']['Tables']['authors']['Update'
 export async function signIn(email: string, password: string) {
   const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
   if (error) throw error;
+
+  if (data?.user) {
+    try {
+      await upsertUserProfile({
+        id: data.user.id,
+        email: data.user.email || email,
+        full_name: data.user.user_metadata?.full_name || email.split('@')[0] || 'Autor',
+        role: 'author',
+        status: 'active'
+      });
+    } catch (upsertError) {
+      console.warn('Silent warning: Failed to upsert user profile on sign in:', upsertError);
+    }
+  }
+
   return data;
 }
 
@@ -40,6 +55,21 @@ export async function signUp(email: string, password: string, fullName: string) 
     },
   });
   if (error) throw error;
+
+  if (data?.user) {
+    try {
+      await upsertUserProfile({
+        id: data.user.id,
+        email: data.user.email || email,
+        full_name: data.user.user_metadata?.full_name || fullName || email.split('@')[0],
+        role: 'author',
+        status: 'active'
+      });
+    } catch (upsertError) {
+      console.warn('Silent warning: Failed to upsert user profile on sign up:', upsertError);
+    }
+  }
+
   return data;
 }
 

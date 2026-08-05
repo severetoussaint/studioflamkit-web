@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getUser } from '@/services/auth.service';
+import { getUser, upsertUserProfile } from '@/services/auth.service';
 import { getAuthorRequestState, submitManuscript, type AuthorRequestState } from '@/services/manuscript.service';
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
@@ -200,6 +200,19 @@ export default function DashboardPage() {
       }
       setAuthorId(u.id);
       try {
+        // Aseguramos que existe el perfil de autor en la base de datos
+        try {
+          await upsertUserProfile({
+            id: u.id,
+            email: u.email || '',
+            full_name: u.user_metadata?.full_name || u.email?.split('@')[0] || 'Autor',
+            role: 'author',
+            status: 'active'
+          });
+        } catch (upsertErr) {
+          console.warn('Silent warning: No se pudo asegurar el perfil del autor:', upsertErr);
+        }
+
         const state = await getAuthorRequestState(u.id);
         if (isMounted) setRequestState(state);
       } catch (err) {
