@@ -39,38 +39,49 @@ export interface SubmitManuscriptInput {
 }
 
 export async function submitManuscript({ authorId, title, wordCount, file }: SubmitManuscriptInput) {
-  // Generar un nombre de archivo puramente aleatorio o simple para descartar caracteres
-  const extension = file.name.split('.').pop() || 'pdf';
-  const path = `${authorId}/${Date.now()}.${extension}`;
+  try {
+    // Generar un nombre de archivo puramente aleatorio o simple para descartar caracteres
+    const extension = file.name.split('.').pop() || 'pdf';
+    const path = `${authorId}/${Date.now()}.${extension}`;
 
-  const { error: uploadError } = await supabaseClient.storage
-    .from('manuscripts')
-    .upload(path, file, { cacheControl: '3600', upsert: false });
-  if (uploadError) throw uploadError;
+    const { error: uploadError } = await supabaseClient.storage
+      .from('manuscripts')
+      .upload(path, file, { cacheControl: '3600', upsert: false });
+    if (uploadError) throw uploadError;
 
-  const { data: manuscript, error: manuscriptError } = await supabaseClient
-    .from('manuscripts')
-    .insert({
-      author_id: authorId,
-      title,
-      word_count: wordCount,
-      status: 'submitted',
-      original_file_path: path,
-    })
-    .select()
-    .single();
-  if (manuscriptError) throw manuscriptError;
+    const { data: manuscript, error: manuscriptError } = await supabaseClient
+      .from('manuscripts')
+      .insert({
+        author_id: authorId,
+        title,
+        word_count: wordCount,
+        status: 'submitted',
+        original_file_path: path,
+      })
+      .select()
+      .single();
+    if (manuscriptError) throw manuscriptError;
 
-  const manuscriptRow = manuscript as ManuscriptRow;
+    const manuscriptRow = manuscript as ManuscriptRow;
 
-  const { error: requestError } = await supabaseClient
-    .from('project_requests')
-    .insert({
-      manuscript_id: manuscriptRow.id,
-      channel: 'dashboard',
-      status: 'pending',
-    });
-  if (requestError) throw requestError;
+    const { error: requestError } = await supabaseClient
+      .from('project_requests')
+      .insert({
+        manuscript_id: manuscriptRow.id,
+        channel: 'dashboard',
+        status: 'pending',
+      });
+    if (requestError) throw requestError;
 
-  return manuscriptRow;
+    return manuscriptRow;
+  } catch (err) {
+    console.error('Error al enviar el manuscrito:', JSON.stringify(err, null, 2));
+    if (err && typeof err === 'object') {
+      console.error('message:', (err as any).message);
+      console.error('code:', (err as any).code);
+      console.error('details:', (err as any).details);
+      console.error('hint:', (err as any).hint);
+    }
+    throw err;
+  }
 }

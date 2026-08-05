@@ -308,7 +308,13 @@ export default function DashboardPage() {
         setRequestState('pending');
       }, 1500);
     } catch (err) {
-      console.error('Error al enviar el manuscrito', err);
+      console.error('Error al enviar el manuscrito:', JSON.stringify(err, null, 2));
+      if (err && typeof err === 'object') {
+        console.error('message:', (err as any).message);
+        console.error('code:', (err as any).code);
+        console.error('details:', (err as any).details);
+        console.error('hint:', (err as any).hint);
+      }
       setSubmitError('No se pudo enviar el manuscrito. Intenta de nuevo.');
     } finally {
       setUploadingState(false);
