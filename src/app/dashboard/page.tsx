@@ -203,7 +203,8 @@ export default function DashboardPage() {
         const state = await getAuthorRequestState(u.id);
         if (isMounted) setRequestState(state);
       } catch (err) {
-        console.error('No se pudo obtener el estado del autor', err);
+        // Mejoramos el log para ver el error real
+        console.error('Error detallado en getAuthorRequestState:', err);
       } finally {
         if (isMounted) setIsChecking(false);
       }

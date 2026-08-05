@@ -11,7 +11,10 @@ export async function getAuthorRequestState(authorId: string): Promise<AuthorReq
     .select('id')
     .eq('author_id', authorId)
     .limit(1);
-  if (projectsError) throw projectsError;
+  if (projectsError) {
+    console.error('DEBUG: Error en consulta de proyectos:', projectsError);
+    throw projectsError;
+  }
   if (projects && projects.length > 0) return 'active';
 
   const { data: manuscripts, error: manuscriptsError } = await supabaseClient
@@ -19,7 +22,10 @@ export async function getAuthorRequestState(authorId: string): Promise<AuthorReq
     .select('id')
     .eq('author_id', authorId)
     .limit(1);
-  if (manuscriptsError) throw manuscriptsError;
+  if (manuscriptsError) {
+    console.error('DEBUG: Error en consulta de manuscritos:', manuscriptsError);
+    throw manuscriptsError;
+  }
   if (manuscripts && manuscripts.length > 0) return 'pending';
 
   return 'none';
@@ -33,7 +39,9 @@ export interface SubmitManuscriptInput {
 }
 
 export async function submitManuscript({ authorId, title, wordCount, file }: SubmitManuscriptInput) {
-  const path = `${authorId}/${Date.now()}-${file.name}`;
+  // Generar un nombre de archivo puramente aleatorio o simple para descartar caracteres
+  const extension = file.name.split('.').pop() || 'pdf';
+  const path = `${authorId}/${Date.now()}.${extension}`;
 
   const { error: uploadError } = await supabaseClient.storage
     .from('manuscripts')
@@ -48,7 +56,7 @@ export async function submitManuscript({ authorId, title, wordCount, file }: Sub
       word_count: wordCount,
       status: 'submitted',
       original_file_path: path,
-    } as never)
+    })
     .select()
     .single();
   if (manuscriptError) throw manuscriptError;
@@ -61,7 +69,7 @@ export async function submitManuscript({ authorId, title, wordCount, file }: Sub
       manuscript_id: manuscriptRow.id,
       channel: 'dashboard',
       status: 'pending',
-    } as never);
+    });
   if (requestError) throw requestError;
 
   return manuscriptRow;
