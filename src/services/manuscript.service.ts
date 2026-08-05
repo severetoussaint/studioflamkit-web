@@ -1,0 +1,68 @@
+import { supabaseClient } from '@/lib/supabase/client';
+import type { Database } from '@/types/database.types';
+
+export type ManuscriptRow = Database['public']['Tables']['manuscripts']['Row'];
+
+export type AuthorRequestState = 'none' | 'pending' | 'active';
+
+export async function getAuthorRequestState(authorId: string): Promise<AuthorRequestState> {
+  const { data: projects, error: projectsError } = await supabaseClient
+    .from('projects')
+    .select('id')
+    .eq('author_id', authorId)
+    .limit(1);
+  if (projectsError) throw projectsError;
+  if (projects && projects.length > 0) return 'active';
+
+  const { data: manuscripts, error: manuscriptsError } = await supabaseClient
+    .from('manuscripts')
+    .select('id')
+    .eq('author_id', authorId)
+    .limit(1);
+  if (manuscriptsError) throw manuscriptsError;
+  if (manuscripts && manuscripts.length > 0) return 'pending';
+
+  return 'none';
+}
+
+export interface SubmitManuscriptInput {
+  authorId: string;
+  title: string;
+  wordCount: number;
+  file: File;
+}
+
+export async function submitManuscript({ authorId, title, wordCount, file }: SubmitManuscriptInput) {
+  const path = `${authorId}/${Date.now()}-${file.name}`;
+
+  const { error: uploadError } = await supabaseClient.storage
+    .from('manuscripts')
+    .upload(path, file, { cacheControl: '3600', upsert: false });
+  if (uploadError) throw uploadError;
+
+  const { data: manuscript, error: manuscriptError } = await supabaseClient
+    .from('manuscripts')
+    .insert({
+      author_id: authorId,
+      title,
+      word_count: wordCount,
+      status: 'submitted',
+      original_file_path: path,
+    } as never)
+    .select()
+    .single();
+  if (manuscriptError) throw manuscriptError;
+
+  const manuscriptRow = manuscript as ManuscriptRow;
+
+  const { error: requestError } = await supabaseClient
+    .from('project_requests')
+    .insert({
+      manuscript_id: manuscriptRow.id,
+      channel: 'dashboard',
+      status: 'pending',
+    } as never);
+  if (requestError) throw requestError;
+
+  return manuscriptRow;
+}

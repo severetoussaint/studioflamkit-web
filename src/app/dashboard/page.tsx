@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUser } from '@/services/auth.service';
+import { getAuthorRequestState, submitManuscript, type AuthorRequestState } from '@/services/manuscript.service';
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
 import {
@@ -185,6 +186,8 @@ function StatusPill({ status }: { status: string }) {
 export default function DashboardPage() {
   const router = useRouter();
   const [isChecking, setIsChecking] = useState(true);
+  const [authorId, setAuthorId] = useState<string | null>(null);
+  const [requestState, setRequestState] = useState<AuthorRequestState>('none');
 
   useEffect(() => {
     let isMounted = true;
@@ -193,8 +196,16 @@ export default function DashboardPage() {
       if (!isMounted) return;
       if (!u) {
         router.replace('/login');
-      } else {
-        setIsChecking(false);
+        return;
+      }
+      setAuthorId(u.id);
+      try {
+        const state = await getAuthorRequestState(u.id);
+        if (isMounted) setRequestState(state);
+      } catch (err) {
+        console.error('No se pudo obtener el estado del autor', err);
+      } finally {
+        if (isMounted) setIsChecking(false);
       }
     }
     checkAuth();
@@ -206,9 +217,9 @@ export default function DashboardPage() {
   const [active, setActive] = useState<SectionId>('resumen');
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioProgress, setAudioProgress] = useState(35);
-  
-  // Estado para alternar entre vista con datos demo y estado de Nuevo Autor (sin obra activa)
-  const [hasActiveProject, setHasActiveProject] = useState<boolean>(false);
+
+  // hasActiveProject ahora se deriva del estado REAL (requestState), no de un switch manual
+  const hasActiveProject = requestState === 'active';
 
   // Estado del modal de subida de manuscrito
   const [uploaderModalOpen, setUploaderModalOpen] = useState(false);
@@ -252,37 +263,55 @@ export default function DashboardPage() {
     { id: 'perfil', label: 'Perfil & Preferencias', icon: Settings },
   ];
 
-  // Simulación de carga de archivo
-  const handleFileSelect = (fileName: string, fileSize: string) => {
-    setUploadingState(true);
-    setUploadProgress(0);
-    const interval = setInterval(() => {
-      setUploadProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setUploadingState(false);
-          setUploadedFile({
-            name: fileName,
-            size: fileSize,
-            wordCount: '~45,200 palabras estimadas',
-          });
-          return 100;
-        }
-        return prev + 25;
-      });
-    }, 200);
+  // Archivo real seleccionado, en espera de que el autor confirme palabras y titulo
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [manuscriptTitle, setManuscriptTitle] = useState('');
+  const [manuscriptWordCount, setManuscriptWordCount] = useState('');
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const handleFileSelect = (fileName: string, fileSize: string, file?: File) => {
+    if (file) setPendingFile(file);
+    setUploadedFile({ name: fileName, size: fileSize, wordCount: '' });
   };
 
-  // Enviar manuscrito para cotizar
-  const handleSubmitManuscript = () => {
-    setUploadSubmitted(true);
-    setTimeout(() => {
-      setUploaderModalOpen(false);
-      setUploadSubmitted(false);
-      setUploadedFile(null);
-      // Opcionalmente activamos la vista demo para mostrar cómo evoluciona
-      setHasActiveProject(true);
-    }, 2000);
+  // Enviar manuscrito real: sube el archivo y crea las filas reales en Supabase
+  const handleSubmitManuscript = async () => {
+    if (!authorId || !pendingFile) {
+      setSubmitError('Falta el archivo o no hay sesion activa.');
+      return;
+    }
+    const wordCountNumber = Number(manuscriptWordCount);
+    if (!manuscriptTitle.trim() || !wordCountNumber || wordCountNumber <= 0) {
+      setSubmitError('Completa el titulo y un numero de palabras valido.');
+      return;
+    }
+
+    setSubmitError(null);
+    setUploadingState(true);
+
+    try {
+      await submitManuscript({
+        authorId,
+        title: manuscriptTitle.trim(),
+        wordCount: wordCountNumber,
+        file: pendingFile,
+      });
+      setUploadSubmitted(true);
+      setTimeout(() => {
+        setUploaderModalOpen(false);
+        setUploadSubmitted(false);
+        setUploadedFile(null);
+        setPendingFile(null);
+        setManuscriptTitle('');
+        setManuscriptWordCount('');
+        setRequestState('pending');
+      }, 1500);
+    } catch (err) {
+      console.error('Error al enviar el manuscrito', err);
+      setSubmitError('No se pudo enviar el manuscrito. Intenta de nuevo.');
+    } finally {
+      setUploadingState(false);
+    }
   };
 
   // Agregar comentario en la revisión
@@ -400,17 +429,33 @@ export default function DashboardPage() {
               </div>
 
               <h1 className="mt-3 font-serif text-3xl font-medium tracking-tight text-ink sm:text-4xl lg:text-5xl">
-                {hasActiveProject ? 'El jardín de las sombras' : 'Bienvenido a Studio Flamkit'}
+                {requestState === 'active'
+                  ? 'El jardín de las sombras'
+                  : requestState === 'pending'
+                  ? 'Tu manuscrito esta en evaluacion'
+                  : 'Bienvenido a Studio Flamkit'}
               </h1>
               <p className="mt-2 text-sm leading-relaxed text-ink-muted sm:text-base max-w-2xl">
-                {hasActiveProject
+                {requestState === 'active'
                   ? 'Supervisa el proceso de producción audiocinematográfica, escucha avances de capítulos y gestiona entregables de tu obra.'
+                  : requestState === 'pending'
+                  ? 'Recibimos tu manuscrito. Nuestro equipo lo esta evaluando y te avisaremos en cuanto tengamos una propuesta.'
                   : 'Tu espacio exclusivo para llevar tu libro a la vida en formato audiocinematográfico con producción sonora profesional.'}
               </p>
             </div>
 
             {/* Tarjeta rápida de estado en header */}
-            {hasActiveProject ? (
+            {requestState === 'pending' ? (
+              <div className="shrink-0 rounded-2xl border border-accent/30 bg-accent/5 p-5 shadow-sm lg:w-80">
+                <div className="flex items-center gap-2 text-accent">
+                  <Clock className="h-4 w-4" />
+                  <span className="text-xs font-semibold uppercase tracking-wider">En evaluacion</span>
+                </div>
+                <p className="mt-2 text-xs text-ink-muted leading-relaxed">
+                  Tu manuscrito ya fue recibido. Te contactaremos con la propuesta de produccion.
+                </p>
+              </div>
+            ) : hasActiveProject ? (
               <div className="shrink-0 rounded-2xl border border-edge bg-surface p-4 shadow-sm lg:w-72">
                 <div className="flex items-center justify-between text-xs text-ink-muted">
                   <span>Progreso General</span>
@@ -1344,7 +1389,7 @@ export default function DashboardPage() {
                       e.preventDefault();
                       setDragOver(false);
                       const file = e.dataTransfer.files[0];
-                      if (file) handleFileSelect(file.name, `${(file.size / 1024 / 1024).toFixed(1)} MB`);
+                      if (file) handleFileSelect(file.name, `${(file.size / 1024 / 1024).toFixed(1)} MB`, file);
                     }}
                     className={`flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center transition ${
                       dragOver
@@ -1367,7 +1412,7 @@ export default function DashboardPage() {
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
-                        if (file) handleFileSelect(file.name, `${(file.size / 1024 / 1024).toFixed(1)} MB`);
+                        if (file) handleFileSelect(file.name, `${(file.size / 1024 / 1024).toFixed(1)} MB`, file);
                       }}
                     />
 
@@ -1412,6 +1457,32 @@ export default function DashboardPage() {
                       >
                         Quitar
                       </button>
+                    </div>
+                  )}
+
+                  {uploadedFile && !uploadSubmitted && (
+                    <div className="mt-4 space-y-3">
+                      <div>
+                        <label className="text-xs uppercase tracking-wider text-ink-muted">Titulo de la obra</label>
+                        <input
+                          type="text"
+                          value={manuscriptTitle}
+                          onChange={(e) => setManuscriptTitle(e.target.value)}
+                          placeholder="El titulo de tu libro"
+                          className="mt-1 w-full rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs uppercase tracking-wider text-ink-muted">Numero de palabras aproximado</label>
+                        <input
+                          type="number"
+                          value={manuscriptWordCount}
+                          onChange={(e) => setManuscriptWordCount(e.target.value)}
+                          placeholder="Ej. 45000"
+                          className="mt-1 w-full rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink"
+                        />
+                      </div>
+                      {submitError && <p className="text-xs text-red-400">{submitError}</p>}
                     </div>
                   )}
 
