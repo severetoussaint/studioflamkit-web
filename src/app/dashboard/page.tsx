@@ -89,72 +89,13 @@ interface InvoiceItem {
   pdfAvailable: boolean;
 }
 
-const initialChapters: ChapterItem[] = [
-  {
-    id: 'chap-1',
-    title: 'Capítulo 1: La llamada del crepúsculo',
-    progress: 85,
-    revisions: 1,
-    maxRevisions: 2,
-    status: 'Produccion',
-    paymentStatus: 'Pagado',
-    price: 130,
-    words: '3,200 palabras',
-    duration: '22 min',
-  },
-  {
-    id: 'chap-2',
-    title: 'Capítulo 2: El secreto entre árboles',
-    progress: 62,
-    revisions: 2,
-    maxRevisions: 2,
-    status: 'Revisiones',
-    paymentStatus: 'Pagado',
-    price: 130,
-    words: '2,850 palabras',
-    duration: '19 min',
-  },
-  {
-    id: 'chap-3',
-    title: 'Capítulo 3: Ecos en la penumbra',
-    progress: 100,
-    revisions: 0,
-    maxRevisions: 2,
-    status: 'Completado',
-    paymentStatus: 'Pendiente',
-    price: 130,
-    words: '4,100 palabras',
-    duration: '29 min',
-  },
-];
+const initialChapters: ChapterItem[] = [];
 
-const initialComments: Record<string, CommentItem[]> = {
-  'chap-1': [
-    { id: 'c1', author: 'Productor', text: 'Subida la mezcla preliminar del Capítulo 1 con ambiente nocturno y ecualización de voz limpia.', timecode: '00:00', date: '10 jul 2026, 10:30' },
-    { id: 'c2', author: 'Autor', text: '¡Excelente entonación! Solo pido atenuar un poco la música al minuto 04:12.', timecode: '04:12', date: '11 jul 2026, 16:45' },
-    { id: 'c3', author: 'Productor', text: 'Ajuste realizado y procesado en la toma master.', timecode: '04:12', date: '12 jul 2026, 09:15' },
-  ],
-  'chap-2': [
-    { id: 'c4', author: 'Productor', text: 'Muestra preliminar enviada para revisión de cadencia en diálogos secundario.', timecode: '02:30', date: '17 jul 2026, 11:00' },
-    { id: 'c5', author: 'Autor', text: 'Revisión #1: La risa en 08:45 suena muy lejana, ¿se puede acercar al micrófono frontal?', timecode: '08:45', date: '18 jul 2026, 14:20' },
-    { id: 'c6', author: 'Autor', text: 'Revisión #2: Por favor revisar el susurro al minuto 12:10.', timecode: '12:10', date: '19 jul 2026, 18:00' },
-  ],
-  'chap-3': [
-    { id: 'c7', author: 'Productor', text: 'Edición y mezcla final terminada. Capítulo listo para aprobación y descarga final.', timecode: '00:00', date: '22 jul 2026, 15:00' },
-  ],
-};
+const initialComments: Record<string, CommentItem[]> = {};
 
-const deliverables = [
-  { title: 'Versión de prueba (Master preliminar)', date: '12 jul 2026', size: '42.5 MB', format: 'WAV 24-bit' },
-  { title: 'Muestra de audio 01 - Atmósfera sonora', date: '20 jul 2026', size: '18.2 MB', format: 'MP3 320kbps' },
-  { title: 'Entrega final lista para publicación', date: 'Pendiente', size: '--', format: 'Master DDP/FLAC' },
-];
+const deliverables: { title: string; date: string; size: string; format: string }[] = [];
 
-const invoicesList: InvoiceItem[] = [
-  { id: '#INV-2026-001', date: '10 jul 2026', concept: 'Capítulo 1: La llamada del crepúsculo', method: 'PayPal (autor@ejemplo.com)', amount: '$130.00', status: 'Pagado', pdfAvailable: true },
-  { id: '#INV-2026-002', date: '18 jul 2026', concept: 'Capítulo 2: El secreto entre árboles', method: 'Transferencia Bancaria (IBAN)', amount: '$130.00', status: 'Pagado', pdfAvailable: true },
-  { id: '#INV-2026-003', date: '22 jul 2026', concept: 'Capítulo 3: Ecos en la penumbra', method: 'PayPal (autor@ejemplo.com)', amount: '$130.00', status: 'Pendiente', pdfAvailable: false },
-];
+const invoicesList: InvoiceItem[] = [];
 
 const productionSteps = [
   { title: 'Análisis editorial', status: 'Completado', desc: 'Ajuste de guion y tono dramático' },
@@ -316,8 +257,8 @@ export default function DashboardPage() {
   const sections: { id: SectionId; label: string; icon: React.ElementType; badge?: string }[] = [
     { id: 'resumen', label: 'Resumen', icon: LayoutDashboard },
     { id: 'capitulos', label: 'Capítulos', icon: BookOpen, badge: hasActiveProject ? `${chaptersState.length}` : undefined },
-    { id: 'entregables', label: 'Entregables', icon: Download, badge: hasActiveProject ? '3' : undefined },
-    { id: 'pagos', label: 'Pagos & Facturas', icon: Wallet, badge: hasActiveProject ? '1 Pend.' : undefined },
+    { id: 'entregables', label: 'Entregables', icon: Download },
+    { id: 'pagos', label: 'Pagos & Facturas', icon: Wallet },
     { id: 'perfil', label: 'Perfil & Preferencias', icon: Settings },
   ];
 
@@ -698,186 +639,12 @@ export default function DashboardPage() {
                         </Link>
                       </div>
                     </Card>
-
-                    {/* Explicación del flujo de producción */}
-                    <Card title="¿Cómo funciona el proceso?" description="Pasos claros desde el manuscrito hasta el master publicado.">
-                      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                        {productionSteps.map((step, idx) => (
-                          <div key={step.title} className="rounded-2xl border border-edge bg-surface p-4">
-                            <span className="font-serif text-xs font-medium text-accent">Paso 0{idx + 1}</span>
-                            <h4 className="mt-2 text-sm font-semibold text-ink">{step.title}</h4>
-                            <p className="mt-1 text-xs leading-relaxed text-ink-muted">{step.desc}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </Card>
                   </div>
                 ) : (
-                  /* Estado activo con proyecto en producción */
-                  <>
-                    {/* Reproductor de muestra destacado en el resumen */}
-                    <Card className="border-accent/30 bg-gradient-to-br from-surface-elevated via-surface-elevated to-accent/5">
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-accent/30 bg-accent/10 text-accent shadow-inner">
-                            <Headphones className="h-6 w-6" />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-semibold uppercase tracking-wider text-accent">
-                                Muestra Reciente
-                              </span>
-                              <span className="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] text-accent">
-                                WAV 24-bit
-                              </span>
-                            </div>
-                            <h3 className="mt-0.5 text-base font-semibold text-ink">
-                              Capítulo 1: La llamada del crepúsculo (Mezcla preliminar)
-                            </h3>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedChapter(chaptersState[0])}
-                            className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-edge bg-surface px-4 py-2.5 text-xs font-medium text-ink transition hover:border-accent/40 hover:text-accent cursor-pointer"
-                          >
-                            <MessageSquare className="h-3.5 w-3.5 text-accent" />
-                            <span>Revisar & Chat</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={togglePlay}
-                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-5 py-2.5 text-xs font-medium text-surface transition hover:bg-accent-hover shadow-sm cursor-pointer"
-                          >
-                            {isPlaying ? (
-                              <>
-                                <Pause className="h-4 w-4" fill="currentColor" />
-                                <span>Pausar Muestra</span>
-                              </>
-                            ) : (
-                              <>
-                                <Play className="h-4 w-4" fill="currentColor" />
-                                <span>Reproducir Muestra</span>
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Barra de progreso de audio interactiva */}
-                      <div className="mt-5 rounded-2xl border border-edge bg-surface p-4">
-                        <div className="flex items-center justify-between text-xs text-ink-muted">
-                          <span className="font-mono text-ink">04:12</span>
-                          <div className="flex items-center gap-1.5 text-accent">
-                            <Volume2 className="h-3.5 w-3.5" />
-                            <span className="text-[11px]">Audio de alta fidelidad</span>
-                          </div>
-                          <span className="font-mono text-ink-muted">12:15</span>
-                        </div>
-
-                        <div
-                          className="relative mt-2.5 h-3 w-full cursor-pointer overflow-hidden rounded-full bg-surface-elevated border border-edge/60"
-                          onClick={(e) => {
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            const clickX = e.clientX - rect.left;
-                            const pct = Math.round((clickX / rect.width) * 100);
-                            setAudioProgress(Math.max(0, Math.min(100, pct)));
-                          }}
-                        >
-                          <div
-                            className="h-full bg-accent transition-all duration-150 rounded-full"
-                            style={{ width: `${audioProgress}%` }}
-                          />
-                        </div>
-                      </div>
-                    </Card>
-
-                    {/* Grilla de Métricas clave */}
-                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                      <Card>
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs font-medium uppercase tracking-wider text-ink-muted">Estado Actual</p>
-                          <ShieldCheck className="h-4 w-4 text-accent" />
-                        </div>
-                        <p className="mt-2 text-xl font-semibold text-ink">En Producción</p>
-                        <p className="mt-1 text-xs text-ink-muted">
-                          Locución y edición sonora en curso por el equipo editorial.
-                        </p>
-                      </Card>
-
-                      <Card>
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs font-medium uppercase tracking-wider text-ink-muted">Progreso General</p>
-                          <Sparkles className="h-4 w-4 text-accent" />
-                        </div>
-                        <p className="mt-2 text-xl font-semibold text-ink">74% Completado</p>
-                        <p className="mt-1 text-xs text-ink-muted">
-                          Capítulo 3 pendiente de revisión técnica final.
-                        </p>
-                      </Card>
-
-                      <Card className="sm:col-span-2 lg:col-span-1">
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs font-medium uppercase tracking-wider text-ink-muted">Límite de Revisiones</p>
-                          <FileText className="h-4 w-4 text-accent" />
-                        </div>
-                        <p className="mt-2 text-xl font-semibold text-ink">2 por Capítulo</p>
-                        <p className="mt-1 text-xs text-ink-muted">
-                          Garantiza un flujo de producción ágil y estructurado.
-                        </p>
-                      </Card>
-                    </div>
-
-                    {/* Línea de tiempo de producción */}
-                    <Card title="Etapas de Producción" description="Progreso por fase del proyecto de audiolibro.">
-                      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                        {productionSteps.map((step, idx) => {
-                          const isComplete = step.status === 'Completado';
-                          const isInProgress = step.status === 'En curso';
-                          return (
-                            <div
-                              key={step.title}
-                              className={`relative rounded-2xl border p-4 transition ${
-                                isComplete
-                                  ? 'border-accent/40 bg-accent/5'
-                                  : isInProgress
-                                  ? 'border-amber-500/40 bg-amber-500/5'
-                                  : 'border-edge bg-surface'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="font-serif text-xs font-medium text-accent">Paso 0{idx + 1}</span>
-                                {isComplete ? (
-                                  <CheckCircle2 className="h-4 w-4 text-accent" />
-                                ) : isInProgress ? (
-                                  <span className="h-2 w-2 rounded-full bg-amber-500 animate-ping" />
-                                ) : (
-                                  <Clock className="h-4 w-4 text-ink-muted" />
-                                )}
-                              </div>
-                              <h4 className="mt-3 text-sm font-semibold text-ink">{step.title}</h4>
-                              <p className="mt-1 text-xs text-ink-muted leading-relaxed">{step.desc}</p>
-                              <div className="mt-3">
-                                <span
-                                  className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                                    isComplete
-                                      ? 'bg-accent/15 text-accent'
-                                      : isInProgress
-                                      ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
-                                      : 'bg-surface-elevated text-ink-muted border border-edge'
-                                  }`}
-                                >
-                                  {step.status}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </Card>
-                  </>
+                  /* Estado activo con proyecto en producción (placeholder para datos reales) */
+                  <div className="rounded-2xl border border-dashed border-edge bg-surface p-8 text-center">
+                    <p className="text-ink-muted">Resumen del proyecto en construcción.</p>
+                  </div>
                 )}
               </div>
             )}
@@ -1093,120 +860,23 @@ export default function DashboardPage() {
                   ) : (
                     <>
                       {/* Resumen financiero en la parte superior */}
-                      <div className="mb-6 grid gap-4 sm:grid-cols-3">
-                        <div className="rounded-2xl border border-edge bg-surface p-4">
-                          <p className="text-xs uppercase tracking-wider text-ink-muted">Inversión Total</p>
-                          <p className="mt-1 text-xl font-semibold text-ink">$390.00</p>
-                        </div>
-                        <div className="rounded-2xl border border-accent/30 bg-accent/5 p-4">
-                          <p className="text-xs uppercase tracking-wider text-accent">Total Pagado</p>
-                          <p className="mt-1 text-xl font-semibold text-accent">$260.00</p>
-                        </div>
-                        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
-                          <p className="text-xs uppercase tracking-wider text-amber-600 dark:text-amber-400">Pendiente</p>
-                          <p className="mt-1 text-xl font-semibold text-amber-600 dark:text-amber-400">$130.00</p>
-                        </div>
-                      </div>
+                {/* Aquí se cargarán los datos financieros reales del proyecto */}
 
-                      <div className="space-y-3">
-                        {chaptersState.map((chap) => (
-                          <div
-                            key={chap.id}
-                            className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-edge bg-surface-elevated p-4 transition hover:border-accent/40"
-                          >
-                            <div className="flex items-center gap-3.5">
-                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-edge bg-surface text-accent">
-                                <Wallet className="h-5 w-5" strokeWidth={1.75} />
-                              </div>
-                              <div>
-                                <p className="text-sm font-semibold text-ink">{chap.title}</p>
-                                <p className="mt-0.5 text-xs text-ink-muted">
-                                  {chap.paymentStatus === 'Pagado' ? 'Factura emitida y saldada' : 'Listo para pago al completar revisión'}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-4">
-                              <span className="text-base font-semibold text-ink">${chap.price}.00</span>
-                              <StatusPill status={chap.paymentStatus} />
-
-                              {chap.paymentStatus === 'Pendiente' ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setPayingChapter(chap)}
-                                  className="inline-flex items-center gap-1.5 rounded-xl bg-accent px-3.5 py-1.5 text-xs font-medium text-surface transition hover:bg-accent-hover shadow-sm cursor-pointer"
-                                >
-                                  <DollarSign className="h-3.5 w-3.5" />
-                                  <span>Pagar Ahora</span>
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => setSelectedChapter(chap)}
-                                  className="inline-flex items-center gap-1 rounded-xl border border-edge bg-surface px-3 py-1.5 text-xs text-ink-muted hover:text-accent cursor-pointer"
-                                >
-                                  <Eye className="h-3.5 w-3.5" />
-                                  <span>Ver Audio</span>
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </Card>
-
-                {/* TABLA DE HISTORIAL DE FACTURAS */}
-                <Card title="Historial de Facturación" description="Tabla completa de comprobantes, recibos y facturas oficiales emitidas.">
-                  <div className="mt-4 overflow-x-auto">
-                    <table className="w-full text-left text-xs text-ink">
-                      <thead>
-                        <tr className="border-b border-edge/80 text-[11px] font-semibold uppercase tracking-wider text-ink-muted bg-surface/50">
-                          <th className="px-4 py-3">ID Factura</th>
-                          <th className="px-4 py-3">Fecha</th>
-                          <th className="px-4 py-3">Concepto</th>
-                          <th className="px-4 py-3">Método de Pago</th>
-                          <th className="px-4 py-3">Monto</th>
-                          <th className="px-4 py-3">Estado</th>
-                          <th className="px-4 py-3 text-right">Acción</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-edge/50">
-                        {invoicesList.map((inv) => (
-                          <tr key={inv.id} className="hover:bg-surface/60 transition-colors">
-                            <td className="px-4 py-3.5 font-mono font-medium text-accent">{inv.id}</td>
-                            <td className="px-4 py-3.5 text-ink-muted">{inv.date}</td>
-                            <td className="px-4 py-3.5 font-medium">{inv.concept}</td>
-                            <td className="px-4 py-3.5 text-ink-muted">{inv.method}</td>
-                            <td className="px-4 py-3.5 font-semibold text-ink">{inv.amount}</td>
-                            <td className="px-4 py-3.5">
-                              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
-                                inv.status === 'Pagado'
-                                  ? 'bg-accent/15 text-accent border border-accent/30'
-                                  : 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30'
-                              }`}>
-                                {inv.status}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3.5 text-right">
-                              <button
-                                type="button"
-                                onClick={() => setViewInvoice(inv)}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-edge bg-surface px-2.5 py-1 text-xs font-medium text-ink transition hover:border-accent/40 hover:text-accent cursor-pointer"
-                              >
-                                <FileText className="h-3.5 w-3.5 text-accent" />
-                                <span>Detalle</span>
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </Card>
-              </div>
+                <div className="space-y-3">
+                  {/* Aquí se listarán los capítulos con su estado de pago real */}
+                </div>
+              </>
             )}
+          </Card>
+
+          {/* TABLA DE HISTORIAL DE FACTURAS */}
+          <Card title="Historial de Facturación" description="Tabla completa de comprobantes, recibos y facturas oficiales emitidas.">
+            <div className="mt-4 overflow-x-auto">
+              {/* Aquí se listará el historial de facturas reales */}
+            </div>
+          </Card>
+        </div>
+      )}
 
             {active === 'perfil' && (
               <Card title="Perfil de Autor & Configuración" description="Gestiona tu método de pago preferido y el formato de entregables finales para tu obra.">
