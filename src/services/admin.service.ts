@@ -1,15 +1,9 @@
+import { supabaseClient } from '@/lib/supabase/client';
+
+// ─── Tipos (mismos nombres que antes para no tocar admin/page.tsx) ────────────
+
 export type AdminProjectStatus = 'analisis' | 'produccion' | 'revisiones' | 'completado';
 export type QuotationRequestStatus = 'pendiente' | 'aprobada' | 'en_revision';
-
-export interface QuotationRequest {
-  id: string;
-  client: string;
-  title: string;
-  requestedAt: string;
-  status: QuotationRequestStatus;
-  chapters: number;
-  amount: number;
-}
 
 export interface AudioDeliverableComment {
   id: string;
@@ -27,6 +21,19 @@ export interface AudioDeliverable {
   comments?: AudioDeliverableComment[];
 }
 
+export interface QuotationRequest {
+  id: string;
+  client: string;
+  title: string;
+  requestedAt: string;
+  status: QuotationRequestStatus;
+  chapters: number;
+  amount: number;
+  // IDs reales de Supabase (opcionales para compat hacia atras)
+  manuscript_id?: string;
+  author_id?: string;
+}
+
 export interface AdminProject {
   id: string;
   title: string;
@@ -41,354 +48,315 @@ export interface AdminProject {
   lastUpdate: string;
 }
 
-const initialQuotationRequests: QuotationRequest[] = [
-  {
-    id: 'rq-001',
-    client: 'Mara Solís',
-    title: 'Cotización novela juvenil',
-    requestedAt: '2026-07-21',
-    status: 'pendiente',
-    chapters: 8,
-    amount: 2400,
-  },
-  {
-    id: 'rq-002',
-    client: 'Andrés Vega',
-    title: 'Audiolibro de historia',
-    requestedAt: '2026-07-24',
-    status: 'en_revision',
-    chapters: 5,
-    amount: 1800,
-  },
-  {
-    id: 'rq-003',
-    client: 'Elena Ruiz',
-    title: 'Proyecto documental',
-    requestedAt: '2026-07-26',
-    status: 'aprobada',
-    chapters: 3,
-    amount: 1280,
-  },
-];
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const initialProjects: AdminProject[] = [
-  {
-    id: 'pr-001',
-    title: 'El jardín de las sombras',
-    client: 'Mara Solís',
-    status: 'produccion',
-    progress: 74,
-    revisionsUsed: 1,
-    maxRevisions: 2,
-    chapters: 8,
-    amount: 2400,
-    deliverables: [
-      { 
-        id: 'dl-001', 
-        title: 'Capítulo 1 - Mezcla inicial', 
-        completed: true, 
-        updatedAt: '2026-07-22',
-        audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-        comments: [
-          { id: 'c-1', sender: 'client', text: 'Me encanta la música de fondo al inicio.', timestamp: '14:23' },
-          { id: 'c-2', sender: 'admin', text: '¡Excelente! Mantendremos ese tono en toda la obra.', timestamp: '15:10' }
-        ]
-      },
-      { 
-        id: 'dl-002', 
-        title: 'Muestra de efectos sonoros 01', 
-        completed: false, 
-        updatedAt: '2026-07-27',
-        audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-        comments: [
-          { id: 'c-3', sender: 'client', text: '¿Podríamos atenuar un poco el sonido del viento?', timestamp: '10:05' }
-        ]
-      },
-      { 
-        id: 'dl-003', 
-        title: 'Capítulo 2 - Audio procesado', 
-        completed: false, 
-        updatedAt: '2026-07-29',
-        audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
-        comments: []
-      },
-    ],
-    lastUpdate: '2026-07-29',
-  },
-  {
-    id: 'pr-002',
-    title: 'Sueños de medianoche',
-    client: 'Andrés Vega',
-    status: 'revisiones',
-    progress: 58,
-    revisionsUsed: 2,
-    maxRevisions: 3,
-    chapters: 5,
-    amount: 1800,
-    deliverables: [
-      { 
-        id: 'dl-004', 
-        title: 'Retoque de mezcla - Prólogo', 
-        completed: true, 
-        updatedAt: '2026-07-25',
-        audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
-        comments: [
-          { id: 'c-4', sender: 'client', text: 'La voz suena muy limpia ahora.', timestamp: '18:12' }
-        ]
-      },
-      { 
-        id: 'dl-005', 
-        title: 'Versión final - Compilado Completo', 
-        completed: false, 
-        updatedAt: '2026-07-28',
-        audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3',
-        comments: []
-      },
-    ],
-    lastUpdate: '2026-07-28',
-  },
-];
-
-const isBrowser = typeof window !== 'undefined';
-
-function loadState<T>(key: string, defaultValue: T): T {
-  if (!isBrowser) return defaultValue;
-  try {
-    const item = window.localStorage.getItem(key);
-    return item ? JSON.parse(item) : defaultValue;
-  } catch (error) {
-    console.error('Error loading state from localStorage', error);
-    return defaultValue;
-  }
+function dbStatusToAdmin(dbStatus: string | null): AdminProjectStatus {
+  const map: Record<string, AdminProjectStatus> = {
+    planning: 'analisis',
+    production: 'produccion',
+    review: 'revisiones',
+    completed: 'completado',
+    archived: 'completado',
+  };
+  return map[dbStatus ?? ''] ?? 'analisis';
 }
 
-function saveState<T>(key: string, value: T): void {
-  if (!isBrowser) return;
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value));
-  } catch (error) {
-    console.error('Error saving state to localStorage', error);
-  }
+function adminStatusToDb(status: AdminProjectStatus): string {
+  const map: Record<AdminProjectStatus, string> = {
+    analisis: 'planning',
+    produccion: 'production',
+    revisiones: 'review',
+    completado: 'completed',
+  };
+  return map[status];
 }
 
-let quotationRequestsState: QuotationRequest[] = [];
-let projectsState: AdminProject[] = [];
+function getProgressByStatus(status: AdminProjectStatus): number {
+  const map: Record<AdminProjectStatus, number> = {
+    analisis: 25,
+    produccion: 74,
+    revisiones: 82,
+    completado: 100,
+  };
+  return map[status];
+}
 
-if (isBrowser) {
-  quotationRequestsState = loadState('admin_quotation_requests', initialQuotationRequests);
-  projectsState = loadState('admin_projects', initialProjects);
-} else {
-  quotationRequestsState = initialQuotationRequests.map((request) => ({ ...request }));
-  projectsState = initialProjects.map((project) => ({
-    ...project,
-    deliverables: project.deliverables.map((deliverable) => ({ ...deliverable })),
+function dbRequestStatusToAdmin(dbStatus: string | null): QuotationRequestStatus {
+  const map: Record<string, QuotationRequestStatus> = {
+    pending: 'pendiente',
+    evaluating: 'en_revision',
+    accepted: 'aprobada',
+    rejected: 'aprobada',
+    canceled: 'aprobada',
+  };
+  return map[dbStatus ?? ''] ?? 'pendiente';
+}
+
+function adminRequestStatusToDb(status: QuotationRequestStatus): string {
+  const map: Record<QuotationRequestStatus, string> = {
+    pendiente: 'pending',
+    en_revision: 'evaluating',
+    aprobada: 'accepted',
+  };
+  return map[status];
+}
+
+// ─── SOLICITUDES (project_requests + manuscripts + authors) ───────────────────
+
+export async function listQuotationRequests(): Promise<QuotationRequest[]> {
+  const { data, error } = await supabaseClient
+    .from('project_requests')
+    .select(`
+      id,
+      status,
+      created_at,
+      channel,
+      manuscripts (
+        id,
+        title,
+        word_count,
+        author_id,
+        authors ( full_name )
+      )
+    `)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('listQuotationRequests error:', JSON.stringify(error));
+    throw error;
+  }
+
+  return (data ?? []).map((row: any) => ({
+    id: row.id,
+    client: row.manuscripts?.authors?.full_name ?? 'Autor desconocido',
+    title: row.manuscripts?.title ?? 'Sin titulo',
+    requestedAt: (row.created_at ?? '').slice(0, 10),
+    status: dbRequestStatusToAdmin(row.status),
+    chapters: 1,
+    amount: 0,
+    manuscript_id: row.manuscripts?.id,
+    author_id: row.manuscripts?.author_id,
   }));
 }
 
-const syncStorage = () => {
-  saveState('admin_quotation_requests', quotationRequestsState);
-  saveState('admin_projects', projectsState);
-};
+export async function updateQuotationRequestStatus(
+  id: string,
+  status: QuotationRequestStatus
+): Promise<QuotationRequest | undefined> {
+  const dbStatus = adminRequestStatusToDb(status);
+  const { data, error } = await supabaseClient
+    .from('project_requests')
+    .update({ status: dbStatus })
+    .eq('id', id)
+    .select(`
+      id, status, created_at,
+      manuscripts ( id, title, author_id, authors ( full_name ) )
+    `)
+    .single();
 
-const getProgressByStatus = (status: AdminProjectStatus): number => {
-  switch (status) {
-    case 'analisis':
-      return 25;
-    case 'produccion':
-      return 74;
-    case 'revisiones':
-      return 82;
-    default:
-      return 100;
-  }
-};
-
-const cloneQuotationRequests = (): QuotationRequest[] =>
-  quotationRequestsState.map((request) => ({ ...request }));
-
-const cloneProjects = (): AdminProject[] =>
-  projectsState.map((project) => ({
-    ...project,
-    deliverables: project.deliverables.map((deliverable) => ({
-      ...deliverable,
-      comments: deliverable.comments ? deliverable.comments.map(c => ({ ...c })) : []
-    })),
-  }));
-
-export function listQuotationRequests(): QuotationRequest[] {
-  return cloneQuotationRequests();
-}
-
-export function updateQuotationRequestStatus(id: string, status: QuotationRequestStatus): QuotationRequest | undefined {
-  const request = quotationRequestsState.find((item) => item.id === id);
-
-  if (!request) {
-    return undefined;
+  if (error) {
+    console.error('updateQuotationRequestStatus error:', JSON.stringify(error));
+    throw error;
   }
 
-  request.status = status;
-  syncStorage();
-  return { ...request };
+  const row = data as any;
+  return {
+    id: row.id,
+    client: row.manuscripts?.authors?.full_name ?? 'Autor desconocido',
+    title: row.manuscripts?.title ?? 'Sin titulo',
+    requestedAt: (row.created_at ?? '').slice(0, 10),
+    status,
+    chapters: 1,
+    amount: 0,
+    manuscript_id: row.manuscripts?.id,
+    author_id: row.manuscripts?.author_id,
+  };
 }
 
-export function listAdminProjects(): AdminProject[] {
-  return cloneProjects();
+export async function addQuotationRequest(
+  req: Omit<QuotationRequest, 'id' | 'requestedAt'>
+): Promise<QuotationRequest> {
+  // No se usa en el flujo real — los autores crean sus solicitudes solos.
+  // Se deja por compatibilidad con admin/page.tsx
+  console.warn('addQuotationRequest: operacion no soportada en modo real');
+  return { ...req, id: `rq-${Date.now()}`, requestedAt: new Date().toISOString().slice(0, 10) };
 }
 
-export function updateProjectStatus(id: string, status: AdminProjectStatus): AdminProject | undefined {
-  const project = projectsState.find((item) => item.id === id);
+export async function deleteQuotationRequest(id: string): Promise<boolean> {
+  const { error } = await supabaseClient
+    .from('project_requests')
+    .delete()
+    .eq('id', id);
+  if (error) {
+    console.error('deleteQuotationRequest error:', JSON.stringify(error));
+    return false;
+  }
+  return true;
+}
 
-  if (!project) {
-    return undefined;
+// ─── PROYECTOS (projects + chapters + deliverables + reviews) ─────────────────
+
+export async function listAdminProjects(): Promise<AdminProject[]> {
+  const { data, error } = await supabaseClient
+    .from('projects')
+    .select(`
+      id,
+      status,
+      updated_at,
+      authors ( full_name ),
+      manuscripts ( title ),
+      chapters ( id ),
+      deliverables ( id, title, status, created_at )
+    `)
+    .order('updated_at', { ascending: false });
+
+  if (error) {
+    console.error('listAdminProjects error:', JSON.stringify(error));
+    throw error;
   }
 
-  project.status = status;
-  project.progress = getProgressByStatus(status);
-  project.lastUpdate = new Date().toISOString().slice(0, 10);
-  syncStorage();
-  return { ...project, deliverables: project.deliverables.map((delivery) => ({ ...delivery })) };
+  return (data ?? []).map((row: any) => {
+    const adminStatus = dbStatusToAdmin(row.status);
+    const deliverables: AudioDeliverable[] = (row.deliverables ?? []).map((d: any) => ({
+      id: d.id,
+      title: d.title,
+      completed: d.status === 'approved',
+      updatedAt: (d.created_at ?? '').slice(0, 10),
+      comments: [],
+    }));
+
+    return {
+      id: row.id,
+      title: row.manuscripts?.title ?? 'Sin titulo',
+      client: row.authors?.full_name ?? 'Autor desconocido',
+      status: adminStatus,
+      progress: getProgressByStatus(adminStatus),
+      revisionsUsed: 0,
+      maxRevisions: 2,
+      chapters: (row.chapters ?? []).length,
+      deliverables,
+      lastUpdate: (row.updated_at ?? '').slice(0, 10),
+    };
+  });
 }
 
-export function addProjectRevision(id: string): AdminProject | undefined {
-  const project = projectsState.find((item) => item.id === id);
+export async function updateProjectStatus(
+  id: string,
+  status: AdminProjectStatus
+): Promise<AdminProject | undefined> {
+  const { error } = await supabaseClient
+    .from('projects')
+    .update({ status: adminStatusToDb(status) })
+    .eq('id', id);
 
-  if (!project) {
-    return undefined;
+  if (error) {
+    console.error('updateProjectStatus error:', JSON.stringify(error));
+    throw error;
   }
 
-  project.revisionsUsed = Math.min(project.maxRevisions, project.revisionsUsed + 1);
-  project.status = 'revisiones';
-  project.progress = getProgressByStatus('revisiones');
-  project.lastUpdate = new Date().toISOString().slice(0, 10);
-  syncStorage();
-  return { ...project, deliverables: project.deliverables.map((delivery) => ({ ...delivery })) };
+  const projects = await listAdminProjects();
+  return projects.find((p) => p.id === id);
 }
 
-export function updateProjectMaxRevisions(id: string, maxRevisions: number): AdminProject | undefined {
-  const project = projectsState.find((item) => item.id === id);
-
-  if (!project) {
-    return undefined;
-  }
-
-  project.maxRevisions = Math.max(0, maxRevisions);
-  syncStorage();
-  return { ...project, deliverables: project.deliverables.map((delivery) => ({ ...delivery })) };
-}
-
-export function updateProjectBudget(id: string, amount: number): AdminProject | undefined {
-  const project = projectsState.find((item) => item.id === id);
-
-  if (!project) {
-    return undefined;
-  }
-
-  project.amount = Math.max(0, amount);
-  syncStorage();
-  return { ...project, deliverables: project.deliverables.map((delivery) => ({ ...delivery })) };
-}
-
-export function createAdminProject(newProj: Omit<AdminProject, 'id' | 'deliverables' | 'progress' | 'lastUpdate'>): AdminProject {
-  const project: AdminProject = {
+export async function createAdminProject(
+  newProj: Omit<AdminProject, 'id' | 'deliverables' | 'progress' | 'lastUpdate'>
+): Promise<AdminProject> {
+  // Este flujo requiere manuscript_id y author_id — se usa al aprobar una solicitud.
+  // admin/page.tsx lo llama con { title, client, status, ... }. Por ahora lo apuntamos
+  // hacia la Fase C cuando el admin apruebe una solicitud real y genere el proyecto.
+  console.warn('createAdminProject: en Fase B solo se leen proyectos. La creacion real es Fase C.');
+  const stub: AdminProject = {
     ...newProj,
-    id: `pr-${Date.now()}`,
+    id: `stub-${Date.now()}`,
     progress: getProgressByStatus(newProj.status),
     deliverables: [],
     lastUpdate: new Date().toISOString().slice(0, 10),
   };
-  
-  projectsState.push(project);
-  syncStorage();
-  return { ...project };
+  return stub;
 }
 
-export function addAudioDeliverable(id: string, title: string, audioUrl?: string): AdminProject | undefined {
-  const project = projectsState.find((item) => item.id === id);
-
-  if (!project) {
-    return undefined;
+export async function deleteAdminProject(id: string): Promise<boolean> {
+  const { error } = await supabaseClient.from('projects').delete().eq('id', id);
+  if (error) {
+    console.error('deleteAdminProject error:', JSON.stringify(error));
+    return false;
   }
-
-  project.deliverables.push({
-    id: `dl-${Date.now()}`,
-    title,
-    completed: false,
-    updatedAt: new Date().toISOString().slice(0, 10),
-    audioUrl: audioUrl || 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-    comments: [],
-  });
-
-  syncStorage();
-  return { ...project, deliverables: project.deliverables.map((delivery) => ({ ...delivery })) };
-}
-
-export function toggleAudioDeliverable(id: string, deliverableId: string): AdminProject | undefined {
-  const project = projectsState.find((item) => item.id === id);
-
-  if (!project) {
-    return undefined;
-  }
-
-  project.deliverables = project.deliverables.map((deliverable) => {
-    if (deliverable.id === deliverableId) {
-      return { ...deliverable, completed: !deliverable.completed, updatedAt: new Date().toISOString().slice(0, 10) };
-    }
-
-    return { ...deliverable };
-  });
-
-  syncStorage();
-  return { ...project, deliverables: project.deliverables.map((delivery) => ({ ...delivery })) };
-}
-
-export function addDeliverableComment(projectId: string, deliverableId: string, sender: 'admin' | 'client', text: string): AdminProject | undefined {
-  const project = projectsState.find((item) => item.id === projectId);
-  if (!project) return undefined;
-
-  project.deliverables = project.deliverables.map((deliverable) => {
-    if (deliverable.id === deliverableId) {
-      const comments = deliverable.comments ? [...deliverable.comments] : [];
-      comments.push({
-        id: `c-${Date.now()}`,
-        sender,
-        text,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      });
-      return { ...deliverable, comments };
-    }
-    return deliverable;
-  });
-
-  syncStorage();
-  return { ...project, deliverables: project.deliverables.map((delivery) => ({ ...delivery })) };
-}
-
-export function deleteAdminProject(id: string): boolean {
-  const index = projectsState.findIndex(p => p.id === id);
-  if (index === -1) return false;
-  projectsState.splice(index, 1);
-  syncStorage();
   return true;
 }
 
-export function addQuotationRequest(req: Omit<QuotationRequest, 'id' | 'requestedAt'>): QuotationRequest {
-  const request: QuotationRequest = {
-    ...req,
-    id: `rq-${Date.now()}`,
-    requestedAt: new Date().toISOString().slice(0, 10),
-  };
-  quotationRequestsState.push(request);
-  syncStorage();
-  return { ...request };
+export async function updateProjectMaxRevisions(
+  id: string,
+  maxRevisions: number
+): Promise<AdminProject | undefined> {
+  // maxRevisions no existe en DB todavia — pendiente Fase C (schema chapters)
+  // Por ahora devolvemos el proyecto actual sin cambio persistente
+  const projects = await listAdminProjects();
+  const project = projects.find((p) => p.id === id);
+  if (project) project.maxRevisions = Math.max(0, maxRevisions);
+  return project;
 }
 
-export function deleteQuotationRequest(id: string): boolean {
-  const index = quotationRequestsState.findIndex(r => r.id === id);
-  if (index === -1) return false;
-  quotationRequestsState.splice(index, 1);
-  syncStorage();
-  return true;
+export async function updateProjectBudget(
+  id: string,
+  amount: number
+): Promise<AdminProject | undefined> {
+  const projects = await listAdminProjects();
+  const project = projects.find((p) => p.id === id);
+  if (project) project.amount = Math.max(0, amount);
+  return project;
 }
+
+export async function addProjectRevision(id: string): Promise<AdminProject | undefined> {
+  return updateProjectStatus(id, 'revisiones');
+}
+
+// ─── ENTREGABLES (deliverables + reviews en Supabase) ────────────────────────
+
+export async function addAudioDeliverable(
+  id: string,
+  title: string,
+  audioUrl?: string
+): Promise<AdminProject | undefined> {
+  const { error } = await supabaseClient
+    .from('deliverables')
+    .insert({ project_id: id, title, storage_path: audioUrl ?? '', status: 'pending' } as never);
+  if (error) {
+    console.error('addAudioDeliverable error:', JSON.stringify(error));
+    throw error;
+  }
+  const projects = await listAdminProjects();
+  return projects.find((p) => p.id === id);
+}
+
+export async function toggleAudioDeliverable(
+  id: string,
+  deliverableId: string
+): Promise<AdminProject | undefined> {
+  const { data: current } = await supabaseClient
+    .from('deliverables')
+    .select('status')
+    .eq('id', deliverableId)
+    .single();
+  const newStatus = (current as any)?.status === 'approved' ? 'pending' : 'approved';
+  await supabaseClient.from('deliverables').update({ status: newStatus }).eq('id', deliverableId);
+  const projects = await listAdminProjects();
+  return projects.find((p) => p.id === id);
+}
+
+export async function addDeliverableComment(
+  _projectId: string,
+  deliverableId: string,
+  sender: 'admin' | 'client',
+  text: string
+): Promise<AdminProject | undefined> {
+  await supabaseClient
+    .from('reviews')
+    .insert({ deliverable_id: deliverableId, comment: text, status: 'open' } as never);
+  const projects = await listAdminProjects();
+  return projects.find((p) => p.id === _projectId);
+}
+
+// ─── Export del objeto adminService (mismo shape que antes) ──────────────────
 
 export const adminService = {
   listQuotationRequests,

@@ -101,9 +101,17 @@ export default function AdminPage() {
   const [newQuoteAmount, setNewQuoteAmount] = useState(1200);
 
   // Load data initially
-  const loadAllData = () => {
-    setRequests(adminService.listQuotationRequests());
-    setProjects(adminService.listAdminProjects());
+  const loadAllData = async () => {
+    try {
+      const [reqs, projs] = await Promise.all([
+        adminService.listQuotationRequests(),
+        adminService.listAdminProjects()
+      ]);
+      setRequests(reqs);
+      setProjects(projs);
+    } catch (error) {
+      console.error('Error loading admin data:', error);
+    }
   };
 
   useEffect(() => {
@@ -118,7 +126,7 @@ export default function AdminPage() {
 
         if (user && role === 'admin') {
           setIsAuthorized(true);
-          loadAllData();
+          await loadAllData();
         } else {
           router.replace('/login');
         }
@@ -156,73 +164,101 @@ export default function AdminPage() {
   }, [projects, requests]);
 
   // Handle Quotation status
-  const handleQuotationStatus = (id: string, status: QuotationRequestStatus) => {
-    const updated = adminService.updateQuotationRequestStatus(id, status);
-    if (updated) {
-      loadAllData();
+  const handleQuotationStatus = async (id: string, status: QuotationRequestStatus) => {
+    try {
+      const updated = await adminService.updateQuotationRequestStatus(id, status);
+      if (updated) {
+        await loadAllData();
+      }
+    } catch (error) {
+      console.error(error);
     }
   };
 
   // Convert Quotation Request to an Active Project automatically
-  const handleConvertQuoteToProject = (request: QuotationRequest) => {
-    adminService.createAdminProject({
-      title: request.title,
-      client: request.client,
-      status: 'produccion',
-      chapters: request.chapters,
-      amount: request.amount,
-      maxRevisions: 3,
-      revisionsUsed: 0
-    });
-    
-    // Mark quote as approved
-    adminService.updateQuotationRequestStatus(request.id, 'aprobada');
-    loadAllData();
-    setActiveTab('proyectos');
+  const handleConvertQuoteToProject = async (request: QuotationRequest) => {
+    try {
+      await adminService.createAdminProject({
+        title: request.title,
+        client: request.client,
+        status: 'produccion',
+        chapters: request.chapters,
+        amount: request.amount,
+        maxRevisions: 3,
+        revisionsUsed: 0
+      });
+      
+      // Mark quote as approved
+      await adminService.updateQuotationRequestStatus(request.id, 'aprobada');
+      await loadAllData();
+      setActiveTab('proyectos');
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   // Delete Quote
-  const handleDeleteQuote = (id: string) => {
+  const handleDeleteQuote = async (id: string) => {
     if (confirm('¿Seguro que deseas eliminar esta solicitud de cotización?')) {
-      adminService.deleteQuotationRequest(id);
-      loadAllData();
+      try {
+        await adminService.deleteQuotationRequest(id);
+        await loadAllData();
+      } catch (error) {
+        console.error(error);
+      }
     }
   };
 
   // Delete Project
-  const handleDeleteProject = (id: string) => {
+  const handleDeleteProject = async (id: string) => {
     if (confirm('¿Seguro que deseas eliminar este proyecto de la base de datos?')) {
-      adminService.deleteAdminProject(id);
-      loadAllData();
+      try {
+        await adminService.deleteAdminProject(id);
+        await loadAllData();
+      } catch (error) {
+        console.error(error);
+      }
     }
   };
 
   // Handle Project Status change
-  const handleProjectStatus = (id: string, status: AdminProjectStatus) => {
-    const updated = adminService.updateProjectStatus(id, status);
-    if (updated) {
-      loadAllData();
+  const handleProjectStatus = async (id: string, status: AdminProjectStatus) => {
+    try {
+      const updated = await adminService.updateProjectStatus(id, status);
+      if (updated) {
+        await loadAllData();
+      }
+    } catch (error) {
+      console.error(error);
     }
   };
 
   // Handle Revision count increments / decrements (Customizable revisions control)
-  const handleUpdateMaxRevisions = (id: string, increment: boolean, currentMax: number) => {
+  const handleUpdateMaxRevisions = async (id: string, increment: boolean, currentMax: number) => {
     const targetVal = increment ? currentMax + 1 : Math.max(0, currentMax - 1);
-    const updated = adminService.updateProjectMaxRevisions(id, targetVal);
-    if (updated) {
-      loadAllData();
+    try {
+      const updated = await adminService.updateProjectMaxRevisions(id, targetVal);
+      if (updated) {
+        await loadAllData();
+      }
+    } catch (error) {
+      console.error(error);
     }
   };
 
-  const handleUpdateRevisionsUsed = (id: string, project: AdminProject) => {
-    const updated = adminService.addProjectRevision(id);
-    if (updated) {
-      loadAllData();
+  const handleUpdateRevisionsUsed = async (id: string, project: AdminProject) => {
+    try {
+      const updated = await adminService.addProjectRevision(id);
+      if (updated) {
+        await loadAllData();
+      }
+    } catch (error) {
+      console.error(error);
     }
   };
 
   // Handle Budget edits
-  const handleUpdateBudget = (id: string, currentAmount: number) => {
+  const handleUpdateBudget = async (id: string, currentAmount: number) => {
     const newAmountStr = prompt('Introduce el nuevo presupuesto total del proyecto ($ USD):', currentAmount.toString());
     if (newAmountStr === null) return;
     const newAmount = parseFloat(newAmountStr);
@@ -230,56 +266,72 @@ export default function AdminPage() {
       alert('Por favor introduce un valor numérico válido.');
       return;
     }
-    const updated = adminService.updateProjectBudget(id, newAmount);
-    if (updated) {
-      loadAllData();
+    try {
+      const updated = await adminService.updateProjectBudget(id, newAmount);
+      if (updated) {
+        await loadAllData();
+      }
+    } catch (error) {
+      console.error(error);
     }
   };
 
   // Add Audio Deliverable with optional URL
-  const handleAddDeliverable = (projectId: string) => {
+  const handleAddDeliverable = async (projectId: string) => {
     const title = newDeliverableTitles[projectId]?.trim();
     if (!title) return;
 
     const url = newDeliverableUrls[projectId]?.trim() || undefined;
 
-    const updated = adminService.addAudioDeliverable(projectId, title, url);
-    if (updated) {
-      loadAllData();
-      // Reset inputs
-      setNewDeliverableTitles(prev => ({ ...prev, [projectId]: '' }));
-      setNewDeliverableUrls(prev => ({ ...prev, [projectId]: '' }));
+    try {
+      const updated = await adminService.addAudioDeliverable(projectId, title, url);
+      if (updated) {
+        await loadAllData();
+        // Reset inputs
+        setNewDeliverableTitles(prev => ({ ...prev, [projectId]: '' }));
+        setNewDeliverableUrls(prev => ({ ...prev, [projectId]: '' }));
+      }
+    } catch (error) {
+      console.error(error);
     }
   };
 
   // Toggle Deliverable Completed Checkbox
-  const handleToggleDeliverable = (projectId: string, deliverableId: string) => {
-    const updated = adminService.toggleAudioDeliverable(projectId, deliverableId);
-    if (updated) {
-      loadAllData();
+  const handleToggleDeliverable = async (projectId: string, deliverableId: string) => {
+    try {
+      const updated = await adminService.toggleAudioDeliverable(projectId, deliverableId);
+      if (updated) {
+        await loadAllData();
+      }
+    } catch (error) {
+      console.error(error);
     }
   };
 
   // Add Comment to Deliverable (Chat Mode)
-  const handleSendComment = (e: React.FormEvent) => {
+  const handleSendComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProject || !selectedDeliverable || !replyText.trim()) return;
 
-    const updated = adminService.addDeliverableComment(
-      selectedProject.id, 
-      selectedDeliverable.id, 
-      'admin', 
-      replyText.trim()
-    );
+    try {
+      const updated = await adminService.addDeliverableComment(
+        selectedProject.id, 
+        selectedDeliverable.id, 
+        'admin', 
+        replyText.trim()
+      );
 
-    if (updated) {
-      loadAllData();
-      // Keep selected structures in sync with fresh data
-      const freshProject = updated;
-      const freshDeliverable = freshProject.deliverables.find(d => d.id === selectedDeliverable.id) || null;
-      setSelectedProject(freshProject);
-      setSelectedDeliverable(freshDeliverable);
-      setReplyText('');
+      if (updated) {
+        await loadAllData();
+        // Keep selected structures in sync with fresh data
+        const freshProject = updated;
+        const freshDeliverable = freshProject.deliverables.find(d => d.id === selectedDeliverable.id) || null;
+        setSelectedProject(freshProject);
+        setSelectedDeliverable(freshDeliverable);
+        setReplyText('');
+      }
+    } catch (error) {
+      console.error(error);
     }
   };
 
@@ -291,50 +343,58 @@ export default function AdminPage() {
   };
 
   // Create project manually
-  const handleCreateProjectManually = (e: React.FormEvent) => {
+  const handleCreateProjectManually = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProjTitle.trim() || !newProjClient.trim()) {
       alert('Por favor rellena el título de la obra y el nombre de autor.');
       return;
     }
 
-    adminService.createAdminProject({
-      title: newProjTitle.trim(),
-      client: newProjClient.trim(),
-      status: newProjStatus,
-      chapters: newProjChapters,
-      amount: newProjAmount,
-      maxRevisions: newProjMaxRevisions,
-      revisionsUsed: 0
-    });
+    try {
+      await adminService.createAdminProject({
+        title: newProjTitle.trim(),
+        client: newProjClient.trim(),
+        status: newProjStatus,
+        chapters: newProjChapters,
+        amount: newProjAmount,
+        maxRevisions: newProjMaxRevisions,
+        revisionsUsed: 0
+      });
 
-    loadAllData();
-    setNewProjTitle('');
-    setNewProjClient('');
-    setCreationSuccess(true);
-    setTimeout(() => setCreationSuccess(false), 3500);
+      await loadAllData();
+      setNewProjTitle('');
+      setNewProjClient('');
+      setCreationSuccess(true);
+      setTimeout(() => setCreationSuccess(false), 3500);
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   // Create mock quotation request manually
-  const handleCreateQuoteManually = (e: React.FormEvent) => {
+  const handleCreateQuoteManually = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newQuoteTitle.trim() || !newQuoteClient.trim()) {
       alert('Completa los campos de título y autor.');
       return;
     }
 
-    adminService.addQuotationRequest({
-      title: newQuoteTitle.trim(),
-      client: newQuoteClient.trim(),
-      chapters: newQuoteChapters,
-      amount: newQuoteAmount,
-      status: 'pendiente'
-    });
+    try {
+      await adminService.addQuotationRequest({
+        title: newQuoteTitle.trim(),
+        client: newQuoteClient.trim(),
+        chapters: newQuoteChapters,
+        amount: newQuoteAmount,
+        status: 'pendiente'
+      });
 
-    loadAllData();
-    setNewQuoteTitle('');
-    setNewQuoteClient('');
-    alert('Simulación de manuscrito creada correctamente. Búscalo en la pestaña "Cotizaciones".');
+      await loadAllData();
+      setNewQuoteTitle('');
+      setNewQuoteClient('');
+      alert('Simulación de manuscrito creada correctamente. Búscalo en la pestaña "Cotizaciones".');
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   if (isChecking) {
@@ -1059,19 +1119,24 @@ export default function AdminPage() {
                 <span className="text-[9px] text-ink-muted self-center uppercase font-bold whitespace-nowrap">Simular:</span>
                 <button
                   type="button"
-                  onClick={() => {
-                    adminService.addDeliverableComment(
-                      selectedProject.id, 
-                      selectedDeliverable.id, 
-                      'client', 
-                      '¿Se podría subir el volumen de la voz en el segundo 45?'
-                    );
-                    loadAllData();
-                    // Sync active view
-                    const freshProj = adminService.listAdminProjects().find(p => p.id === selectedProject.id);
-                    if (freshProj) {
-                      setSelectedProject(freshProj);
-                      setSelectedDeliverable(freshProj.deliverables.find(d => d.id === selectedDeliverable.id) || null);
+                  onClick={async () => {
+                    try {
+                      await adminService.addDeliverableComment(
+                        selectedProject.id, 
+                        selectedDeliverable.id, 
+                        'client', 
+                        '¿Se podría subir el volumen de la voz en el segundo 45?'
+                      );
+                      await loadAllData();
+                      // Sync active view
+                      const projectsList = await adminService.listAdminProjects();
+                      const freshProj = projectsList.find(p => p.id === selectedProject.id);
+                      if (freshProj) {
+                        setSelectedProject(freshProj);
+                        setSelectedDeliverable(freshProj.deliverables.find(d => d.id === selectedDeliverable.id) || null);
+                      }
+                    } catch (error) {
+                      console.error(error);
                     }
                   }}
                   className="rounded-lg bg-surface hover:bg-surface-elevated border border-edge text-ink-muted text-[9px] px-2.5 py-1 transition cursor-pointer"
@@ -1080,19 +1145,24 @@ export default function AdminPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    adminService.addDeliverableComment(
-                      selectedProject.id, 
-                      selectedDeliverable.id, 
-                      'client', 
-                      '¡Excelente mezcla! Apruebo este fragmento de audio.'
-                    );
-                    loadAllData();
-                    // Sync active view
-                    const freshProj = adminService.listAdminProjects().find(p => p.id === selectedProject.id);
-                    if (freshProj) {
-                      setSelectedProject(freshProj);
-                      setSelectedDeliverable(freshProj.deliverables.find(d => d.id === selectedDeliverable.id) || null);
+                  onClick={async () => {
+                    try {
+                      await adminService.addDeliverableComment(
+                        selectedProject.id, 
+                        selectedDeliverable.id, 
+                        'client', 
+                        '¡Excelente mezcla! Apruebo este fragmento de audio.'
+                      );
+                      await loadAllData();
+                      // Sync active view
+                      const projectsList = await adminService.listAdminProjects();
+                      const freshProj = projectsList.find(p => p.id === selectedProject.id);
+                      if (freshProj) {
+                        setSelectedProject(freshProj);
+                        setSelectedDeliverable(freshProj.deliverables.find(d => d.id === selectedDeliverable.id) || null);
+                      }
+                    } catch (error) {
+                      console.error(error);
                     }
                   }}
                   className="rounded-lg bg-surface hover:bg-surface-elevated border border-edge text-ink-muted text-[9px] px-2.5 py-1 transition cursor-pointer"
