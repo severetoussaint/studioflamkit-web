@@ -27,8 +27,10 @@ import {
   FolderPlus,
   RefreshCw,
   Eye,
-  CheckCircle
+  CheckCircle,
+  UploadCloud
 } from 'lucide-react';
+import { uploadProjectDeliverableFile } from '@/services/storage.service';
 import { Footer } from '@/components/layout/Footer';
 import { Navbar } from '@/components/layout/Navbar';
 import { Button } from '@/components/ui/Button';
@@ -79,13 +81,62 @@ export default function AdminPage() {
   // Deliverables add state
   const [newDeliverableTitles, setNewDeliverableTitles] = useState<Record<string, string>>({});
   const [newDeliverableUrls, setNewDeliverableUrls] = useState<Record<string, string>>({});
+  const [newDeliverableFiles, setNewDeliverableFiles] = useState<Record<string, File | null>>({});
 
   // Chat/Feedback modal state
   const [selectedProject, setSelectedProject] = useState<AdminProject | null>(null);
   const [selectedDeliverable, setSelectedDeliverable] = useState<AudioDeliverable | null>(null);
   const [replyText, setReplyText] = useState('');
 
-  // Manual project creation state
+  // Chapter creation state per project
+  const [newChapterTitles, setNewChapterTitles] = useState<Record<string, string>>({});
+  const [newChapterWords, setNewChapterWords] = useState<Record<string, number>>({});
+
+  // Chapter handlers
+  const handleCreateChapter = async (projectId: string, currentChaptersCount: number) => {
+    const title = newChapterTitles[projectId]?.trim() || `Capítulo ${currentChaptersCount + 1}`;
+    const wordCount = newChapterWords[projectId] || 3000;
+
+    try {
+      await adminService.createAdminChapter({
+        project_id: projectId,
+        chapter_number: currentChaptersCount + 1,
+        title,
+        word_count: wordCount,
+        status: 'en_produccion',
+      });
+      await loadAllData();
+      setNewChapterTitles((prev) => ({ ...prev, [projectId]: '' }));
+      setNewChapterWords((prev) => ({ ...prev, [projectId]: 3000 }));
+    } catch (error) {
+      console.error('Error al crear capítulo:', error);
+      alert('Ocurrió un error al crear el capítulo en la base de datos.');
+    }
+  };
+
+  const handleUpdateChapterStatus = async (
+    chapterId: string,
+    status: 'pendiente' | 'cotizado' | 'pagado' | 'en_produccion' | 'entregado'
+  ) => {
+    try {
+      await adminService.updateChapterStatus(chapterId, status);
+      await loadAllData();
+    } catch (error) {
+      console.error('Error al actualizar capítulo:', error);
+    }
+  };
+
+  const handleDeleteChapter = async (chapterId: string) => {
+    if (confirm('¿Seguro que deseas eliminar este capítulo de la base de datos?')) {
+      try {
+        await adminService.deleteChapter(chapterId);
+        await loadAllData();
+      } catch (error) {
+        console.error('Error al eliminar capítulo:', error);
+      }
+    }
+  };
+
   const [newProjTitle, setNewProjTitle] = useState('');
   const [newProjClient, setNewProjClient] = useState('');
   const [newProjStatus, setNewProjStatus] = useState<AdminProjectStatus>('analisis');
@@ -150,9 +201,12 @@ export default function AdminPage() {
 
     const activeProjects = safeProjects.filter((project) => project.status !== 'completado').length;
     const completedProjects = safeProjects.filter((project) => project.status === 'completado').length;
-    const pendingRequests = safeRequests.filter((request) => request.status === 'pendiente').length;
-    const totalAmount = safeProjects.reduce((acc, curr) => acc + (curr.amount || 0), 0) + 
-                        safeRequests.filter(r => r.status === 'aprobada').reduce((acc, curr) => acc + (curr.amount || 0), 0);
+    const pendingRequests = safeRequests.filter((request) => request.status === 'pendiente' || request.status === 'en_revision').length;
+    const projectsTotal = safeProjects.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+    const pendingRequestsTotal = safeRequests
+      .filter((r) => r.status === 'pendiente' || r.status === 'en_revision')
+      .reduce((acc, curr) => acc + (curr.amount || 0), 0);
+    const totalAmount = projectsTotal + pendingRequestsTotal;
 
     return {
       activeProjects,
@@ -212,12 +266,13 @@ export default function AdminPage() {
 
   // Delete Project
   const handleDeleteProject = async (id: string) => {
-    if (confirm('¿Seguro que deseas eliminar este proyecto de la base de datos?')) {
+    if (confirm('¿Seguro que deseas eliminar este proyecto y todos sus entregables de Supabase?')) {
       try {
         await adminService.deleteAdminProject(id);
         await loadAllData();
-      } catch (error) {
-        console.error(error);
+      } catch (error: any) {
+        console.error('Error al borrar proyecto:', error);
+        alert('Ocurrió un error al intentar eliminar el proyecto: ' + (error?.message || 'Error de restricción o permisos en la base de datos.'));
       }
     }
   };
@@ -266,21 +321,25 @@ export default function AdminPage() {
     }
   };
 
-  // Add Audio Deliverable with optional URL
+  // Add Audio Deliverable with real file or optional URL
   const handleAddDeliverable = async (projectId: string) => {
     const title = newDeliverableTitles[projectId]?.trim();
     if (!title) return;
 
+    const file = newDeliverableFiles[projectId];
     const url = newDeliverableUrls[projectId]?.trim() || undefined;
 
     try {
-      const updated = await adminService.addAudioDeliverable(projectId, title, url);
-      if (updated) {
-        await loadAllData();
-        // Reset inputs
-        setNewDeliverableTitles(prev => ({ ...prev, [projectId]: '' }));
-        setNewDeliverableUrls(prev => ({ ...prev, [projectId]: '' }));
+      if (file) {
+        await uploadProjectDeliverableFile(projectId, title, file);
+      } else {
+        await adminService.addAudioDeliverable(projectId, title, url);
       }
+      await loadAllData();
+      // Reset inputs
+      setNewDeliverableTitles(prev => ({ ...prev, [projectId]: '' }));
+      setNewDeliverableUrls(prev => ({ ...prev, [projectId]: '' }));
+      setNewDeliverableFiles(prev => ({ ...prev, [projectId]: null }));
     } catch (error) {
       console.error(error);
     }
@@ -606,6 +665,104 @@ export default function AdminPage() {
                         </div>
                       </div>
 
+                      {/* Real Chapters Management in Supabase */}
+                      <div className="space-y-4 pt-4 mb-6 border-t border-edge">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-ink flex items-center gap-1.5">
+                            <BookOpen className="h-3.5 w-3.5 text-accent" />
+                            Capítulos Reales del Proyecto ({project.chapterList?.length || 0})
+                          </span>
+                          {project.chapterList && project.chapterList.length > 0 && (
+                            <span className="text-[10px] font-medium text-accent bg-accent/10 px-2 py-0.5 rounded-full">
+                              Avance Real: {project.progress}%
+                            </span>
+                          )}
+                        </div>
+
+                        {(!project.chapterList || project.chapterList.length === 0) ? (
+                          <p className="text-[11px] text-ink-muted italic py-1">Aún no hay capítulos reales creados en la base de datos para este proyecto.</p>
+                        ) : (
+                          <ul className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                            {project.chapterList.map((chap) => (
+                              <li
+                                key={chap.id}
+                                className="flex flex-col gap-2 rounded-xl bg-surface/60 border border-edge p-3 text-xs"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <span className="font-bold text-ink">
+                                      Capítulo {chap.chapter_number}: {chap.title}
+                                    </span>
+                                    <div className="text-[10px] text-ink-muted mt-0.5 flex gap-2">
+                                      <span>{chap.word_count.toLocaleString()} palabras</span>
+                                      <span>•</span>
+                                      <span>~{chap.duration_minutes} min</span>
+                                      <span>•</span>
+                                      <span className="font-semibold text-accent">${chap.price} USD</span>
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={() => handleDeleteChapter(chap.id)}
+                                    className="p-1 text-ink-muted hover:text-rose-500 rounded transition cursor-pointer"
+                                    title="Eliminar capítulo"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+
+                                <div className="flex items-center gap-1 pt-1 border-t border-edge/40">
+                                  <span className="text-[9px] text-ink-muted uppercase font-semibold mr-1">Estado:</span>
+                                  {(['pendiente', 'cotizado', 'pagado', 'en_produccion', 'entregado'] as const).map((st) => (
+                                    <button
+                                      key={st}
+                                      onClick={() => handleUpdateChapterStatus(chap.id, st)}
+                                      className={`px-1.5 py-0.5 text-[9px] font-semibold rounded-md uppercase tracking-wider transition cursor-pointer ${
+                                        chap.status === st
+                                          ? 'bg-accent text-surface'
+                                          : 'bg-surface text-ink-muted hover:text-ink border border-edge'
+                                      }`}
+                                    >
+                                      {st === 'en_produccion' ? 'grabación' : st}
+                                    </button>
+                                  ))}
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+
+                        {/* Add Real Chapter Form */}
+                        <div className="bg-surface/40 rounded-2xl border border-edge p-3 space-y-2">
+                          <span className="text-[10px] text-ink-muted uppercase font-semibold block">Crear Capítulo Real en Supabase</span>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              placeholder={`Título (ej: Capítulo ${(project.chapterList?.length || 0) + 1})`}
+                              value={newChapterTitles[project.id] || ''}
+                              onChange={(e) => setNewChapterTitles((prev) => ({ ...prev, [project.id]: e.target.value }))}
+                              className="rounded-xl border border-edge bg-surface px-3 py-1.5 text-xs text-ink outline-none focus:border-accent transition"
+                            />
+                            <div className="flex gap-2">
+                              <input
+                                type="number"
+                                placeholder="Conteo de palabras (ej: 3000)"
+                                value={newChapterWords[project.id] || ''}
+                                onChange={(e) => setNewChapterWords((prev) => ({ ...prev, [project.id]: parseInt(e.target.value) || 0 }))}
+                                className="flex-1 rounded-xl border border-edge bg-surface px-3 py-1.5 text-xs text-ink outline-none focus:border-accent transition"
+                              />
+                              <Button
+                                variant="primary"
+                                onClick={() => handleCreateChapter(project.id, project.chapterList?.length || 0)}
+                                className="px-3 text-xs py-1.5 cursor-pointer whitespace-nowrap"
+                              >
+                                <Plus className="h-3 w-3 mr-1" />
+                                Guardar
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
                       {/* Deliverables management */}
                       <div className="space-y-4 pt-4 border-t border-edge">
                         <div className="flex items-center justify-between">
@@ -680,13 +837,41 @@ export default function AdminPage() {
                               Agregar
                             </Button>
                           </div>
-                          <input
-                            type="text"
-                            placeholder="URL de audio opcional (Ejem: MP3)"
-                            value={newDeliverableUrls[project.id] || ''}
-                            onChange={(e) => setNewDeliverableUrls(prev => ({ ...prev, [project.id]: e.target.value }))}
-                            className="w-full rounded-xl border border-edge bg-surface px-3 py-1 text-[10px] text-ink-muted outline-none focus:border-accent transition"
-                          />
+
+                          <div className="flex flex-col sm:flex-row gap-2 items-center">
+                            <label className="flex flex-1 w-full items-center gap-1.5 text-[10px] text-ink bg-surface border border-edge px-3 py-1.5 rounded-xl cursor-pointer hover:border-accent transition">
+                              <UploadCloud className="h-3.5 w-3.5 text-accent shrink-0" />
+                              <span className="truncate">
+                                {newDeliverableFiles[project.id] 
+                                  ? newDeliverableFiles[project.id]?.name 
+                                  : 'Subir archivo (.mp3, .wav, .m4b)'}
+                              </span>
+                              <input
+                                type="file"
+                                accept="audio/*,.mp3,.wav,.m4b"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    setNewDeliverableFiles(prev => ({ ...prev, [project.id]: file }));
+                                    if (!newDeliverableTitles[project.id]) {
+                                      setNewDeliverableTitles(prev => ({ ...prev, [project.id]: file.name }));
+                                    }
+                                  }
+                                }}
+                              />
+                            </label>
+                            
+                            <span className="text-[10px] text-ink-muted">o</span>
+                            
+                            <input
+                              type="text"
+                              placeholder="URL de audio opcional"
+                              value={newDeliverableUrls[project.id] || ''}
+                              onChange={(e) => setNewDeliverableUrls(prev => ({ ...prev, [project.id]: e.target.value }))}
+                              className="flex-1 w-full rounded-xl border border-edge bg-surface px-3 py-1.5 text-[10px] text-ink outline-none focus:border-accent transition"
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -743,7 +928,11 @@ export default function AdminPage() {
                               Autor solicitante: <span className="text-ink font-semibold">{request.client}</span>
                             </p>
                             <p className="text-xs text-ink-muted mt-0.5">
-                              Estructura: <span className="text-ink font-medium">{request.chapters} capítulos</span> • Fecha: <span className="text-ink-muted">{request.requestedAt}</span>
+                              Estructura: <span className="text-ink font-medium">{request.chapters} capítulos</span>
+                              {request.wordCount ? (
+                                <> • Conteo: <span className="text-ink font-medium">{request.wordCount.toLocaleString()} palabras</span> (~{request.durationMinutes} min)</>
+                              ) : null}
+                              • Fecha: <span className="text-ink-muted">{request.requestedAt}</span>
                             </p>
                           </div>
 

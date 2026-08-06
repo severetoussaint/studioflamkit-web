@@ -22,3 +22,52 @@ export async function updateFileRecord(id: string, updates: FileUpdate) {
   if (error) throw error;
   return data as FileRow | null;
 }
+
+export async function uploadFileToStorage(bucket: string, path: string, file: File) {
+  const { data, error } = await supabaseClient.storage
+    .from(bucket)
+    .upload(path, file, { cacheControl: '3600', upsert: true });
+
+  if (error) {
+    console.warn(`Advertencia al subir a Storage (${bucket}):`, error);
+  }
+  return data;
+}
+
+export async function uploadProjectDeliverableFile(
+  projectId: string,
+  title: string,
+  file: File,
+  ownerId?: string
+) {
+  const cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const path = `${projectId}/${Date.now()}_${cleanName}`;
+
+  await uploadFileToStorage('deliverables', path, file);
+
+  const { data: deliverable, error: delError } = await supabaseClient
+    .from('deliverables')
+    .insert({
+      project_id: projectId,
+      title: title || file.name,
+      storage_path: path,
+      status: 'pending',
+    } as never)
+    .select()
+    .single();
+
+  if (delError) {
+    console.error('Error al insertar deliverable en DB:', delError);
+  }
+
+  await createFileRecord({
+    bucket: 'deliverables',
+    path,
+    project_id: projectId,
+    owner_id: ownerId,
+    mime_type: file.type || 'audio/mpeg',
+    size_bytes: file.size,
+  });
+
+  return deliverable;
+}

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUser } from '@/services/auth.service';
 import { getAuthorRequestState, submitManuscript, type AuthorRequestState } from '@/services/manuscript.service';
+import { getAuthorProjectData, type AuthorProjectData } from '@/services/project.service';
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
 import {
@@ -56,11 +57,13 @@ type SectionId = 'resumen' | 'capitulos' | 'entregables' | 'pagos' | 'perfil';
 
 interface ChapterItem {
   id: string;
+  number?: number;
   title: string;
   progress: number;
   revisions: number;
   maxRevisions: number;
-  status: 'Produccion' | 'Revisiones' | 'Aprobado' | 'Completado';
+  status: 'Pendiente' | 'Cotizado' | 'Pagado' | 'En Grabación' | 'Entregado' | 'Produccion' | 'Revisiones' | 'Aprobado' | 'Completado';
+  rawStatus?: string;
   paymentStatus: 'Pagado' | 'Pendiente' | 'Procesando';
   price: number;
   words: string;
@@ -188,6 +191,7 @@ export default function DashboardPage() {
   const [isChecking, setIsChecking] = useState(true);
   const [authorId, setAuthorId] = useState<string | null>(null);
   const [requestState, setRequestState] = useState<AuthorRequestState>('none');
+  const [realProject, setRealProject] = useState<AuthorProjectData | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -202,9 +206,62 @@ export default function DashboardPage() {
       try {
         const state = await getAuthorRequestState(u.id);
         if (isMounted) setRequestState(state);
+
+        // Cargar proyecto real con sus capítulos de Supabase
+        const projectData = await getAuthorProjectData(u.id);
+        if (isMounted && projectData) {
+          setRealProject(projectData);
+
+          if (projectData.chapters && projectData.chapters.length > 0) {
+            const mappedChapters: ChapterItem[] = projectData.chapters.map((c) => {
+              let progress = 0;
+              let statusLabel: ChapterItem['status'] = 'Pendiente';
+              let payStatus: ChapterItem['paymentStatus'] = 'Pendiente';
+
+              if (c.status === 'pendiente') {
+                progress = 0;
+                statusLabel = 'Pendiente';
+                payStatus = 'Pendiente';
+              } else if (c.status === 'cotizado') {
+                progress = 20;
+                statusLabel = 'Cotizado';
+                payStatus = 'Pendiente';
+              } else if (c.status === 'pagado') {
+                progress = 40;
+                statusLabel = 'Pagado';
+                payStatus = 'Pagado';
+              } else if (c.status === 'en_produccion') {
+                progress = 75;
+                statusLabel = 'En Grabación';
+                payStatus = 'Pagado';
+              } else if (c.status === 'entregado') {
+                progress = 100;
+                statusLabel = 'Entregado';
+                payStatus = 'Pagado';
+              }
+
+              return {
+                id: c.id,
+                number: c.chapter_number,
+                title: c.title,
+                progress,
+                revisions: 0,
+                maxRevisions: projectData.maxRevisions || 3,
+                status: statusLabel,
+                rawStatus: c.status,
+                paymentStatus: payStatus,
+                price: c.price,
+                words: `${c.word_count.toLocaleString()} palabras`,
+                duration: `~${c.duration_minutes} min`,
+              };
+            });
+            setChaptersState(mappedChapters);
+          } else {
+            setChaptersState([]);
+          }
+        }
       } catch (err) {
-        // Mejoramos el log para ver el error real
-        console.error('Error detallado en getAuthorRequestState:', err);
+        console.error('Error al cargar datos del proyecto/autor:', err);
       } finally {
         if (isMounted) setIsChecking(false);
       }
@@ -849,6 +906,18 @@ export default function DashboardPage() {
                         <FileUp className="h-4 w-4" />
                         <span>Subir Manuscrito</span>
                       </button>
+                    </div>
+                  </Card>
+                ) : chaptersState.length === 0 ? (
+                  <Card title="Capítulos del Audiolibro" description="Grabación, edición y muestras por capítulo.">
+                    <div className="mt-8 rounded-2xl border border-dashed border-edge bg-surface p-8 text-center">
+                      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-elevated text-accent border border-edge">
+                        <BookOpen className="h-6 w-6" />
+                      </div>
+                      <p className="mt-3 font-semibold text-ink">Obra Activa en Producción</p>
+                      <p className="mt-1 text-xs text-ink-muted max-w-md mx-auto leading-relaxed">
+                        Tu obra está activa. Tu editor está configurando los capítulos reales en Supabase con la duración y tarifa calculada. En cuanto se agreguen, los verás listados aquí para seguimiento paso a paso.
+                      </p>
                     </div>
                   </Card>
                 ) : (

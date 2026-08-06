@@ -1,5 +1,5 @@
 import { supabaseClient } from '@/lib/supabase/client';
-import { calculateManuscriptPrice } from '@/features/quotations/utils/calculator';
+import { calculateManuscriptPrice, calculateChapterPrice } from '@/features/quotations/utils/calculator';
 
 // ─── Tipos (mismos nombres que antes para no tocar admin/page.tsx) ────────────
 
@@ -30,9 +30,24 @@ export interface QuotationRequest {
   status: QuotationRequestStatus;
   chapters: number;
   amount: number;
-  // IDs reales de Supabase (opcionales para compat hacia atras)
+  wordCount?: number;
+  durationMinutes?: number;
   manuscript_id?: string;
   author_id?: string;
+}
+
+export interface AdminChapter {
+  id: string;
+  project_id: string;
+  chapter_number: number;
+  title: string;
+  word_count: number;
+  duration_minutes: number;
+  pfh_rate_used: number;
+  price: number;
+  currency: string;
+  tier: string;
+  status: 'pendiente' | 'cotizado' | 'pagado' | 'en_produccion' | 'entregado';
 }
 
 export interface AdminProject {
@@ -44,6 +59,7 @@ export interface AdminProject {
   revisionsUsed: number;
   maxRevisions: number;
   chapters: number;
+  chapterList?: AdminChapter[];
   amount?: number;
   deliverables: AudioDeliverable[];
   lastUpdate: string;
@@ -131,6 +147,7 @@ export async function listQuotationRequests(): Promise<QuotationRequest[]> {
     const wordCount = row.manuscripts?.word_count ?? 0;
     const amount = wordCount > 0 ? calculateManuscriptPrice(wordCount) : 0;
     const estimatedChapters = Math.max(1, Math.round(wordCount / 3000)) || 1;
+    const durationMinutes = Math.round(wordCount / 155);
 
     return {
       id: row.id,
@@ -140,6 +157,8 @@ export async function listQuotationRequests(): Promise<QuotationRequest[]> {
       status: dbRequestStatusToAdmin(row.status),
       chapters: estimatedChapters,
       amount,
+      wordCount,
+      durationMinutes,
       manuscript_id: row.manuscripts?.id,
       author_id: row.manuscripts?.author_id,
     };
@@ -170,6 +189,7 @@ export async function updateQuotationRequestStatus(
   const wordCount = row.manuscripts?.word_count ?? 0;
   const amount = wordCount > 0 ? calculateManuscriptPrice(wordCount) : 0;
   const estimatedChapters = Math.max(1, Math.round(wordCount / 3000)) || 1;
+  const durationMinutes = Math.round(wordCount / 155);
 
   return {
     id: row.id,
@@ -179,6 +199,8 @@ export async function updateQuotationRequestStatus(
     status,
     chapters: estimatedChapters,
     amount,
+    wordCount,
+    durationMinutes,
     manuscript_id: row.manuscripts?.id,
     author_id: row.manuscripts?.author_id,
   };
@@ -216,7 +238,7 @@ export async function listAdminProjects(): Promise<AdminProject[]> {
       manuscript_id,
       authors ( full_name ),
       manuscripts ( title, word_count ),
-      chapters ( id, price, word_count ),
+      chapters ( id, chapter_number, title, word_count, duration_minutes, pfh_rate_used, price, currency, tier, status ),
       deliverables ( id, title, status, created_at )
     `)
     .order('updated_at', { ascending: false });
@@ -236,20 +258,50 @@ export async function listAdminProjects(): Promise<AdminProject[]> {
       comments: [],
     }));
 
+    const rawChapters = (row.chapters ?? []).sort((a: any, b: any) => a.chapter_number - b.chapter_number);
+    const chapterList: AdminChapter[] = rawChapters.map((c: any) => ({
+      id: c.id,
+      project_id: row.id,
+      chapter_number: c.chapter_number,
+      title: c.title || `Capítulo ${c.chapter_number}`,
+      word_count: c.word_count || 0,
+      duration_minutes: c.duration_minutes || Math.round((c.word_count || 0) / 155),
+      pfh_rate_used: c.pfh_rate_used || 400,
+      price: c.price || 0,
+      currency: c.currency || 'USD',
+      tier: c.tier || 'entrada',
+      status: (c.status as AdminChapter['status']) || 'pendiente',
+    }));
+
     const wordCount = row.manuscripts?.word_count ?? 0;
-    const chaptersCount = (row.chapters ?? []).length || (wordCount > 0 ? Math.max(1, Math.round(wordCount / 3000)) : 1);
-    const chapterPriceSum = (row.chapters ?? []).reduce((acc: number, c: any) => acc + (c.price || 0), 0);
+    const chaptersCount = chapterList.length || (wordCount > 0 ? Math.max(1, Math.round(wordCount / 3000)) : 1);
+    const chapterPriceSum = chapterList.reduce((acc, c) => acc + (c.price || 0), 0);
     const totalAmount = chapterPriceSum > 0 ? chapterPriceSum : (wordCount > 0 ? calculateManuscriptPrice(wordCount) : 0);
+
+    // Calcular avance real basado en el estado de cada capítulo si existen
+    let progress = getProgressByStatus(adminStatus);
+    if (chapterList.length > 0) {
+      const weights: Record<string, number> = {
+        pendiente: 0,
+        cotizado: 20,
+        pagado: 40,
+        en_produccion: 75,
+        entregado: 100,
+      };
+      const totalWeight = chapterList.reduce((acc, c) => acc + (weights[c.status] ?? 0), 0);
+      progress = Math.round(totalWeight / chapterList.length);
+    }
 
     return {
       id: row.id,
       title: row.manuscripts?.title ?? 'Sin título',
       client: row.authors?.full_name ?? 'Autor desconocido',
       status: adminStatus,
-      progress: getProgressByStatus(adminStatus),
+      progress,
       revisionsUsed: 0,
       maxRevisions: 3,
       chapters: chaptersCount,
+      chapterList,
       amount: totalAmount,
       deliverables,
       lastUpdate: (row.updated_at ?? '').slice(0, 10),
@@ -316,12 +368,63 @@ export async function createAdminProject(
 }
 
 export async function deleteAdminProject(id: string): Promise<boolean> {
-  const { error } = await supabaseClient.from('projects').delete().eq('id', id);
-  if (error) {
-    console.error('deleteAdminProject error:', JSON.stringify(error));
-    return false;
+  try {
+    // 1. Obtener los IDs de entregables pertenecientes al proyecto
+    const { data: deliverables } = await supabaseClient
+      .from('deliverables')
+      .select('id')
+      .eq('project_id', id);
+
+    const deliverableIds = (deliverables || []).map((d: { id: string }) => d.id);
+
+    // 2. Eliminar revisiones/comentarios vinculados a los entregables
+    if (deliverableIds.length > 0) {
+      await supabaseClient
+        .from('reviews')
+        .delete()
+        .in('deliverable_id', deliverableIds);
+    }
+
+    // 3. Eliminar entregables
+    await supabaseClient
+      .from('deliverables')
+      .delete()
+      .eq('project_id', id);
+
+    // 4. Eliminar capítulos vinculados al proyecto
+    await supabaseClient
+      .from('chapters')
+      .delete()
+      .eq('project_id', id);
+
+    // 5. Eliminar planes de pago
+    await supabaseClient
+      .from('payment_plans')
+      .delete()
+      .eq('project_id', id);
+
+    // 6. Eliminar registros de archivos vinculados
+    await supabaseClient
+      .from('files')
+      .delete()
+      .eq('project_id', id);
+
+    // 7. Eliminar la fila principal en la tabla de proyectos
+    const { error } = await supabaseClient
+      .from('projects')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error al eliminar proyecto en Supabase:', error);
+      throw error;
+    }
+
+    return true;
+  } catch (err) {
+    console.error('deleteAdminProject error:', err);
+    throw err;
   }
-  return true;
 }
 
 export async function updateProjectMaxRevisions(
@@ -396,6 +499,85 @@ export async function addDeliverableComment(
   return projects.find((p) => p.id === _projectId);
 }
 
+// ─── CAPÍTULOS REALEZ (chapters en Supabase) ───────────────────────────────
+
+export interface CreateChapterInput {
+  project_id: string;
+  chapter_number: number;
+  title?: string;
+  word_count: number;
+  status?: 'pendiente' | 'cotizado' | 'pagado' | 'en_produccion' | 'entregado';
+}
+
+export async function createAdminChapter(input: CreateChapterInput): Promise<AdminChapter> {
+  const calc = calculateChapterPrice({ wordCount: input.word_count });
+  const { data, error } = await supabaseClient
+    .from('chapters')
+    .insert({
+      project_id: input.project_id,
+      chapter_number: input.chapter_number,
+      title: input.title || `Capítulo ${input.chapter_number}`,
+      word_count: calc.wordCount,
+      duration_minutes: calc.durationMinutes,
+      pfh_rate_used: calc.pfhRate,
+      price: calc.price,
+      currency: calc.currency,
+      tier: calc.tier,
+      status: input.status || 'pendiente',
+    } as never)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('createAdminChapter error:', error);
+    throw error;
+  }
+
+  const row = data as any;
+  return {
+    id: row.id,
+    project_id: row.project_id,
+    chapter_number: row.chapter_number,
+    title: row.title,
+    word_count: row.word_count,
+    duration_minutes: row.duration_minutes || calc.durationMinutes,
+    pfh_rate_used: row.pfh_rate_used || calc.pfhRate,
+    price: row.price || calc.price,
+    currency: row.currency || 'USD',
+    tier: row.tier || calc.tier,
+    status: row.status || 'pendiente',
+  };
+}
+
+export async function updateChapterStatus(
+  chapterId: string,
+  status: 'pendiente' | 'cotizado' | 'pagado' | 'en_produccion' | 'entregado'
+): Promise<boolean> {
+  const { error } = await supabaseClient
+    .from('chapters')
+    .update({ status, updated_at: new Date().toISOString() } as never)
+    .eq('id', chapterId);
+
+  if (error) {
+    console.error('updateChapterStatus error:', error);
+    throw error;
+  }
+  return true;
+}
+
+export async function deleteChapter(chapterId: string): Promise<boolean> {
+  const { error } = await supabaseClient
+    .from('chapters')
+    .delete()
+    .eq('id', chapterId);
+
+  if (error) {
+    console.error('deleteChapter error:', error);
+    throw error;
+  }
+  return true;
+}
+
 // ─── Export del objeto adminService (mismo shape que antes) ──────────────────
 
 export const adminService = {
@@ -409,6 +591,9 @@ export const adminService = {
   updateProjectBudget,
   createAdminProject,
   deleteAdminProject,
+  createAdminChapter,
+  updateChapterStatus,
+  deleteChapter,
   addAudioDeliverable,
   toggleAudioDeliverable,
   addDeliverableComment,
