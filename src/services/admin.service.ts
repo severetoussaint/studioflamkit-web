@@ -238,8 +238,8 @@ export async function listAdminProjects(): Promise<AdminProject[]> {
       manuscript_id,
       authors ( full_name ),
       manuscripts ( title, word_count ),
-      chapters ( id, chapter_number, title, word_count, duration_minutes, pfh_rate_used, price, currency, tier, status ),
-      deliverables ( id, title, status, created_at )
+      chapters: left.chapters ( id, chapter_number, title, word_count, duration_minutes, pfh_rate_used, price, currency, tier, status ),
+      deliverables: left.deliverables ( id, title, status, created_at )
     `)
     .order('updated_at', { ascending: false });
 
