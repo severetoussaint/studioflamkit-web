@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUser } from '@/services/auth.service';
-import { getAuthorRequestState, submitManuscript, type AuthorRequestState } from '@/services/manuscript.service';
+import { getAuthorRequestState, getAuthorRequestContext, submitManuscript, type AuthorRequestState, type AuthorRequestContext } from '@/services/manuscript.service';
 import { getAuthorProjectData, type AuthorProjectData } from '@/services/project.service';
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
@@ -132,6 +132,7 @@ export default function DashboardPage() {
   const [isChecking, setIsChecking] = useState(true);
   const [authorId, setAuthorId] = useState<string | null>(null);
   const [requestState, setRequestState] = useState<AuthorRequestState>('none');
+  const [requestContext, setRequestContext] = useState<AuthorRequestContext | null>(null);
   const [realProject, setRealProject] = useState<AuthorProjectData | null>(null);
 
   useEffect(() => {
@@ -145,8 +146,11 @@ export default function DashboardPage() {
       }
       setAuthorId(u.id);
       try {
-        const state = await getAuthorRequestState(u.id);
-        if (isMounted) setRequestState(state);
+        const ctx = await getAuthorRequestContext(u.id);
+        if (isMounted) {
+          setRequestContext(ctx);
+          setRequestState(ctx.state);
+        }
 
         // Cargar proyecto real con sus capítulos de Supabase
         const projectData = await getAuthorProjectData(u.id);
@@ -311,8 +315,9 @@ export default function DashboardPage() {
         setManuscriptWordCount('');
         if (authorId) {
           try {
-            const freshState = await getAuthorRequestState(authorId);
-            setRequestState(freshState);
+            const freshCtx = await getAuthorRequestContext(authorId);
+            setRequestContext(freshCtx);
+            setRequestState(freshCtx.state);
           } catch {
             setRequestState('pending');
           }
@@ -440,26 +445,28 @@ export default function DashboardPage() {
                   <Sparkles className="h-3 w-3" />
                   Centro del Autor
                 </span>
-                {hasActiveProject && (
+                {(hasActiveProject || requestState === 'pending') && (
                   <>
                     <span className="text-xs text-ink-muted">·</span>
-                    <span className="text-xs font-medium text-ink-muted">ID: #FLAM-2026-89</span>
+                    <span className="text-xs font-medium font-mono text-ink-muted">
+                      ID: {requestContext?.projectId ? `#PROJ-${requestContext.projectId.slice(0, 8).toUpperCase()}` : requestContext?.requestId ? `#REQ-${requestContext.requestId.slice(0, 8).toUpperCase()}` : '#SOLICITUD'}
+                    </span>
                   </>
                 )}
               </div>
 
               <h1 className="mt-3 font-serif text-3xl font-medium tracking-tight text-ink sm:text-4xl lg:text-5xl">
                 {requestState === 'active'
-                  ? 'El jardín de las sombras'
+                  ? (realProject?.title || requestContext?.title || 'Tu Obra de Audio')
                   : requestState === 'pending'
-                  ? 'Tu manuscrito esta en evaluacion'
+                  ? (requestContext?.title || 'Tu manuscrito está en evaluación')
                   : 'Bienvenido a Studio Flamkit'}
               </h1>
               <p className="mt-2 text-sm leading-relaxed text-ink-muted sm:text-base max-w-2xl">
                 {requestState === 'active'
                   ? 'Supervisa el proceso de producción audiocinematográfica, escucha avances de capítulos y gestiona entregables de tu obra.'
                   : requestState === 'pending'
-                  ? 'Recibimos tu manuscrito. Nuestro equipo lo esta evaluando y te avisaremos en cuanto tengamos una propuesta.'
+                  ? 'Recibimos tu manuscrito. Nuestro equipo lo está evaluando y te avisaremos en cuanto tengamos una propuesta.'
                   : 'Tu espacio exclusivo para llevar tu libro a la vida en formato audiocinematográfico con producción sonora profesional.'}
               </p>
             </div>
@@ -469,22 +476,25 @@ export default function DashboardPage() {
               <div className="shrink-0 rounded-2xl border border-accent/30 bg-accent/5 p-5 shadow-sm lg:w-80">
                 <div className="flex items-center gap-2 text-accent">
                   <Clock className="h-4 w-4" />
-                  <span className="text-xs font-semibold uppercase tracking-wider">En evaluacion</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider">En evaluación</span>
                 </div>
                 <p className="mt-2 text-xs text-ink-muted leading-relaxed">
-                  Tu manuscrito ya fue recibido. Te contactaremos con la propuesta de produccion.
+                  Solicitud <strong className="text-ink font-mono">{requestContext?.requestId ? `#REQ-${requestContext.requestId.slice(0, 8).toUpperCase()}` : ''}</strong> recibida.
+                </p>
+                <p className="mt-1 text-[11px] text-ink-muted">
+                  Obra: <strong>{requestContext?.title || 'Manuscrito'}</strong>
                 </p>
               </div>
             ) : hasActiveProject ? (
               <div className="shrink-0 rounded-2xl border border-edge bg-surface p-4 shadow-sm lg:w-72">
                 <div className="flex items-center justify-between text-xs text-ink-muted">
                   <span>Progreso General</span>
-                  <span className="font-semibold text-accent">74%</span>
+                  <span className="font-semibold text-accent">{realProject?.progress ?? 0}%</span>
                 </div>
                 <div className="mt-2.5 h-2.5 overflow-hidden rounded-full bg-surface-elevated border border-edge/50">
                   <div
                     className="h-full rounded-full bg-accent transition-all duration-500 ease-out"
-                    style={{ width: '74%' }}
+                    style={{ width: `${realProject?.progress ?? 0}%` }}
                   />
                 </div>
                 <div className="mt-3 flex items-center justify-between text-xs">
@@ -492,7 +502,11 @@ export default function DashboardPage() {
                     <span className="h-2 w-2 rounded-full bg-accent animate-pulse" />
                     Producción Activa
                   </span>
-                  <span className="text-ink-muted">2/3 Capítulos</span>
+                  <span className="text-ink-muted">
+                    {chaptersState.length > 0
+                      ? `${chaptersState.filter(c => c.status === 'Entregado' || c.paymentStatus === 'Pagado' || c.status === 'Aprobado').length}/${chaptersState.length} Capítulos`
+                      : '0 Capítulos'}
+                  </span>
                 </div>
               </div>
             ) : (
@@ -607,7 +621,48 @@ export default function DashboardPage() {
           <div className="min-w-0">
             {active === 'resumen' && (
               <div className="space-y-6">
-                {!hasActiveProject ? (
+                {requestState === 'pending' ? (
+                  <Card className="border-accent/30 bg-surface-elevated p-8">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-accent/30 bg-accent/10 text-accent">
+                        <Clock className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono text-accent">
+                            Tracking ID: #REQ-{requestContext?.requestId?.slice(0, 8).toUpperCase() || 'PENDIENTE'}
+                          </span>
+                          <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                            En Evaluación
+                          </span>
+                        </div>
+                        <h3 className="mt-1 font-serif text-2xl font-medium text-ink">
+                          {requestContext?.title || 'Tu Manuscrito'}
+                        </h3>
+                      </div>
+                    </div>
+                    <p className="mt-4 text-sm leading-relaxed text-ink-muted">
+                      Tu manuscrito fue recibido y registrado en el sistema. El equipo de dirección técnica de Studio Flamkit está realizando el análisis de conteo de palabras y tono dramático para enviarte una propuesta de cotización y desglose por capítulos.
+                    </p>
+                    <div className="mt-6 flex flex-wrap gap-4 pt-4 border-t border-edge/60">
+                      <button
+                        type="button"
+                        onClick={() => setActive('capitulos')}
+                        className="inline-flex items-center gap-2 rounded-xl bg-accent/10 border border-accent/30 px-4 py-2 text-xs font-medium text-accent hover:bg-accent/20 transition cursor-pointer"
+                      >
+                        <BookOpen className="h-4 w-4" />
+                        <span>Ver Estado de Producción</span>
+                      </button>
+                      <Link
+                        href="/contacto"
+                        className="inline-flex items-center gap-2 rounded-xl border border-edge bg-surface px-4 py-2 text-xs font-medium text-ink hover:border-accent/40 transition"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                        <span>Consultar al Director</span>
+                      </Link>
+                    </div>
+                  </Card>
+                ) : !hasActiveProject ? (
                   /* Estado vacío para nuevo autor en sección Resumen */
                   <div className="space-y-6">
                     <Card className="border-accent/30 bg-gradient-to-br from-surface-elevated via-surface-elevated to-accent/5 p-8 text-center">
@@ -641,9 +696,58 @@ export default function DashboardPage() {
                     </Card>
                   </div>
                 ) : (
-                  /* Estado activo con proyecto en producción (placeholder para datos reales) */
-                  <div className="rounded-2xl border border-dashed border-edge bg-surface p-8 text-center">
-                    <p className="text-ink-muted">Resumen del proyecto en construcción.</p>
+                  /* Estado activo con proyecto real */
+                  <div className="space-y-6">
+                    <Card className="border-edge bg-surface-elevated p-6">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-mono text-accent">
+                              ID Proy: #PROJ-{realProject?.id.slice(0, 8).toUpperCase()}
+                            </span>
+                            <span className="rounded-full border border-accent/30 bg-accent/15 px-2.5 py-0.5 text-[11px] font-medium text-accent">
+                              Producción Activa
+                            </span>
+                          </div>
+                          <h3 className="mt-2 font-serif text-2xl font-semibold text-ink">
+                            {realProject?.title}
+                          </h3>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setActive('capitulos')}
+                          className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-xs font-medium text-surface transition hover:bg-accent-hover cursor-pointer"
+                        >
+                          <BookOpen className="h-4 w-4" />
+                          <span>Ver Capítulos ({chaptersState.length})</span>
+                        </button>
+                      </div>
+
+                      <div className="mt-6 grid gap-4 sm:grid-cols-3 border-t border-edge/60 pt-6">
+                        <div className="rounded-2xl border border-edge/60 bg-surface p-4">
+                          <p className="text-xs uppercase tracking-wider text-ink-muted">Progreso Global</p>
+                          <p className="mt-1 text-2xl font-semibold text-accent">{realProject?.progress}%</p>
+                          <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface-elevated border border-edge/40">
+                            <div className="h-full bg-accent" style={{ width: `${realProject?.progress}%` }} />
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-edge/60 bg-surface p-4">
+                          <p className="text-xs uppercase tracking-wider text-ink-muted">Capítulos Configurados</p>
+                          <p className="mt-1 text-2xl font-semibold text-ink">{chaptersState.length}</p>
+                          <p className="mt-1 text-xs text-ink-muted">
+                            {chaptersState.filter(c => c.paymentStatus === 'Pagado').length} pagados / {chaptersState.length} totales
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-edge/60 bg-surface p-4">
+                          <p className="text-xs uppercase tracking-wider text-ink-muted">Revisiones por Capítulo</p>
+                          <p className="mt-1 text-2xl font-semibold text-ink">{realProject?.maxRevisions || 3}</p>
+                          <p className="mt-1 text-xs text-ink-muted">Revisiones pactadas en contrato</p>
+                        </div>
+                      </div>
+                    </Card>
                   </div>
                 )}
               </div>
@@ -890,7 +994,9 @@ export default function DashboardPage() {
                     <div>
                       <h3 className="text-base font-semibold text-ink">Cuenta de Autor Verificada</h3>
                       <p className="text-xs text-ink-muted">
-                        {hasActiveProject ? 'Proyecto Activo: El jardín de las sombras' : 'Sin obras en producción activa'}
+                        {hasActiveProject
+                          ? `Proyecto Activo: ${realProject?.title || requestContext?.title || 'Obra en producción'}`
+                          : 'Sin obras en producción activa'}
                       </p>
                     </div>
                   </div>

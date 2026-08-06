@@ -5,30 +5,70 @@ export type ManuscriptRow = Database['public']['Tables']['manuscripts']['Row'];
 
 export type AuthorRequestState = 'none' | 'pending' | 'active';
 
-export async function getAuthorRequestState(authorId: string): Promise<AuthorRequestState> {
+export interface AuthorRequestContext {
+  state: AuthorRequestState;
+  requestId: string | null;
+  manuscriptId: string | null;
+  projectId: string | null;
+  title: string | null;
+  createdAt: string | null;
+}
+
+export async function getAuthorRequestContext(authorId: string): Promise<AuthorRequestContext> {
+  // 1. Verificar si tiene un proyecto activo
   const { data: projects, error: projectsError } = await supabaseClient
     .from('projects')
-    .select('id')
-    .eq('author_id', authorId)
+    .select('id, manuscript_id, created_at, manuscripts(title)')
+    .or(`author_id.eq.${authorId}`)
+    .order('created_at', { ascending: false })
     .limit(1);
-  if (projectsError) {
-    console.error('DEBUG: Error en consulta de proyectos:', projectsError);
-    throw projectsError;
-  }
-  if (projects && projects.length > 0) return 'active';
 
+  if (!projectsError && projects && projects.length > 0) {
+    const proj = projects[0] as any;
+    return {
+      state: 'active',
+      projectId: proj.id,
+      manuscriptId: proj.manuscript_id || null,
+      requestId: null,
+      title: proj.manuscripts?.title || 'Obra en producción',
+      createdAt: proj.created_at || null,
+    };
+  }
+
+  // 2. Verificar si tiene un manuscrito / solicitud pendiente
   const { data: manuscripts, error: manuscriptsError } = await supabaseClient
     .from('manuscripts')
-    .select('id')
+    .select('id, title, created_at, project_requests(id, status)')
     .eq('author_id', authorId)
+    .order('created_at', { ascending: false })
     .limit(1);
-  if (manuscriptsError) {
-    console.error('DEBUG: Error en consulta de manuscritos:', manuscriptsError);
-    throw manuscriptsError;
-  }
-  if (manuscripts && manuscripts.length > 0) return 'pending';
 
-  return 'none';
+  if (!manuscriptsError && manuscripts && manuscripts.length > 0) {
+    const m = manuscripts[0] as any;
+    const req = Array.isArray(m.project_requests) ? m.project_requests[0] : m.project_requests;
+    return {
+      state: 'pending',
+      projectId: null,
+      manuscriptId: m.id,
+      requestId: req?.id || m.id,
+      title: m.title || 'Manuscrito enviado',
+      createdAt: m.created_at || null,
+    };
+  }
+
+  return {
+    state: 'none',
+    requestId: null,
+    manuscriptId: null,
+    projectId: null,
+    title: null,
+    createdAt: null,
+  };
+}
+
+export async function getAuthorRequestState(authorId: string): Promise<AuthorRequestState> {
+  const context = await getAuthorRequestContext(authorId);
+  return context.state;
 }
 
 export interface SubmitManuscriptInput {
@@ -86,17 +126,26 @@ export async function submitManuscript({ authorId, title, wordCount, file }: Sub
     const manuscriptRow = manuscript as ManuscriptRow;
 
     // 5. Crear la fila real en project_requests
-    const { error: requestError } = await supabaseClient
+    const { data: requestData, error: requestError } = await supabaseClient
       .from('project_requests')
       .insert({
         manuscript_id: manuscriptRow.id,
         channel: 'dashboard',
         status: 'pending',
-      } as never);
+      } as never)
+      .select()
+      .single();
 
     if (requestError) throw requestError;
 
-    return manuscriptRow;
+    const requestRow = requestData as any;
+
+    return {
+      id: manuscriptRow.id,
+      requestId: requestRow?.id || manuscriptRow.id,
+      title: manuscriptRow.title,
+      wordCount: manuscriptRow.word_count,
+    };
   } catch (err) {
     console.error('Error al enviar el manuscrito:', JSON.stringify(err, null, 2));
     if (err && typeof err === 'object') {
