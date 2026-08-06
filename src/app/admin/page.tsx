@@ -94,12 +94,6 @@ export default function AdminPage() {
   const [newProjMaxRevisions, setNewProjMaxRevisions] = useState(3);
   const [creationSuccess, setCreationSuccess] = useState(false);
 
-  // Manual Quotation request state
-  const [newQuoteTitle, setNewQuoteTitle] = useState('');
-  const [newQuoteClient, setNewQuoteClient] = useState('');
-  const [newQuoteChapters, setNewQuoteChapters] = useState(4);
-  const [newQuoteAmount, setNewQuoteAmount] = useState(1200);
-
   // Load data initially
   const loadAllData = async () => {
     try {
@@ -107,10 +101,12 @@ export default function AdminPage() {
         adminService.listQuotationRequests(),
         adminService.listAdminProjects()
       ]);
-      setRequests(reqs);
-      setProjects(projs);
+      setRequests(Array.isArray(reqs) ? reqs : []);
+      setProjects(Array.isArray(projs) ? projs : []);
     } catch (error) {
       console.error('Error loading admin data:', error);
+      setRequests([]);
+      setProjects([]);
     }
   };
 
@@ -149,11 +145,14 @@ export default function AdminPage() {
   }, [router]);
 
   const summary = useMemo(() => {
-    const activeProjects = projects.filter((project) => project.status !== 'completado').length;
-    const completedProjects = projects.filter((project) => project.status === 'completado').length;
-    const pendingRequests = requests.filter((request) => request.status === 'pendiente').length;
-    const totalAmount = projects.reduce((acc, curr) => acc + (curr.amount || 0), 0) + 
-                        requests.filter(r => r.status === 'aprobada').reduce((acc, curr) => acc + curr.amount, 0);
+    const safeProjects = Array.isArray(projects) ? projects : [];
+    const safeRequests = Array.isArray(requests) ? requests : [];
+
+    const activeProjects = safeProjects.filter((project) => project.status !== 'completado').length;
+    const completedProjects = safeProjects.filter((project) => project.status === 'completado').length;
+    const pendingRequests = safeRequests.filter((request) => request.status === 'pendiente').length;
+    const totalAmount = safeProjects.reduce((acc, curr) => acc + (curr.amount || 0), 0) + 
+                        safeRequests.filter(r => r.status === 'aprobada').reduce((acc, curr) => acc + (curr.amount || 0), 0);
 
     return {
       activeProjects,
@@ -185,7 +184,9 @@ export default function AdminPage() {
         chapters: request.chapters,
         amount: request.amount,
         maxRevisions: 3,
-        revisionsUsed: 0
+        revisionsUsed: 0,
+        manuscript_id: request.manuscript_id,
+        author_id: request.author_id,
       });
       
       // Mark quote as approved
@@ -238,17 +239,6 @@ export default function AdminPage() {
     const targetVal = increment ? currentMax + 1 : Math.max(0, currentMax - 1);
     try {
       const updated = await adminService.updateProjectMaxRevisions(id, targetVal);
-      if (updated) {
-        await loadAllData();
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  const handleUpdateRevisionsUsed = async (id: string, project: AdminProject) => {
-    try {
-      const updated = await adminService.addProjectRevision(id);
       if (updated) {
         await loadAllData();
       }
@@ -366,32 +356,6 @@ export default function AdminPage() {
       setNewProjClient('');
       setCreationSuccess(true);
       setTimeout(() => setCreationSuccess(false), 3500);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  // Create mock quotation request manually
-  const handleCreateQuoteManually = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newQuoteTitle.trim() || !newQuoteClient.trim()) {
-      alert('Completa los campos de título y autor.');
-      return;
-    }
-
-    try {
-      await adminService.addQuotationRequest({
-        title: newQuoteTitle.trim(),
-        client: newQuoteClient.trim(),
-        chapters: newQuoteChapters,
-        amount: newQuoteAmount,
-        status: 'pendiente'
-      });
-
-      await loadAllData();
-      setNewQuoteTitle('');
-      setNewQuoteClient('');
-      alert('Simulación de manuscrito creada correctamente. Búscalo en la pestaña "Cotizaciones".');
     } catch (error) {
       console.error(error);
     }
@@ -620,19 +584,6 @@ export default function AdminPage() {
                             </button>
                           </div>
                         </div>
-
-                        {/* Revisions consumption simulation */}
-                        <div className="mt-3 flex items-center justify-between">
-                          <span className="text-[10px] text-ink-muted font-medium">Consumir revisión adicional:</span>
-                          <Button 
-                            variant="secondary" 
-                            disabled={project.revisionsUsed >= project.maxRevisions}
-                            onClick={() => handleUpdateRevisionsUsed(project.id, project)}
-                            className="text-[10px] py-1 px-3 cursor-pointer"
-                          >
-                            Registrar Uso (+1)
-                          </Button>
-                        </div>
                       </div>
 
                       {/* Status Selector */}
@@ -761,9 +712,9 @@ export default function AdminPage() {
               </p>
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-3">
+            <div className="max-w-4xl mx-auto space-y-4">
               {/* Main Column: Received Requests */}
-              <div className="lg:col-span-2 space-y-4">
+              <div className="space-y-4">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-accent flex items-center gap-1.5">
                   <BookOpen className="h-4 w-4" />
                   Manuscritos y Obras en Análisis ({requests.length})
@@ -860,60 +811,6 @@ export default function AdminPage() {
                     ))}
                   </div>
                 )}
-              </div>
-
-              {/* Sidebar Column: Simulated manuscript uploads generator */}
-              <div className="space-y-6">
-                <Card 
-                  title="Simular Envío de Autor" 
-                  description="Crea una solicitud de cotización ficticia para experimentar el flujo de aprobación automática." 
-                  className="border-edge bg-surface-elevated"
-                >
-                  <form onSubmit={handleCreateQuoteManually} className="space-y-4">
-                    <Input
-                      label="Título de la Obra"
-                      placeholder="Ejem: Las Crónicas del Silencio"
-                      value={newQuoteTitle}
-                      onChange={(e) => setNewQuoteTitle(e.target.value)}
-                      required
-                    />
-
-                    <Input
-                      label="Nombre del Autor"
-                      placeholder="Ejem: Carlos Mendoza"
-                      value={newQuoteClient}
-                      onChange={(e) => setNewQuoteClient(e.target.value)}
-                      required
-                    />
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <Input
-                        label="Capítulos"
-                        type="number"
-                        value={newQuoteChapters}
-                        onChange={(e) => setNewQuoteChapters(parseInt(e.target.value) || 0)}
-                        required
-                        min="1"
-                      />
-                      <Input
-                        label="Cotización ($ USD)"
-                        type="number"
-                        value={newQuoteAmount}
-                        onChange={(e) => setNewQuoteAmount(parseFloat(e.target.value) || 0)}
-                        required
-                        min="0"
-                      />
-                    </div>
-
-                    <Button
-                      variant="secondary"
-                      type="submit"
-                      className="w-full text-xs font-semibold cursor-pointer"
-                    >
-                      Generar Entrada Simulada
-                    </Button>
-                  </form>
-                </Card>
               </div>
             </div>
           </div>
@@ -1112,63 +1009,6 @@ export default function AdminPage() {
                     </div>
                   ))
                 )}
-              </div>
-
-              {/* Quick simulation helper buttons */}
-              <div className="px-5 py-2 border-t border-edge bg-surface/50 flex gap-2">
-                <span className="text-[9px] text-ink-muted self-center uppercase font-bold whitespace-nowrap">Simular:</span>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      await adminService.addDeliverableComment(
-                        selectedProject.id, 
-                        selectedDeliverable.id, 
-                        'client', 
-                        '¿Se podría subir el volumen de la voz en el segundo 45?'
-                      );
-                      await loadAllData();
-                      // Sync active view
-                      const projectsList = await adminService.listAdminProjects();
-                      const freshProj = projectsList.find(p => p.id === selectedProject.id);
-                      if (freshProj) {
-                        setSelectedProject(freshProj);
-                        setSelectedDeliverable(freshProj.deliverables.find(d => d.id === selectedDeliverable.id) || null);
-                      }
-                    } catch (error) {
-                      console.error(error);
-                    }
-                  }}
-                  className="rounded-lg bg-surface hover:bg-surface-elevated border border-edge text-ink-muted text-[9px] px-2.5 py-1 transition cursor-pointer"
-                >
-                  Autor pide ajuste
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      await adminService.addDeliverableComment(
-                        selectedProject.id, 
-                        selectedDeliverable.id, 
-                        'client', 
-                        '¡Excelente mezcla! Apruebo este fragmento de audio.'
-                      );
-                      await loadAllData();
-                      // Sync active view
-                      const projectsList = await adminService.listAdminProjects();
-                      const freshProj = projectsList.find(p => p.id === selectedProject.id);
-                      if (freshProj) {
-                        setSelectedProject(freshProj);
-                        setSelectedDeliverable(freshProj.deliverables.find(d => d.id === selectedDeliverable.id) || null);
-                      }
-                    } catch (error) {
-                      console.error(error);
-                    }
-                  }}
-                  className="rounded-lg bg-surface hover:bg-surface-elevated border border-edge text-ink-muted text-[9px] px-2.5 py-1 transition cursor-pointer"
-                >
-                  Autor aprueba audio
-                </button>
               </div>
 
               {/* Chat Input form */}

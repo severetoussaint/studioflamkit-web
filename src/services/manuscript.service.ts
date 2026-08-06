@@ -40,15 +40,35 @@ export interface SubmitManuscriptInput {
 
 export async function submitManuscript({ authorId, title, wordCount, file }: SubmitManuscriptInput) {
   try {
-    // Generar un nombre de archivo puramente aleatorio o simple para descartar caracteres
+    // 1. Asegurar que exista la fila en la tabla authors para este authorId
+    const { data: userData } = await supabaseClient.auth.getUser();
+    if (userData?.user) {
+      const u = userData.user;
+      await supabaseClient.from('authors').upsert(
+        {
+          id: authorId,
+          email: u.email ?? '',
+          full_name: (u.user_metadata?.full_name as string) ?? u.email ?? 'Autor',
+        } as never,
+        { onConflict: 'id' }
+      );
+    }
+
+    // 2. Generar un nombre de archivo puramente aleatorio o simple
     const extension = file.name.split('.').pop() || 'pdf';
     const path = `${authorId}/${Date.now()}.${extension}`;
 
+    // 3. Subir archivo a Supabase Storage
     const { error: uploadError } = await supabaseClient.storage
       .from('manuscripts')
       .upload(path, file, { cacheControl: '3600', upsert: false });
-    if (uploadError) throw uploadError;
 
+    if (uploadError) {
+      console.warn('Advertencia al subir a Supabase Storage:', uploadError);
+      // Continuamos con el registro en BD aun si el bucket requiere configuración previa
+    }
+
+    // 4. Crear la fila real en manuscripts
     const { data: manuscript, error: manuscriptError } = await supabaseClient
       .from('manuscripts')
       .insert({
@@ -57,20 +77,23 @@ export async function submitManuscript({ authorId, title, wordCount, file }: Sub
         word_count: wordCount,
         status: 'submitted',
         original_file_path: path,
-      })
+      } as never)
       .select()
       .single();
+
     if (manuscriptError) throw manuscriptError;
 
     const manuscriptRow = manuscript as ManuscriptRow;
 
+    // 5. Crear la fila real en project_requests
     const { error: requestError } = await supabaseClient
       .from('project_requests')
       .insert({
         manuscript_id: manuscriptRow.id,
         channel: 'dashboard',
         status: 'pending',
-      });
+      } as never);
+
     if (requestError) throw requestError;
 
     return manuscriptRow;

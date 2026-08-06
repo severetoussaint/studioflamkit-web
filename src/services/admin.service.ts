@@ -1,4 +1,5 @@
 import { supabaseClient } from '@/lib/supabase/client';
+import { calculateManuscriptPrice } from '@/features/quotations/utils/calculator';
 
 // ─── Tipos (mismos nombres que antes para no tocar admin/page.tsx) ────────────
 
@@ -126,17 +127,23 @@ export async function listQuotationRequests(): Promise<QuotationRequest[]> {
     throw error;
   }
 
-  return (data ?? []).map((row: any) => ({
-    id: row.id,
-    client: row.manuscripts?.authors?.full_name ?? 'Autor desconocido',
-    title: row.manuscripts?.title ?? 'Sin titulo',
-    requestedAt: (row.created_at ?? '').slice(0, 10),
-    status: dbRequestStatusToAdmin(row.status),
-    chapters: 1,
-    amount: 0,
-    manuscript_id: row.manuscripts?.id,
-    author_id: row.manuscripts?.author_id,
-  }));
+  return (data ?? []).map((row: any) => {
+    const wordCount = row.manuscripts?.word_count ?? 0;
+    const amount = wordCount > 0 ? calculateManuscriptPrice(wordCount) : 0;
+    const estimatedChapters = Math.max(1, Math.round(wordCount / 3000)) || 1;
+
+    return {
+      id: row.id,
+      client: row.manuscripts?.authors?.full_name ?? 'Autor desconocido',
+      title: row.manuscripts?.title ?? 'Sin título',
+      requestedAt: (row.created_at ?? '').slice(0, 10),
+      status: dbRequestStatusToAdmin(row.status),
+      chapters: estimatedChapters,
+      amount,
+      manuscript_id: row.manuscripts?.id,
+      author_id: row.manuscripts?.author_id,
+    };
+  });
 }
 
 export async function updateQuotationRequestStatus(
@@ -150,7 +157,7 @@ export async function updateQuotationRequestStatus(
     .eq('id', id)
     .select(`
       id, status, created_at,
-      manuscripts ( id, title, author_id, authors ( full_name ) )
+      manuscripts ( id, title, word_count, author_id, authors ( full_name ) )
     `)
     .single();
 
@@ -160,14 +167,18 @@ export async function updateQuotationRequestStatus(
   }
 
   const row = data as any;
+  const wordCount = row.manuscripts?.word_count ?? 0;
+  const amount = wordCount > 0 ? calculateManuscriptPrice(wordCount) : 0;
+  const estimatedChapters = Math.max(1, Math.round(wordCount / 3000)) || 1;
+
   return {
     id: row.id,
     client: row.manuscripts?.authors?.full_name ?? 'Autor desconocido',
-    title: row.manuscripts?.title ?? 'Sin titulo',
+    title: row.manuscripts?.title ?? 'Sin título',
     requestedAt: (row.created_at ?? '').slice(0, 10),
     status,
-    chapters: 1,
-    amount: 0,
+    chapters: estimatedChapters,
+    amount,
     manuscript_id: row.manuscripts?.id,
     author_id: row.manuscripts?.author_id,
   };
@@ -176,9 +187,7 @@ export async function updateQuotationRequestStatus(
 export async function addQuotationRequest(
   req: Omit<QuotationRequest, 'id' | 'requestedAt'>
 ): Promise<QuotationRequest> {
-  // No se usa en el flujo real — los autores crean sus solicitudes solos.
-  // Se deja por compatibilidad con admin/page.tsx
-  console.warn('addQuotationRequest: operacion no soportada en modo real');
+  console.warn('addQuotationRequest: operación no soportada en modo real');
   return { ...req, id: `rq-${Date.now()}`, requestedAt: new Date().toISOString().slice(0, 10) };
 }
 
@@ -203,9 +212,11 @@ export async function listAdminProjects(): Promise<AdminProject[]> {
       id,
       status,
       updated_at,
+      author_id,
+      manuscript_id,
       authors ( full_name ),
-      manuscripts ( title ),
-      chapters ( id ),
+      manuscripts ( title, word_count ),
+      chapters ( id, price, word_count ),
       deliverables ( id, title, status, created_at )
     `)
     .order('updated_at', { ascending: false });
@@ -225,15 +236,21 @@ export async function listAdminProjects(): Promise<AdminProject[]> {
       comments: [],
     }));
 
+    const wordCount = row.manuscripts?.word_count ?? 0;
+    const chaptersCount = (row.chapters ?? []).length || (wordCount > 0 ? Math.max(1, Math.round(wordCount / 3000)) : 1);
+    const chapterPriceSum = (row.chapters ?? []).reduce((acc: number, c: any) => acc + (c.price || 0), 0);
+    const totalAmount = chapterPriceSum > 0 ? chapterPriceSum : (wordCount > 0 ? calculateManuscriptPrice(wordCount) : 0);
+
     return {
       id: row.id,
-      title: row.manuscripts?.title ?? 'Sin titulo',
+      title: row.manuscripts?.title ?? 'Sin título',
       client: row.authors?.full_name ?? 'Autor desconocido',
       status: adminStatus,
       progress: getProgressByStatus(adminStatus),
       revisionsUsed: 0,
-      maxRevisions: 2,
-      chapters: (row.chapters ?? []).length,
+      maxRevisions: 3,
+      chapters: chaptersCount,
+      amount: totalAmount,
       deliverables,
       lastUpdate: (row.updated_at ?? '').slice(0, 10),
     };
@@ -259,15 +276,38 @@ export async function updateProjectStatus(
 }
 
 export async function createAdminProject(
-  newProj: Omit<AdminProject, 'id' | 'deliverables' | 'progress' | 'lastUpdate'>
+  newProj: Omit<AdminProject, 'id' | 'deliverables' | 'progress' | 'lastUpdate'> & {
+    manuscript_id?: string;
+    author_id?: string;
+  }
 ): Promise<AdminProject> {
-  // Este flujo requiere manuscript_id y author_id — se usa al aprobar una solicitud.
-  // admin/page.tsx lo llama con { title, client, status, ... }. Por ahora lo apuntamos
-  // hacia la Fase C cuando el admin apruebe una solicitud real y genere el proyecto.
-  console.warn('createAdminProject: en Fase B solo se leen proyectos. La creacion real es Fase C.');
+  let createdProjectId: string | undefined;
+
+  if (newProj.author_id && newProj.manuscript_id) {
+    const { data: projectRow, error: projectError } = await supabaseClient
+      .from('projects')
+      .insert({
+        author_id: newProj.author_id,
+        manuscript_id: newProj.manuscript_id,
+        status: adminStatusToDb(newProj.status),
+      } as never)
+      .select('id')
+      .single();
+
+    if (!projectError && projectRow) {
+      createdProjectId = (projectRow as { id: string }).id;
+    } else if (projectError) {
+      console.error('Error al crear proyecto en DB:', projectError);
+    }
+  }
+
+  const projects = await listAdminProjects();
+  const created = projects.find((p) => p.id === createdProjectId);
+  if (created) return created;
+
   const stub: AdminProject = {
     ...newProj,
-    id: `stub-${Date.now()}`,
+    id: createdProjectId ?? `proj-${Date.now()}`,
     progress: getProgressByStatus(newProj.status),
     deliverables: [],
     lastUpdate: new Date().toISOString().slice(0, 10),

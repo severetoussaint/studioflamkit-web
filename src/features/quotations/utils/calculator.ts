@@ -26,6 +26,14 @@ export function calculateChapterPrice(input: ChapterCalculatorInput): ChapterCal
   };
 }
 
+export function calculateManuscriptPrice(wordCount: number): number {
+  const count = Math.max(0, Math.round(wordCount));
+  if (count === 0) return 0;
+  const durationMinutes = count / WORDS_PER_MINUTE;
+  const rawPrice = (durationMinutes / 60) * PFH_RATE;
+  return Math.max(MIN_PRICE, Math.round(rawPrice * 100) / 100);
+}
+
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
 }

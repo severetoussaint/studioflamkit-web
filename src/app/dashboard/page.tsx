@@ -271,19 +271,25 @@ export default function DashboardPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const handleFileSelect = (fileName: string, fileSize: string, file?: File) => {
-    if (file) setPendingFile(file);
+    if (file) {
+      setPendingFile(file);
+      const nameWithoutExt = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+      if (!manuscriptTitle) {
+        setManuscriptTitle(nameWithoutExt);
+      }
+    }
     setUploadedFile({ name: fileName, size: fileSize, wordCount: '' });
   };
 
   // Enviar manuscrito real: sube el archivo y crea las filas reales en Supabase
   const handleSubmitManuscript = async () => {
     if (!authorId || !pendingFile) {
-      setSubmitError('Falta el archivo o no hay sesion activa.');
+      setSubmitError('Falta el archivo o no hay sesión activa.');
       return;
     }
     const wordCountNumber = Number(manuscriptWordCount);
     if (!manuscriptTitle.trim() || !wordCountNumber || wordCountNumber <= 0) {
-      setSubmitError('Completa el titulo y un numero de palabras valido.');
+      setSubmitError('Completa el título y un número de palabras válido.');
       return;
     }
 
@@ -298,14 +304,23 @@ export default function DashboardPage() {
         file: pendingFile,
       });
       setUploadSubmitted(true);
-      setTimeout(() => {
+      setTimeout(async () => {
         setUploaderModalOpen(false);
         setUploadSubmitted(false);
         setUploadedFile(null);
         setPendingFile(null);
         setManuscriptTitle('');
         setManuscriptWordCount('');
-        setRequestState('pending');
+        if (authorId) {
+          try {
+            const freshState = await getAuthorRequestState(authorId);
+            setRequestState(freshState);
+          } catch {
+            setRequestState('pending');
+          }
+        } else {
+          setRequestState('pending');
+        }
       }, 1500);
     } catch (err) {
       console.error('Error al enviar el manuscrito:', JSON.stringify(err, null, 2));
