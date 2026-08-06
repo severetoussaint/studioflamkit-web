@@ -1,9 +1,10 @@
 import React from 'react';
 import Link from 'next/link';
+import { routes } from '@/config/routes';
 
 const institutionalLinks = [
   { label: 'Sobre Studio Flamkit', href: '#sobre' },
-  { label: 'Privacidad', href: '#privacidad' },
+  { label: 'Privacidad', href: routes.privacidad },
   { label: 'Términos', href: '#terminos' },
 ];
 

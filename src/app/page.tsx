@@ -102,7 +102,7 @@ export default function HomePage() {
       </section>
 
       {/* Sobre nosotros */}
-      <section className="border-b border-edge bg-surface-elevated">
+      <section id="sobre" className="scroll-mt-20 border-b border-edge bg-surface-elevated">
         <div className="mx-auto max-w-6xl px-6 py-24 lg:px-8">
           <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
             <div className="max-w-2xl">
