@@ -238,8 +238,8 @@ export async function listAdminProjects(): Promise<AdminProject[]> {
       manuscript_id,
       authors ( full_name ),
       manuscripts ( title, word_count ),
-      chapters: left.chapters ( id, chapter_number, title, word_count, duration_minutes, pfh_rate_used, price, currency, tier, status ),
-      deliverables: left.deliverables ( id, title, status, created_at )
+      chapters ( id, chapter_number, title, word_count, duration_minutes, pfh_rate_used, price, currency, tier, status ),
+      deliverables ( id, title, status, created_at )
     `)
     .order('updated_at', { ascending: false });
 
@@ -247,6 +247,8 @@ export async function listAdminProjects(): Promise<AdminProject[]> {
     console.error('listAdminProjects error:', JSON.stringify(error));
     throw error;
   }
+
+  console.log('listAdminProjects: Datos recibidos de Supabase:', data);
 
   return (data ?? []).map((row: any) => {
     const adminStatus = dbStatusToAdmin(row.status);
@@ -334,13 +336,26 @@ export async function createAdminProject(
   }
 ): Promise<AdminProject> {
   let createdProjectId: string | undefined;
+  let authorId = newProj.author_id;
+  let manuscriptId = newProj.manuscript_id;
 
-  if (newProj.author_id && newProj.manuscript_id) {
+  if (manuscriptId && !authorId) {
+    const { data: m } = await supabaseClient
+      .from('manuscripts')
+      .select('author_id')
+      .eq('id', manuscriptId)
+      .single();
+    if (m?.author_id) {
+      authorId = m.author_id;
+    }
+  }
+
+  if (authorId && manuscriptId) {
     const { data: projectRow, error: projectError } = await supabaseClient
       .from('projects')
       .insert({
-        author_id: newProj.author_id,
-        manuscript_id: newProj.manuscript_id,
+        author_id: authorId,
+        manuscript_id: manuscriptId,
         status: adminStatusToDb(newProj.status),
       } as never)
       .select('id')
@@ -348,6 +363,12 @@ export async function createAdminProject(
 
     if (!projectError && projectRow) {
       createdProjectId = (projectRow as { id: string }).id;
+
+      // Actualizar la solicitud en project_requests a 'accepted' para asegurar sincronización
+      await supabaseClient
+        .from('project_requests')
+        .update({ status: 'accepted' })
+        .eq('manuscript_id', manuscriptId);
     } else if (projectError) {
       console.error('Error al crear proyecto en DB:', projectError);
     }

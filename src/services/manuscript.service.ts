@@ -15,55 +15,96 @@ export interface AuthorRequestContext {
 }
 
 export async function getAuthorRequestContext(authorId: string): Promise<AuthorRequestContext> {
-  // 1. Verificar si tiene un proyecto activo
-  const { data: projects, error: projectsError } = await supabaseClient
-    .from('projects')
-    .select('id, manuscript_id, created_at, manuscripts(title)')
-    .or(`author_id.eq.${authorId}`)
-    .order('created_at', { ascending: false })
-    .limit(1);
+  try {
+    // 1. Obtener todos los manuscritos del autor
+    const { data: authorManuscripts } = await supabaseClient
+      .from('manuscripts')
+      .select('id, title, created_at, project_requests(id, status)')
+      .eq('author_id', authorId)
+      .order('created_at', { ascending: false });
 
-  if (!projectsError && projects && projects.length > 0) {
-    const proj = projects[0] as any;
+    const manuscriptIds = (authorManuscripts || []).map((m: any) => m.id);
+
+    // 2. Verificar si existe algún proyecto activo vinculado al author_id o a sus manuscritos
+    let activeProject: any = null;
+
+    if (manuscriptIds.length > 0) {
+      const { data: projs } = await supabaseClient
+        .from('projects')
+        .select('id, manuscript_id, created_at, manuscripts(title)')
+        .or(`author_id.eq.${authorId},manuscript_id.in.(${manuscriptIds.join(',')})`)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (projs && projs.length > 0) {
+        activeProject = projs[0];
+      }
+    } else {
+      const { data: projs } = await supabaseClient
+        .from('projects')
+        .select('id, manuscript_id, created_at, manuscripts(title)')
+        .eq('author_id', authorId)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (projs && projs.length > 0) {
+        activeProject = projs[0];
+      }
+    }
+
+    if (activeProject) {
+      return {
+        state: 'active',
+        projectId: activeProject.id,
+        manuscriptId: activeProject.manuscript_id || null,
+        requestId: null,
+        title: activeProject.manuscripts?.title || 'Obra en producción',
+        createdAt: activeProject.created_at || null,
+      };
+    }
+
+    // 3. Si no hay proyecto activo, verificar si hay alguna solicitud en estado pendiente/evaluación
+    if (authorManuscripts && authorManuscripts.length > 0) {
+      for (const m of authorManuscripts as any[]) {
+        const reqList = Array.isArray(m.project_requests)
+          ? m.project_requests
+          : m.project_requests
+          ? [m.project_requests]
+          : [];
+        const pendingReq = reqList.find((r: any) => r.status === 'pending' || r.status === 'evaluating');
+
+        if (pendingReq || reqList.length === 0) {
+          return {
+            state: 'pending',
+            projectId: null,
+            manuscriptId: m.id,
+            requestId: pendingReq?.id || m.id,
+            title: m.title || 'Manuscrito enviado',
+            createdAt: m.created_at || null,
+          };
+        }
+      }
+    }
+
     return {
-      state: 'active',
-      projectId: proj.id,
-      manuscriptId: proj.manuscript_id || null,
+      state: 'none',
       requestId: null,
-      title: proj.manuscripts?.title || 'Obra en producción',
-      createdAt: proj.created_at || null,
-    };
-  }
-
-  // 2. Verificar si tiene un manuscrito / solicitud pendiente
-  const { data: manuscripts, error: manuscriptsError } = await supabaseClient
-    .from('manuscripts')
-    .select('id, title, created_at, project_requests(id, status)')
-    .eq('author_id', authorId)
-    .order('created_at', { ascending: false })
-    .limit(1);
-
-  if (!manuscriptsError && manuscripts && manuscripts.length > 0) {
-    const m = manuscripts[0] as any;
-    const req = Array.isArray(m.project_requests) ? m.project_requests[0] : m.project_requests;
-    return {
-      state: 'pending',
+      manuscriptId: null,
       projectId: null,
-      manuscriptId: m.id,
-      requestId: req?.id || m.id,
-      title: m.title || 'Manuscrito enviado',
-      createdAt: m.created_at || null,
+      title: null,
+      createdAt: null,
+    };
+  } catch (err) {
+    console.error('Error en getAuthorRequestContext:', err);
+    return {
+      state: 'none',
+      requestId: null,
+      manuscriptId: null,
+      projectId: null,
+      title: null,
+      createdAt: null,
     };
   }
-
-  return {
-    state: 'none',
-    requestId: null,
-    manuscriptId: null,
-    projectId: null,
-    title: null,
-    createdAt: null,
-  };
 }
 
 export async function getAuthorRequestState(authorId: string): Promise<AuthorRequestState> {
