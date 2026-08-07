@@ -166,20 +166,49 @@ export async function submitManuscript({ authorId, title, wordCount, file }: Sub
 
     const manuscriptRow = manuscript as ManuscriptRow;
 
-    // 5. Crear la fila real en project_requests
-    const { data: requestData, error: requestError } = await supabaseClient
+    // 5. Crear o recuperar la fila real en project_requests
+    let requestRow: any = null;
+
+    // Verificar primero si un trigger de base de datos o inserción previa ya creó la solicitud
+    const { data: existingReq } = await supabaseClient
       .from('project_requests')
-      .insert({
-        manuscript_id: manuscriptRow.id,
-        channel: 'dashboard',
-        status: 'pending',
-      } as never)
-      .select()
-      .single();
+      .select('*')
+      .eq('manuscript_id', manuscriptRow.id)
+      .maybeSingle();
 
-    if (requestError) throw requestError;
+    if (existingReq) {
+      requestRow = existingReq;
+    } else {
+      const { data: requestData, error: requestError } = await supabaseClient
+        .from('project_requests')
+        .upsert(
+          {
+            manuscript_id: manuscriptRow.id,
+            channel: 'dashboard',
+            status: 'pending',
+          } as never,
+          { onConflict: 'manuscript_id' }
+        )
+        .select()
+        .maybeSingle();
 
-    const requestRow = requestData as any;
+      if (requestError) {
+        // Si hay error por concurrencia u otro motivo, reintentar la lectura
+        const { data: fallbackReq } = await supabaseClient
+          .from('project_requests')
+          .select('*')
+          .eq('manuscript_id', manuscriptRow.id)
+          .maybeSingle();
+
+        if (fallbackReq) {
+          requestRow = fallbackReq;
+        } else {
+          throw requestError;
+        }
+      } else {
+        requestRow = requestData;
+      }
+    }
 
     return {
       id: manuscriptRow.id,

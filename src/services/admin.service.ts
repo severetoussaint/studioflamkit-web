@@ -173,19 +173,37 @@ export async function updateQuotationRequestStatus(
   const { data, error } = await supabaseClient
     .from('project_requests')
     .update({ status: dbStatus })
-    .eq('id', id)
+    .or(`id.eq.${id},manuscript_id.eq.${id}`)
     .select(`
       id, status, created_at,
       manuscripts ( id, title, word_count, author_id, authors ( full_name ) )
     `)
-    .single();
+    .maybeSingle();
 
   if (error) {
     console.error('updateQuotationRequestStatus error:', JSON.stringify(error));
-    throw error;
+    return undefined;
   }
 
-  const row = data as any;
+  let row = data as any;
+
+  if (!row) {
+    const { data: fallbackData } = await supabaseClient
+      .from('project_requests')
+      .select(`
+        id, status, created_at,
+        manuscripts ( id, title, word_count, author_id, authors ( full_name ) )
+      `)
+      .or(`id.eq.${id},manuscript_id.eq.${id}`)
+      .maybeSingle();
+
+    if (!fallbackData) {
+      console.warn(`updateQuotationRequestStatus: No request found with id/manuscript_id ${id}`);
+      return undefined;
+    }
+    row = fallbackData;
+  }
+
   const wordCount = row.manuscripts?.word_count ?? 0;
   const amount = wordCount > 0 ? calculateManuscriptPrice(wordCount) : 0;
   const estimatedChapters = Math.max(1, Math.round(wordCount / 3000)) || 1;
@@ -344,7 +362,7 @@ export async function createAdminProject(
       .from('manuscripts')
       .select('author_id')
       .eq('id', manuscriptId)
-      .single();
+      .maybeSingle();
     if (m?.author_id) {
       authorId = m.author_id;
     }
@@ -359,7 +377,7 @@ export async function createAdminProject(
         status: adminStatusToDb(newProj.status),
       } as never)
       .select('id')
-      .single();
+      .maybeSingle();
 
     if (!projectError && projectRow) {
       createdProjectId = (projectRow as { id: string }).id;
