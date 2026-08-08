@@ -22,7 +22,6 @@ export function NextActionCard({
 }: NextActionCardProps) {
   const isNone = state === 'none';
   const isPending = state === 'pending';
-  const isActive = state === 'active';
 
   const wrapperClassName = isNone
     ? 'border-accent/20 bg-[linear-gradient(135deg,rgba(242,107,46,0.05),rgba(252,250,246,0.96))]'

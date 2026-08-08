@@ -90,15 +90,6 @@ const initialComments: Record<string, CommentItem[]> = {};
 
 const deliverables: { title: string; date: string; size: string; format: string }[] = [];
 
-const invoicesList: InvoiceItem[] = [];
-
-const productionSteps = [
-  { title: 'Análisis editorial', status: 'Completado', desc: 'Ajuste de guion y tono dramático' },
-  { title: 'Locución & Dirección', status: 'Completado', desc: 'Grabación de voces e interpretación' },
-  { title: 'Edición & Diseño Sonoro', status: 'En curso', desc: 'Montaje de efectos y música original' },
-  { title: 'Mezcla & Master Final', status: 'Pendiente', desc: 'Control de calidad estandarizado' },
-];
-
 function StatusPill({ status }: { status: string }) {
   const isDone = status === 'Completado' || status === 'Pagado' || status === 'Aprobado';
   const isRevision = status === 'Revisiones';
@@ -282,6 +273,7 @@ export default function DashboardPage() {
 
     setSubmitError(null);
     setUploadingState(true);
+    setUploadProgress(50);
 
     try {
       await submitManuscript({
