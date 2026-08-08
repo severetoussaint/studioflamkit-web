@@ -166,6 +166,8 @@ export default function DashboardPage() {
   const [manuscriptWordCount, setManuscriptWordCount] = useState('');
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  const hasActiveProject = requestState === 'active' || Boolean(realProject);
+
   useEffect(() => {
     let isMounted = true;
     async function checkAuth() {
@@ -259,12 +261,6 @@ export default function DashboardPage() {
     { id: 'pagos', label: 'Pagos & Facturas', icon: Wallet },
     { id: 'perfil', label: 'Perfil & Preferencias', icon: Settings },
   ];
-
-  // Archivo real seleccionado, en espera de que el autor confirme palabras y titulo
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [manuscriptTitle, setManuscriptTitle] = useState('');
-  const [manuscriptWordCount, setManuscriptWordCount] = useState('');
-  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const handleFileSelect = (fileName: string, fileSize: string, file?: File) => {
     if (file) {

@@ -1,39 +1,78 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 
-type Theme = 'light' | 'dark';
+type Theme = "light" | "dark";
 
 interface ThemeContextValue {
   theme: Theme;
+  mounted: boolean;
   toggleTheme: () => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
+export function ThemeProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem('flamkit-theme') as Theme | null;
-      if (stored) return stored;
-      return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    if (typeof window === "undefined") {
+      return "dark";
     }
-    return 'dark';
+
+    const stored = window.localStorage.getItem(
+      "flamkit-theme"
+    ) as Theme | null;
+
+    return (
+      stored ??
+      (window.matchMedia("(prefers-color-scheme: light)").matches
+        ? "light"
+        : "dark")
+    );
   });
-  const [mounted, setMounted] = useState(true);
 
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-    window.localStorage.setItem('flamkit-theme', theme);
-  }, [theme, mounted]);
+    document.documentElement.classList.toggle(
+      "dark",
+      theme === "dark"
+    );
 
-  const toggleTheme = () => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+    window.localStorage.setItem("flamkit-theme", theme);
+  }, [theme]);
 
-  return <ThemeContext.Provider value={{ theme, toggleTheme }}>{children}</ThemeContext.Provider>;
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  };
+
+  return (
+    <ThemeContext.Provider
+      value={{
+        theme,
+        mounted: true,
+        toggleTheme,
+      }}
+    >
+      {children}
+    </ThemeContext.Provider>
+  );
 }
 
 export function useTheme() {
   const ctx = useContext(ThemeContext);
-  if (!ctx) throw new Error('useTheme debe usarse dentro de ThemeProvider');
+
+  if (!ctx) {
+    throw new Error(
+      "useTheme debe usarse dentro de ThemeProvider"
+    );
+  }
+
   return ctx;
 }
