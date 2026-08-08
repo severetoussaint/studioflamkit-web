@@ -20,109 +20,89 @@ export function NextActionCard({
   buttonLabel,
   onActionClick,
 }: NextActionCardProps) {
-  if (state === 'none') {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-        className="rounded-3xl border border-accent/30 bg-accent/8 p-6 sm:p-8 shadow-[0_8px_30px_rgba(0,0,0,0.02)]"
-      >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-xl">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-accent/15 px-3.5 py-1 text-[11px] font-medium tracking-wide text-accent">
-              <Sparkles className="h-3.5 w-3.5" />
-              <span className="uppercase tracking-[0.16em]">Siguiente Paso Recomendado</span>
-            </div>
-            <h3 className="font-serif text-2xl font-normal text-ink">Envía tu primer manuscrito</h3>
-            <p className="text-xs sm:text-sm text-ink-muted/90 font-light leading-relaxed">
-              Carga tu archivo en formato PDF o Word (.docx) para recibir una estimación de horas de locución y propuesta de producción sin compromiso.
-            </p>
-          </div>
+  const isNone = state === 'none';
+  const isPending = state === 'pending';
+  const isActive = state === 'active';
 
-          <Button
-            variant="primary"
-            className="shrink-0 flex items-center justify-center gap-2.5 px-6 py-3.5 text-xs font-medium uppercase tracking-[0.15em] shadow-xs"
-            onClick={onActionClick}
-          >
-            <span>Subir Mi Manuscrito</span>
-            <ArrowRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </motion.div>
-    );
-  }
+  const wrapperClassName = isNone
+    ? 'border-accent/20 bg-[linear-gradient(135deg,rgba(242,107,46,0.05),rgba(252,250,246,0.96))]'
+    : isPending
+    ? 'border-amber-500/20 bg-[linear-gradient(135deg,rgba(245,158,11,0.05),rgba(252,250,246,0.96))]'
+    : 'border-emerald-500/20 bg-[linear-gradient(135deg,rgba(16,185,129,0.05),rgba(252,250,246,0.96))]';
 
-  if (state === 'pending') {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-        className="rounded-3xl border border-amber-500/25 bg-amber-500/8 p-6 sm:p-8 shadow-[0_8px_30px_rgba(0,0,0,0.02)]"
-      >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-xl">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-3.5 py-1 text-[11px] font-medium tracking-wide text-amber-800 dark:text-amber-300">
-              <Clock className="h-3.5 w-3.5" />
-              <span className="uppercase tracking-[0.16em]">En Evaluación Editorial</span>
-            </div>
-            <h3 className="font-serif text-2xl font-normal text-ink">
-              {pendingActionTitle || 'Evaluación en proceso por la dirección artística'}
-            </h3>
-            <p className="text-xs sm:text-sm text-ink-muted/90 font-light leading-relaxed">
-              {pendingActionDesc ||
-                'No se requiere ninguna acción adicional de tu parte. Te notificaremos cuando el desglose técnico y la muestra de voz estén listos.'}
-            </p>
-          </div>
+  const badgeClassName = isNone
+    ? 'border-accent/20 bg-accent/8 text-accent'
+    : isPending
+    ? 'border-amber-500/25 bg-amber-500/10 text-amber-800 dark:text-amber-300'
+    : 'border-emerald-500/25 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300';
 
-          {buttonLabel && onActionClick && (
-            <Button
-              variant="secondary"
-              className="shrink-0 flex items-center justify-center gap-2 px-6 py-3.5 text-xs font-medium uppercase tracking-[0.12em]"
-              onClick={onActionClick}
-            >
-              <span>{buttonLabel}</span>
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-      </motion.div>
-    );
-  }
+  const badgeLabel = isNone
+    ? 'Siguiente paso recomendado'
+    : isPending
+    ? 'En evaluación editorial'
+    : 'Producción en curso';
 
-  // Active state
+  const title =
+    pendingActionTitle ||
+    (isNone
+      ? 'Envía tu primer manuscrito'
+      : isPending
+      ? 'Evaluación en proceso por la dirección artística'
+      : 'Revisión y aprobación de capítulos');
+
+  const description =
+    pendingActionDesc ||
+    (isNone
+      ? 'Carga tu archivo en formato PDF o Word (.docx) para recibir una estimación de horas de locución y propuesta de producción sin compromiso.'
+      : isPending
+      ? 'No se requiere ninguna acción adicional de tu parte. Te notificaremos cuando el desglose técnico y la muestra de voz estén listos.'
+      : 'Escucha las muestras de audio disponibles de cada capítulo, deja comentarios sobre las voces o aprueba para paso a máster final.');
+
+  const buttonVariant = isPending ? 'secondary' : 'primary';
+  const buttonClassName = isPending
+    ? 'shrink-0 flex items-center justify-center gap-2 px-6 py-3.5 text-xs font-medium uppercase tracking-[0.12em]'
+    : 'shrink-0 flex items-center justify-center gap-2.5 px-6 py-3.5 text-xs font-medium uppercase tracking-[0.15em] shadow-xs transition-all duration-300 hover:shadow-md';
+
+  const icon = isNone ? (
+    <Sparkles className="h-3.5 w-3.5" />
+  ) : isPending ? (
+    <Clock className="h-3.5 w-3.5" />
+  ) : (
+    <CheckCircle2 className="h-3.5 w-3.5" />
+  );
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-      className="rounded-3xl border border-edge/80 bg-surface-elevated/90 p-6 sm:p-8 shadow-[0_8px_30px_rgba(0,0,0,0.02)]"
+      className={`group relative overflow-hidden rounded-3xl border p-6 sm:p-8 shadow-[0_12px_40px_rgba(0,0,0,0.025)] backdrop-blur-xs transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_48px_rgba(0,0,0,0.035)] ${wrapperClassName}`}
     >
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-        <div className="space-y-2 max-w-xl">
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3.5 py-1 text-[11px] font-medium text-emerald-800 dark:text-emerald-300">
-            <CheckCircle2 className="h-3.5 w-3.5" />
-            <span className="uppercase tracking-[0.16em]">Producción en Curso</span>
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_15%,rgba(242,107,46,0.08),transparent_40%)] opacity-70 transition-opacity duration-300 group-hover:opacity-100" />
+
+      <div className="relative z-10 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="max-w-2xl">
+          <div className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1 text-[11px] font-medium uppercase tracking-[0.16em] ${badgeClassName}`}>
+            {icon}
+            <span>{badgeLabel}</span>
           </div>
-          <h3 className="font-serif text-2xl font-normal text-ink">
-            {pendingActionTitle || 'Revisión y Aprobación de Capítulos'}
+
+          <h3 className="mt-4 font-serif text-2xl sm:text-[1.65rem] font-normal tracking-tight text-ink leading-[1.12]">
+            {title}
           </h3>
-          <p className="text-xs sm:text-sm text-ink-muted/90 font-light leading-relaxed">
-            {pendingActionDesc ||
-              'Escucha las muestras de audio disponibles de cada capítulo, deja comentarios sobre las voces o aprueba para paso a máster final.'}
+
+          <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-muted/90 font-light">
+            {description}
           </p>
         </div>
 
         {buttonLabel && onActionClick && (
-          <Button
-            variant="primary"
-            className="shrink-0 flex items-center justify-center gap-2 px-6 py-3.5 text-xs font-medium uppercase tracking-[0.15em] shadow-xs"
-            onClick={onActionClick}
-          >
-            <span>{buttonLabel}</span>
-            <ArrowRight className="h-4 w-4" />
-          </Button>
+          <div className="shrink-0">
+            <Button variant={buttonVariant} className={buttonClassName} onClick={onActionClick}>
+              <span>{buttonLabel}</span>
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </div>
         )}
       </div>
     </motion.div>
