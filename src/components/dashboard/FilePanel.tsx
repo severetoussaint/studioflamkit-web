@@ -19,87 +19,127 @@ interface FilePanelProps {
   onUploadReplacement?: () => void;
 }
 
+function getStatusChip(fileStatus: FileItemProps['status'], isLocked: boolean) {
+  if (fileStatus === 'bloqueado' || isLocked) {
+    return {
+      tone:
+        'border-edge/60 bg-surface/75 text-ink-muted/90',
+      icon: <Lock className="h-3.5 w-3.5 text-amber-700 dark:text-amber-300 shrink-0" />,
+      label: 'En custodia / evaluación',
+    };
+  }
+
+  if (fileStatus === 'aprobado') {
+    return {
+      tone:
+        'border-emerald-500/20 bg-emerald-500/8 text-emerald-800 dark:text-emerald-300',
+      icon: <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />,
+      label: 'Aprobado',
+    };
+  }
+
+  if (fileStatus === 'en_revision') {
+    return {
+      tone:
+        'border-amber-500/20 bg-amber-500/8 text-amber-800 dark:text-amber-300',
+      icon: <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />,
+      label: 'En revisión',
+    };
+  }
+
+  return {
+    tone: 'border-accent/20 bg-accent/8 text-accent',
+    icon: <FileCheck className="h-3.5 w-3.5 shrink-0" />,
+    label: 'Disponible',
+  };
+}
+
 export function FilePanel({ files, isLocked = false, onUploadReplacement }: FilePanelProps) {
   return (
-    <div className="rounded-3xl border border-edge/80 bg-surface-elevated/90 p-6 sm:p-8 shadow-[0_12px_40px_rgba(0,0,0,0.02)]">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-edge/50 pb-5">
-        <div>
-          <h3 className="font-serif text-xl font-normal text-ink">Documentación y Archivos</h3>
-          <p className="text-xs text-ink-muted/80 mt-0.5">Manuscritos en custodia, guiones adaptados y entregables de la obra</p>
+    <div className="relative overflow-hidden rounded-3xl border border-edge/70 bg-surface-elevated/95 p-6 sm:p-8 shadow-[0_12px_40px_rgba(0,0,0,0.025)] backdrop-blur-xs">
+      <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-accent/5 blur-3xl" />
+
+      <div className="relative mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-edge/40 pb-5">
+        <div className="max-w-2xl">
+          <h3 className="font-serif text-xl font-normal tracking-tight text-ink">Documentación y Archivos</h3>
+          <p className="mt-1 text-xs font-light leading-relaxed text-ink-muted/80">
+            Manuscritos en custodia, versiones de trabajo y entregables finales del proyecto.
+          </p>
         </div>
 
         {onUploadReplacement && (
           <Button
             variant="secondary"
-            className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.12em]"
+            className="group flex items-center gap-2.5 rounded-full px-4 py-2.5 text-xs font-medium uppercase tracking-[0.12em] transition-all duration-300 hover:-translate-y-0.5"
             onClick={onUploadReplacement}
           >
-            <UploadCloud className="h-4 w-4 text-accent" />
-            <span>Subir Nueva Versión</span>
+            <UploadCloud className="h-4 w-4 text-accent transition-transform duration-300 group-hover:-translate-y-0.5" />
+            <span>Subir nueva versión</span>
           </Button>
         )}
       </div>
 
       {files.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-edge/60 p-8 text-center bg-surface/30">
-          <FileText className="mx-auto h-8 w-8 text-ink-muted/40" />
-          <p className="mt-2 text-xs font-medium uppercase tracking-[0.15em] text-ink">Sin archivos adicionales registrados</p>
-          <p className="text-xs text-ink-muted/80 mt-1 font-light">
-            Los manuscritos originales y entregables máster se listarás aquí durante la producción.
+        <div className="rounded-2xl border border-dashed border-edge/60 bg-surface/35 p-8 text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-edge/60 bg-surface-elevated text-accent/80">
+            <FileText className="h-7 w-7" />
+          </div>
+          <p className="mt-4 text-[11px] font-medium uppercase tracking-[0.18em] text-ink">
+            Sin archivos adicionales registrados
+          </p>
+          <p className="mx-auto mt-2 max-w-md text-xs font-light leading-relaxed text-ink-muted/80">
+            Los manuscritos originales, notas editoriales y entregables máster aparecerán aquí durante la producción.
           </p>
         </div>
       ) : (
         <div className="space-y-3">
-          {files.map((file) => (
-            <div
-              key={file.id}
-              className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-edge/70 bg-surface/70 p-4 transition-all duration-300 hover:border-accent/30 hover:bg-surface"
-            >
-              <div className="flex items-center gap-3.5">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-edge/60 bg-surface-elevated text-accent">
-                  <FileText className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="font-serif text-sm font-normal text-ink">{file.name}</p>
-                  <p className="text-xs text-ink-muted/80 font-light">
-                    {file.size ? `${file.size} · ` : ''}
-                    {file.date ? `Cargado el ${file.date}` : 'Registrado en custodia'}
-                  </p>
-                </div>
-              </div>
+          {files.map((file) => {
+            const status = getStatusChip(file.status, isLocked);
 
-              <div className="flex items-center gap-3 justify-end">
-                {file.status === 'bloqueado' || isLocked ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-edge/60 bg-surface px-3 py-1 text-[11px] text-ink-muted font-light">
-                    <Lock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-                    <span>En Custodia / Evaluación</span>
-                  </span>
-                ) : file.status === 'aprobado' ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-[11px] text-emerald-800 dark:text-emerald-300">
-                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                    <span>Aprobado</span>
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/25 bg-accent/10 px-3 py-1 text-[11px] text-accent">
-                    <FileCheck className="h-3.5 w-3.5 shrink-0" />
-                    <span>Disponible</span>
-                  </span>
-                )}
+            return (
+              <div
+                key={file.id}
+                className="group flex flex-col gap-4 rounded-2xl border border-edge/60 bg-surface/70 p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/20 hover:bg-surface hover:shadow-[0_10px_30px_rgba(0,0,0,0.03)] sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="flex items-start gap-3.5">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-edge/60 bg-surface-elevated text-accent transition-transform duration-300 group-hover:scale-[1.02]">
+                    <FileText className="h-5 w-5" strokeWidth={1.6} />
+                  </div>
 
-                {file.downloadUrl && !isLocked && (
-                  <a
-                    href={file.downloadUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-edge/60 bg-surface-elevated text-ink hover:text-accent hover:border-accent/30 transition"
-                    title="Descargar archivo"
+                  <div className="min-w-0">
+                    <p className="font-serif text-sm font-normal tracking-tight text-ink sm:text-base">
+                      {file.name}
+                    </p>
+                    <p className="mt-1 text-xs font-light leading-relaxed text-ink-muted/80">
+                      {file.size ? `${file.size} · ` : ''}
+                      {file.date ? `Cargado el ${file.date}` : 'Registrado en custodia'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-3 sm:justify-end">
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-medium uppercase tracking-[0.16em] ${status.tone}`}
                   >
-                    <Download className="h-4 w-4" />
-                  </a>
-                )}
+                    {status.icon}
+                    <span>{status.label}</span>
+                  </span>
+
+                  {file.downloadUrl && !isLocked && (
+                    <a
+                      href={file.downloadUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-edge/60 bg-surface-elevated text-ink transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/30 hover:text-accent"
+                      title="Descargar archivo"
+                    >
+                      <Download className="h-4 w-4" />
+                    </a>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
