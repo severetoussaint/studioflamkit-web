@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUser } from '@/services/auth.service';
-import { getAuthorRequestState, getAuthorRequestContext, submitManuscript, type AuthorRequestState, type AuthorRequestContext } from '@/services/manuscript.service';
+import { getAuthorRequestContext, submitManuscript, type AuthorRequestState, type AuthorRequestContext } from '@/services/manuscript.service';
 import { getAuthorProjectData, type AuthorProjectData } from '@/services/project.service';
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
@@ -18,17 +18,11 @@ import {
   FileAudio,
   Play,
   Pause,
-  Volume2,
   Sparkles,
   Headphones,
-  FileText,
-  ShieldCheck,
-  ChevronRight,
   ArrowDownToLine,
   MessageCircle,
   PlusCircle,
-  FolderPlus,
-  ArrowRight,
   Inbox,
   UploadCloud,
   FileUp,
@@ -37,21 +31,22 @@ import {
   Check,
   CreditCard,
   Building2,
-  ExternalLink,
-  Eye,
   Send,
   MessageSquare,
   DollarSign,
-  AlertCircle,
   Lock,
   Disc,
-  Layers,
-  FileCode,
 } from 'lucide-react';
 import { Footer } from '@/components/layout/Footer';
 import { Navbar } from '@/components/layout/Navbar';
 import { Card } from '@/components/ui/Card';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
+import { StatusHero } from '@/components/dashboard/StatusHero';
+import { ProgressTimeline } from '@/components/dashboard/ProgressTimeline';
+import { KpiCard } from '@/components/dashboard/KpiCard';
+import { SupportPanel } from '@/components/dashboard/SupportPanel';
+import { FilePanel } from '@/components/dashboard/FilePanel';
+import { NextActionCard } from '@/components/dashboard/NextActionCard';
 
 type SectionId = 'resumen' | 'capitulos' | 'entregables' | 'pagos' | 'perfil';
 
@@ -640,219 +635,105 @@ export default function DashboardPage() {
           {/* Contenido de la Sección Activa */}
           <div className="min-w-0">
             {active === 'resumen' && (
-              <div className="space-y-6">
-                {requestState === 'pending' ? (
-                  <Card className="border-accent/30 bg-surface-elevated p-8 shadow-xs">
-                    <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="flex items-start gap-4">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                          <Clock className="h-6 w-6" />
-                        </div>
-                        <div className="space-y-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-xs font-mono font-medium text-accent">
-                              Tracking: #REQ-{requestContext?.requestId?.slice(0, 8).toUpperCase() || 'PENDIENTE'}
-                            </span>
-                            <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
-                              En Evaluación Editorial
-                            </span>
-                          </div>
-                          <h3 className="font-serif text-2xl font-medium text-ink">
-                            {requestContext?.title || 'Tu Manuscrito'}
-                          </h3>
-                        </div>
-                      </div>
-                    </div>
+              <div className="space-y-8">
+                {/* 1. Hero Principal según Estado del Manuscrito/Proyecto */}
+                <StatusHero
+                  state={requestState}
+                  projectTitle={realProject?.title || requestContext?.title}
+                  submittedDate={requestContext?.createdAt ? new Date(requestContext.createdAt).toLocaleDateString() : undefined}
+                  progress={realProject?.progress || 0}
+                  statusLabel={requestState === 'active' ? 'Producción Audiocinematográfica' : undefined}
+                  onUploadClick={() => setUploaderModalOpen(true)}
+                  onViewFilesClick={() => setActive('entregables')}
+                />
 
-                    <p className="mt-4 text-sm leading-relaxed text-ink-muted">
-                      Tu manuscrito fue recibido y registrado con éxito. Nuestro equipo de dirección técnica está realizando el desglose de palabras y análisis de tono dramático para preparar tu propuesta formal con presupuesto y casting de voces.
-                    </p>
+                {/* 2. Siguiente Acción Dominante */}
+                <NextActionCard
+                  state={requestState}
+                  pendingActionTitle={
+                    requestState === 'pending'
+                      ? 'Análisis Técnico y Desglose Editorial'
+                      : requestState === 'active'
+                      ? 'Revisión y Aprobación de Capítulos'
+                      : undefined
+                  }
+                  pendingActionDesc={
+                    requestState === 'pending'
+                      ? 'Nuestro equipo está evaluando la obra. Recibirás el desglose y la cotización en tu cabina.'
+                      : requestState === 'active'
+                      ? 'Escucha las muestras de audio grabadas, deja comentarios o aprueba los capítulos.'
+                      : undefined
+                  }
+                  buttonLabel={requestState === 'active' ? 'Ver Capítulos Registrados' : undefined}
+                  onActionClick={
+                    requestState === 'none'
+                      ? () => setUploaderModalOpen(true)
+                      : requestState === 'active'
+                      ? () => setActive('capitulos')
+                      : undefined
+                  }
+                />
 
-                    {/* Timeline de la solicitud */}
-                    <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3 border-t border-edge/60 pt-6">
-                      <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-1">
-                        <div className="flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                          <CheckCircle2 className="h-4 w-4" />
-                          <span>1. Recepción</span>
-                        </div>
-                        <p className="text-[11px] text-ink-muted">Documento registrado en el sistema</p>
-                      </div>
+                {/* 3. Línea del Proceso Editorial */}
+                <ProgressTimeline currentState={requestState} />
 
-                      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 space-y-1">
-                        <div className="flex items-center gap-2 text-xs font-semibold text-amber-600 dark:text-amber-400">
-                          <Clock className="h-4 w-4 animate-spin" />
-                          <span>2. Análisis de Guion</span>
-                        </div>
-                        <p className="text-[11px] text-ink-muted">Evaluación de ritmo y duración</p>
-                      </div>
-
-                      <div className="rounded-2xl border border-edge bg-surface/50 p-4 space-y-1 opacity-60">
-                        <div className="flex items-center gap-2 text-xs font-semibold text-ink-muted">
-                          <Sparkles className="h-4 w-4" />
-                          <span>3. Cotización & Casting</span>
-                        </div>
-                        <p className="text-[11px] text-ink-muted">Muestra de voz y desglose</p>
-                      </div>
-                    </div>
-
-                    <div className="mt-6 flex flex-wrap gap-3 pt-4 border-t border-edge/60">
-                      <button
-                        type="button"
-                        onClick={() => setActive('capitulos')}
-                        className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-xs font-medium text-surface hover:bg-accent-hover transition cursor-pointer shadow-xs"
-                      >
-                        <BookOpen className="h-4 w-4" />
-                        <span>Ver Estado de Producción</span>
-                      </button>
-                      <Link
-                        href="/contacto"
-                        className="inline-flex items-center gap-2 rounded-xl border border-edge bg-surface px-4 py-2.5 text-xs font-medium text-ink hover:border-accent/40 transition"
-                      >
-                        <MessageCircle className="h-4 w-4" />
-                        <span>Consultar al Director</span>
-                      </Link>
-                    </div>
-                  </Card>
-                ) : !hasActiveProject ? (
-                  /* Estado 'none': bienvenida editorial e inicio del proceso */
-                  <div className="space-y-6">
-                    <Card className="border-accent/30 bg-gradient-to-br from-surface-elevated via-surface-elevated to-accent/5 p-8 sm:p-10 text-center shadow-xs">
-                      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl border border-accent/30 bg-accent/10 text-accent shadow-xs">
-                        <UploadCloud className="h-8 w-8" />
-                      </div>
-                      <h3 className="mt-5 font-serif text-2xl sm:text-3xl font-normal text-ink tracking-tight">
-                        Transforma tu manuscrito en una experiencia audiocinematográfica
-                      </h3>
-                      <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-ink-muted font-light">
-                        Adjunta tu archivo en formato <strong>.DOCX, .ODT o .PDF</strong>. Nuestro estudio realizará un análisis técnico gratuito, estimación de horas de locución y propuesta de voces.
-                      </p>
-
-                      {/* 3 Pasos del flujo editorial */}
-                      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3 text-left max-w-3xl mx-auto">
-                        <div className="rounded-2xl border border-edge/60 bg-surface/80 p-4 shadow-2xs space-y-1.5">
-                          <div className="flex items-center gap-2 text-xs font-semibold text-accent uppercase tracking-wider">
-                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent/15 text-[10px]">1</span>
-                            Análisis
-                          </div>
-                          <p className="text-xs font-medium text-ink">Conteo & Estimación</p>
-                          <p className="text-[11px] text-ink-muted leading-relaxed">Mapeo de palabras, tono narrativo y tiempo total de reproducción.</p>
-                        </div>
-
-                        <div className="rounded-2xl border border-edge/60 bg-surface/80 p-4 shadow-2xs space-y-1.5">
-                          <div className="flex items-center gap-2 text-xs font-semibold text-accent uppercase tracking-wider">
-                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent/15 text-[10px]">2</span>
-                            Casting
-                          </div>
-                          <p className="text-xs font-medium text-ink">Muestra de Voz</p>
-                          <p className="text-[11px] text-ink-muted leading-relaxed">Selección de locutores profesionales y muestra personalizada.</p>
-                        </div>
-
-                        <div className="rounded-2xl border border-edge/60 bg-surface/80 p-4 shadow-2xs space-y-1.5">
-                          <div className="flex items-center gap-2 text-xs font-semibold text-accent uppercase tracking-wider">
-                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent/15 text-[10px]">3</span>
-                            Master
-                          </div>
-                          <p className="text-xs font-medium text-ink">Entrega M4B / WAV</p>
-                          <p className="text-[11px] text-ink-muted leading-relaxed">Edición, diseño sonoro, mezcla y entrega en formato nativo.</p>
-                        </div>
-                      </div>
-                      
-                      <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-                        <button
-                          type="button"
-                          onClick={() => setUploaderModalOpen(true)}
-                          className="inline-flex items-center gap-2.5 rounded-2xl bg-accent px-6 py-3.5 text-xs font-medium text-surface transition hover:bg-accent-hover shadow-sm cursor-pointer"
-                        >
-                          <FileUp className="h-4.5 w-4.5" />
-                          <span>Subir Manuscrito (.DOCX, .ODT, .PDF)</span>
-                        </button>
-                        <Link
-                          href="/servicios"
-                          className="inline-flex items-center gap-2 rounded-2xl border border-edge bg-surface px-6 py-3.5 text-xs font-medium text-ink transition hover:border-accent/40"
-                        >
-                          <span>Conocer Metodología Editorial</span>
-                          <ChevronRight className="h-4 w-4" />
-                        </Link>
-                      </div>
-                    </Card>
-                  </div>
-                ) : (
-                  /* Estado activo con proyecto real */
-                  <div className="space-y-6">
-                    <Card className="border-edge/80 bg-surface-elevated p-6 sm:p-8 shadow-xs space-y-6">
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-mono font-medium text-accent">
-                              ID Proy: #PROJ-{realProject?.id.slice(0, 8).toUpperCase()}
-                            </span>
-                            <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-                              Producción Activa
-                            </span>
-                          </div>
-                          <h3 className="mt-2 font-serif text-2xl font-medium text-ink sm:text-3xl">
-                            {realProject?.title}
-                          </h3>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setActive('capitulos')}
-                            className="inline-flex items-center gap-2 rounded-2xl bg-accent px-5 py-2.5 text-xs font-medium text-surface transition hover:bg-accent-hover shadow-xs cursor-pointer"
-                          >
-                            <BookOpen className="h-4 w-4" />
-                            <span>Ver Capítulos ({chaptersState.length})</span>
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* KPIs del Proyecto */}
-                      <div className="grid gap-4 sm:grid-cols-3 border-t border-edge/60 pt-6">
-                        <div className="rounded-2xl border border-edge/60 bg-surface p-4 shadow-2xs">
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Progreso Global</p>
-                          <p className="mt-1 font-serif text-2xl font-medium text-accent">{realProject?.progress}%</p>
-                          <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-surface-elevated border border-edge/40">
-                            <div className="h-full bg-accent transition-all duration-500" style={{ width: `${realProject?.progress}%` }} />
-                          </div>
-                        </div>
-
-                        <div className="rounded-2xl border border-edge/60 bg-surface p-4 shadow-2xs">
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Capítulos Registrados</p>
-                          <p className="mt-1 font-serif text-2xl font-medium text-ink">{chaptersState.length}</p>
-                          <p className="mt-1 text-xs text-ink-muted">
-                            {chaptersState.filter(c => c.paymentStatus === 'Pagado').length} pagados / {chaptersState.length} en sistema
-                          </p>
-                        </div>
-
-                        <div className="rounded-2xl border border-edge/60 bg-surface p-4 shadow-2xs">
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Revisiones por Capítulo</p>
-                          <p className="mt-1 font-serif text-2xl font-medium text-ink">{realProject?.maxRevisions || 3}</p>
-                          <p className="mt-1 text-xs text-ink-muted">Límite contractual garantizado</p>
-                        </div>
-                      </div>
-
-                      {/* Timeline de Producción */}
-                      <div className="border-t border-edge/60 pt-6">
-                        <h4 className="text-xs font-semibold uppercase tracking-wider text-ink mb-4">Etapas de Producción Sonora</h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                          {productionSteps.map((step, idx) => (
-                            <div key={step.title} className="rounded-2xl border border-edge/50 bg-surface p-3.5 space-y-1">
-                              <div className="flex items-center justify-between text-[11px]">
-                                <span className="font-mono text-ink-muted">0{idx + 1}</span>
-                                <span className={`font-medium ${step.status === 'Completado' ? 'text-emerald-500' : step.status === 'En curso' ? 'text-accent' : 'text-ink-muted'}`}>
-                                  {step.status}
-                                </span>
-                              </div>
-                              <p className="text-xs font-semibold text-ink">{step.title}</p>
-                              <p className="text-[11px] text-ink-muted leading-tight">{step.desc}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </Card>
+                {/* 4. KPIs Compactos (Solo si hay proyecto o solicitud) */}
+                {(hasActiveProject || requestState === 'pending') && (
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <KpiCard
+                      icon={BookOpen}
+                      label="Capítulos de la Obra"
+                      value={chaptersState.length}
+                      subtext={hasActiveProject ? `${chaptersState.filter(c => c.paymentStatus === 'Pagado').length} pagados / en producción` : 'Pendiente de cotización'}
+                      statusBadge={{ text: requestState === 'active' ? 'Activo' : 'En Evaluación', type: requestState === 'active' ? 'success' : 'warning' }}
+                    />
+                    <KpiCard
+                      icon={Clock}
+                      label="Estado de Producción"
+                      value={requestState === 'active' ? `${realProject?.progress || 0}%` : 'En Lectura'}
+                      subtext="Seguimiento por capítulos"
+                      statusBadge={{ text: requestState === 'active' ? 'En Curso' : 'SLA < 48h', type: 'neutral' }}
+                    />
+                    <KpiCard
+                      icon={Wallet}
+                      label="Revisiones Incluidas"
+                      value={realProject?.maxRevisions || 3}
+                      subtext="Garantía de calidad editorial"
+                      statusBadge={{ text: 'Pactado', type: 'success' }}
+                    />
                   </div>
                 )}
+
+                {/* 5. Panel de Archivos & Soporte Directo */}
+                <div className="grid gap-6 lg:grid-cols-3">
+                  <div className="lg:col-span-2">
+                    <FilePanel
+                      files={
+                        requestContext?.title
+                          ? [
+                              {
+                                id: 'manuscript-file-1',
+                                name: `${requestContext.title}.docx`,
+                                size: 'Manuscrito Original',
+                                date: requestContext.createdAt ? new Date(requestContext.createdAt).toLocaleDateString() : 'Recientemente',
+                                status: requestState === 'pending' ? 'bloqueado' : 'aprobado',
+                              },
+                            ]
+                          : []
+                      }
+                      isLocked={requestState === 'pending'}
+                      onUploadReplacement={requestState !== 'pending' ? () => setUploaderModalOpen(true) : undefined}
+                    />
+                  </div>
+
+                  <div>
+                    <SupportPanel
+                      onOpenMessageModal={() => {
+                        router.push('/contacto');
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
             )}
 
