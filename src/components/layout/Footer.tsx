@@ -10,7 +10,7 @@ const institutionalLinks = [
 
 export function Footer() {
   return (
-    <footer className="border-t border-edge bg-surface">
+    <footer className="border-t border-edge/50 bg-surface">
       <div className="mx-auto flex max-w-7xl flex-col gap-8 px-6 py-10 text-sm text-ink-muted lg:grid lg:grid-cols-3 lg:items-center lg:justify-between lg:px-8">
         <div className="text-center lg:text-left lg:justify-self-start">
           <p className="font-serif text-base font-semibold uppercase tracking-[0.18em] text-ink">Studio Flamkit & Art</p>
@@ -38,7 +38,7 @@ export function Footer() {
         </div>
       </div>
 
-      <div className="border-t border-edge px-6 py-4 text-center text-xs uppercase tracking-[0.24em] text-ink-muted/70 lg:px-8">
+      <div className="border-t border-edge/50 px-6 py-4 text-center text-xs uppercase tracking-[0.24em] text-ink-muted/70 lg:px-8">
         © 2026 Studio Flamkit & Art. Todos los derechos reservados.
       </div>
     </footer>

@@ -44,15 +44,10 @@ export function ThemeProvider({
       "dark",
       theme === "dark"
     );
+    document.documentElement.setAttribute("data-theme", theme);
 
     window.localStorage.setItem("flamkit-theme", theme);
   }, [theme]);
-
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const toggleTheme = () => {
     setTheme((prev) => (prev === "dark" ? "light" : "dark"));
@@ -62,7 +57,7 @@ export function ThemeProvider({
     <ThemeContext.Provider
       value={{
         theme,
-        mounted,
+        mounted: true,
         toggleTheme,
       }}
     >

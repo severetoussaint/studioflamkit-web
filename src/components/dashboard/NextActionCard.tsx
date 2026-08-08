@@ -24,10 +24,10 @@ export function NextActionCard({
   const isPending = state === 'pending';
 
   const wrapperClassName = isNone
-    ? 'border-accent/20 bg-[linear-gradient(135deg,rgba(242,107,46,0.05),rgba(252,250,246,0.96))]'
+    ? 'border-accent/25 bg-surface-elevated'
     : isPending
-    ? 'border-amber-500/20 bg-[linear-gradient(135deg,rgba(245,158,11,0.05),rgba(252,250,246,0.96))]'
-    : 'border-emerald-500/20 bg-[linear-gradient(135deg,rgba(16,185,129,0.05),rgba(252,250,246,0.96))]';
+    ? 'border-amber-500/25 bg-surface-elevated'
+    : 'border-emerald-500/20 bg-surface-elevated';
 
   const badgeClassName = isNone
     ? 'border-accent/20 bg-accent/8 text-accent'
@@ -77,7 +77,7 @@ export function NextActionCard({
       transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
       className={`group relative overflow-hidden rounded-3xl border p-6 sm:p-8 shadow-[0_12px_40px_rgba(0,0,0,0.025)] backdrop-blur-xs transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_48px_rgba(0,0,0,0.035)] ${wrapperClassName}`}
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_15%,rgba(242,107,46,0.08),transparent_40%)] opacity-70 transition-opacity duration-300 group-hover:opacity-100" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_15%,rgba(219,96,33,0.08),transparent_40%)] opacity-70 transition-opacity duration-300 group-hover:opacity-100" />
 
       <div className="relative z-10 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="max-w-2xl">

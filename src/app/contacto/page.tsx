@@ -21,7 +21,7 @@ export default function ContactoPage() {
     <main className="min-h-screen bg-surface text-ink">
       <Navbar />
 
-      <section className="relative overflow-hidden border-b border-edge">
+      <section className="relative overflow-hidden border-b border-edge/50">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_-10%,_var(--color-accent)_0%,_transparent_28%)] opacity-[0.10]" />
         <div className="relative mx-auto max-w-6xl px-6 py-24 lg:px-8">
           <div className="max-w-3xl">
@@ -54,7 +54,7 @@ export default function ContactoPage() {
                   <textarea
                     rows={5}
                     placeholder="Cuéntanos qué quieres transformar en una experiencia sonora"
-                    className="w-full rounded-3xl border border-edge bg-surface px-4 py-3 text-sm text-ink outline-none transition focus:border-accent/70 focus:ring-2 focus:ring-accent/20"
+                    className="w-full rounded-3xl border border-edge/50 bg-surface px-4 py-3 text-sm text-ink outline-none transition focus:border-accent/70 focus:ring-2 focus:ring-accent/20"
                   />
                 </label>
                 <Button variant="primary" className="w-full">

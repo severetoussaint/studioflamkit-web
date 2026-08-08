@@ -16,10 +16,10 @@ export function Button({
 }: ButtonProps) {
   const variants: Record<ButtonVariant, string> = {
     primary:
-      'border border-accent/30 bg-accent/10 text-accent shadow-[0_0_0_1px_rgba(150,114,61,0.15)] hover:bg-accent/20',
+      'border-accent bg-accent text-white shadow-xs hover:bg-accent-hover hover:-translate-y-[0.5px] active:translate-y-0 shadow-[0_2px_8px_rgba(219,96,33,0.22)]',
     secondary:
-      'border border-edge bg-surface-elevated text-ink hover:border-accent hover:text-accent',
-    ghost: 'border border-transparent bg-transparent text-ink-muted hover:bg-surface-elevated hover:text-ink',
+      'border-edge/60 bg-surface-elevated text-ink hover:border-accent/60 hover:text-accent hover:bg-surface hover:-translate-y-[0.5px]',
+    ghost: 'border-transparent bg-transparent text-ink-muted hover:bg-surface-elevated hover:text-ink',
   };
 
   return (

@@ -56,7 +56,7 @@ function getStatusChip(fileStatus: FileItemProps['status'], isLocked: boolean) {
 
 export function FilePanel({ files, isLocked = false, onUploadReplacement }: FilePanelProps) {
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-edge/70 bg-surface-elevated/95 p-6 sm:p-8 shadow-[0_12px_40px_rgba(0,0,0,0.025)] backdrop-blur-xs">
+    <div className="relative overflow-hidden rounded-3xl border-edge/70 bg-surface-elevated/95 p-6 sm:p-8 shadow-[0_12px_40px_rgba(0,0,0,0.025)] backdrop-blur-xs">
       <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-accent/5 blur-3xl" />
 
       <div className="relative mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-edge/40 pb-5">
@@ -80,8 +80,8 @@ export function FilePanel({ files, isLocked = false, onUploadReplacement }: File
       </div>
 
       {files.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-edge/60 bg-surface/35 p-8 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-edge/60 bg-surface-elevated text-accent/80">
+        <div className="rounded-2xl border-dashed border-edge/60 bg-surface/35 p-8 text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border-edge/60 bg-surface-elevated text-accent/80">
             <FileText className="h-7 w-7" />
           </div>
           <p className="mt-4 text-[11px] font-medium uppercase tracking-[0.18em] text-ink">
@@ -99,10 +99,10 @@ export function FilePanel({ files, isLocked = false, onUploadReplacement }: File
             return (
               <div
                 key={file.id}
-                className="group flex flex-col gap-4 rounded-2xl border border-edge/60 bg-surface/70 p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/20 hover:bg-surface hover:shadow-[0_10px_30px_rgba(0,0,0,0.03)] sm:flex-row sm:items-center sm:justify-between"
+                className="group flex flex-col gap-4 rounded-2xl border-edge/60 bg-surface/70 p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/20 hover:bg-surface hover:shadow-[0_10px_30px_rgba(0,0,0,0.03)] sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="flex items-start gap-3.5">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-edge/60 bg-surface-elevated text-accent transition-transform duration-300 group-hover:scale-[1.02]">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-edge/60 bg-surface-elevated text-accent transition-transform duration-300 group-hover:scale-[1.02]">
                     <FileText className="h-5 w-5" strokeWidth={1.6} />
                   </div>
 
@@ -119,7 +119,7 @@ export function FilePanel({ files, isLocked = false, onUploadReplacement }: File
 
                 <div className="flex items-center justify-between gap-3 sm:justify-end">
                   <span
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-medium uppercase tracking-[0.16em] ${status.tone}`}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-medium uppercase tracking-[0.16em] ${status.tone}`}
                   >
                     {status.icon}
                     <span>{status.label}</span>
@@ -130,7 +130,7 @@ export function FilePanel({ files, isLocked = false, onUploadReplacement }: File
                       href={file.downloadUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-edge/60 bg-surface-elevated text-ink transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/30 hover:text-accent"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-edge/60 bg-surface-elevated text-ink transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/30 hover:text-accent"
                       title="Descargar archivo"
                     >
                       <Download className="h-4 w-4" />

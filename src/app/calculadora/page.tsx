@@ -25,7 +25,7 @@ export default function CalculadoraPage() {
     <main className="min-h-screen bg-surface text-ink">
       <Navbar />
 
-      <section className="relative overflow-hidden border-b border-edge">
+      <section className="relative overflow-hidden border-b border-edge/50">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_-10%,_var(--color-accent)_0%,_transparent_28%)] opacity-[0.10]" />
         <div className="relative mx-auto max-w-6xl px-6 py-24 lg:px-8">
           <div className="max-w-3xl">
@@ -58,11 +58,11 @@ export default function CalculadoraPage() {
                   className="w-full accent-accent"
                 />
 
-                <div className="rounded-2xl border border-edge bg-surface p-4">
+                <div className="rounded-2xl border border-edge/50 bg-surface p-4">
                   <p className="text-xs uppercase tracking-[0.28em] text-ink-muted">Niveles de referencia</p>
                   <div className="mt-3 space-y-2 text-sm text-ink-muted">
                     {TIER_REFERENCE.map((tier) => (
-                      <div key={tier.label} className="flex items-center justify-between rounded-full border border-edge px-3 py-2">
+                      <div key={tier.label} className="flex items-center justify-between rounded-full border border-edge/50 px-3 py-2">
                         <span className="text-ink">{tier.label}</span>
                         <span>{tier.words} palabras</span>
                         <span className="text-accent">{tier.price}</span>
@@ -75,7 +75,7 @@ export default function CalculadoraPage() {
 
             <Card className="border-accent/20">
               <div className="space-y-4">
-                <div className="rounded-2xl border border-edge bg-surface p-4">
+                <div className="rounded-2xl border border-edge/50 bg-surface p-4">
                   <p className="text-xs uppercase tracking-[0.32em] text-ink-muted">Precio estimado</p>
                   <p className="mt-2 text-4xl font-semibold text-ink">{formatCurrency(result.price)}</p>
                   <p className="mt-2 text-sm text-ink-muted">
@@ -83,7 +83,7 @@ export default function CalculadoraPage() {
                   </p>
                 </div>
 
-                <div className="rounded-2xl border border-edge bg-surface p-4 text-sm leading-7 text-ink-muted">
+                <div className="rounded-2xl border border-edge/50 bg-surface p-4 text-sm leading-7 text-ink-muted">
                   <p>
                     Precio basado en una tarifa de producción de {formatCurrency(result.pfhRate)} por hora de audio terminado.
                     La duración final puede variar según el nivel de diseño sonoro requerido por la obra.

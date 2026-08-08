@@ -1,9 +1,9 @@
-import { Cormorant_Garamond, Inter } from 'next/font/google';
+import { DM_Serif_Display, Inter } from 'next/font/google';
 
-export const cormorant = Cormorant_Garamond({
+export const dmSerif = DM_Serif_Display({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-cormorant',
+  weight: ['400'],
+  variable: '--font-dm-serif',
   display: 'swap',
 });
 
@@ -13,3 +13,4 @@ export const inter = Inter({
   variable: '--font-inter',
   display: 'swap',
 });
+

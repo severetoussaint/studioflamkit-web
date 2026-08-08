@@ -41,7 +41,7 @@ export default function ServiciosPage() {
     <main className="min-h-screen bg-surface text-ink">
       <Navbar />
 
-      <section className="relative overflow-hidden border-b border-edge">
+      <section className="relative overflow-hidden border-b border-edge/50">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_-10%,_var(--color-accent)_0%,_transparent_28%)] opacity-[0.10]" />
         <div className="relative mx-auto max-w-6xl px-6 py-24 lg:px-8">
           <div className="max-w-3xl">
@@ -80,7 +80,7 @@ export default function ServiciosPage() {
         </div>
       </section>
 
-      <section className="border-b border-edge bg-surface-elevated">
+      <section className="border-b border-edge/50 bg-surface-elevated">
         <div className="mx-auto max-w-6xl px-6 py-20 lg:px-8">
           <div className="max-w-2xl">
             <p className="text-xs font-medium uppercase tracking-[0.32em] text-accent">Por qué trabajar con nosotros</p>
@@ -91,7 +91,7 @@ export default function ServiciosPage() {
 
           <div className="mt-10 grid gap-4 md:grid-cols-3">
             {highlights.map((item) => (
-              <div key={item.title} className="rounded-3xl border border-edge bg-surface p-6">
+              <div key={item.title} className="rounded-3xl border border-edge/50 bg-surface p-6">
                 <h3 className="font-serif text-xl font-medium text-ink">{item.title}</h3>
                 <p className="mt-3 text-sm leading-7 text-ink-muted">{item.description}</p>
               </div>

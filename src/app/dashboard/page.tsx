@@ -47,6 +47,7 @@ import { KpiCard } from '@/components/dashboard/KpiCard';
 import { SupportPanel } from '@/components/dashboard/SupportPanel';
 import { FilePanel } from '@/components/dashboard/FilePanel';
 import { NextActionCard } from '@/components/dashboard/NextActionCard';
+import { AuthorCarousel } from '@/components/dashboard/AuthorCarousel';
 
 type SectionId = 'resumen' | 'capitulos' | 'entregables' | 'pagos' | 'perfil';
 
@@ -151,6 +152,7 @@ export default function DashboardPage() {
   const [manuscriptTitle, setManuscriptTitle] = useState('');
   const [manuscriptWordCount, setManuscriptWordCount] = useState('');
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [showPostSubmitCarousel, setShowPostSubmitCarousel] = useState(false);
 
   const hasActiveProject = requestState === 'active' || Boolean(realProject);
 
@@ -301,6 +303,7 @@ export default function DashboardPage() {
         } else {
           setRequestState('pending');
         }
+        setShowPostSubmitCarousel(true);
       }, 1500);
     } catch (err) {
       console.error('Error al enviar el manuscrito:', JSON.stringify(err, null, 2));
@@ -409,166 +412,12 @@ export default function DashboardPage() {
     <main className="min-h-screen bg-surface text-ink transition-colors duration-200">
       <Navbar />
 
-      {/* Header Banner principal */}
-      <div className="relative overflow-hidden border-b border-edge/80 bg-surface-elevated/90 backdrop-blur-sm">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_25%_-20%,_var(--color-accent)_0%,_transparent_50%)] opacity-[0.16]" />
-        
-        <div className="relative mx-auto max-w-6xl px-6 py-10 lg:px-8">
-          <div className="flex flex-col gap-8 lg:flex-row lg:items-stretch lg:justify-between">
-            {/* Título e Identidad Principal del Espacio */}
-            <div className="flex-1 space-y-3">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3.5 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-accent">
-                  <Sparkles className="h-3.5 w-3.5 shrink-0 text-accent" />
-                  Centro del Autor
-                </span>
-
-                {requestState === 'active' && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    Producción Activa
-                  </span>
-                )}
-
-                {requestState === 'pending' && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-600 dark:text-amber-400">
-                    <Clock className="h-3.5 w-3.5 shrink-0" />
-                    En Evaluación Editorial
-                  </span>
-                )}
-
-                {requestState === 'none' && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-edge bg-surface px-3 py-1 text-xs font-medium text-ink-muted">
-                    Estudio Creativo & Producción
-                  </span>
-                )}
-
-                {(hasActiveProject || requestState === 'pending') && (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-surface border border-edge/60 px-2.5 py-1 text-xs font-mono font-medium text-ink-muted">
-                    ID: {requestContext?.projectId ? `#PROJ-${requestContext.projectId.slice(0, 8).toUpperCase()}` : requestContext?.requestId ? `#REQ-${requestContext.requestId.slice(0, 8).toUpperCase()}` : '#SOLICITUD'}
-                  </span>
-                )}
-              </div>
-
-              <h1 className="font-serif text-3xl font-medium tracking-tight text-ink sm:text-4xl lg:text-5xl leading-[1.15]">
-                {requestState === 'active'
-                  ? (realProject?.title || requestContext?.title || 'Tu Obra en Grabación')
-                  : requestState === 'pending'
-                  ? (requestContext?.title || 'Manuscrito en Evaluación Editorial')
-                  : 'Bienvenido a Studio Flamkit'}
-              </h1>
-
-              <p className="max-w-2xl text-sm leading-relaxed text-ink-muted sm:text-base font-light">
-                {requestState === 'active'
-                  ? 'Gestiona la dirección artística de tu audiolibro, escucha muestras de capítulos en tiempo real y descarga tus entregables de preservación.'
-                  : requestState === 'pending'
-                  ? 'Hemos recibido tu manuscrito. La dirección técnica está evaluando el número de palabras y tono lírico para formalizar tu propuesta de producción.'
-                  : 'Transformamos tu texto impreso en una experiencia de escucha cinematográfica. Sube tu manuscrito para obtener una cotización técnica sin compromiso.'}
-              </p>
-            </div>
-
-            {/* Tarjeta Dominante Contextual de Estado a la Derecha */}
-            {requestState === 'pending' ? (
-              <div className="shrink-0 flex flex-col justify-between rounded-3xl border border-amber-500/30 bg-amber-500/5 p-6 shadow-xs lg:w-80">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-                      <Clock className="h-4 w-4" />
-                      Manuscrito Recibido
-                    </span>
-                    <span className="text-[10px] font-mono text-ink-muted">24-48 hrs est.</span>
-                  </div>
-                  <p className="text-xs text-ink-muted leading-relaxed">
-                    Solicitud <strong className="font-mono text-ink">#REQ-{requestContext?.requestId?.slice(0, 8).toUpperCase() || 'REGISTRADA'}</strong> en fase de lectura y estimación técnica.
-                  </p>
-                </div>
-                <div className="mt-4 border-t border-amber-500/20 pt-3 flex items-center justify-between text-[11px] text-ink-muted">
-                  <span>Obra registrada:</span>
-                  <strong className="text-ink truncate max-w-[150px]">{requestContext?.title || 'Sin Título'}</strong>
-                </div>
-              </div>
-            ) : hasActiveProject ? (
-              <div className="shrink-0 flex flex-col justify-between rounded-3xl border border-edge/80 bg-surface p-6 shadow-sm lg:w-80">
-                <div>
-                  <div className="flex items-center justify-between text-xs text-ink-muted">
-                    <span className="uppercase tracking-wider font-medium text-[11px]">Progreso de Producción</span>
-                    <span className="font-serif text-lg font-semibold text-accent">{realProject?.progress ?? 0}%</span>
-                  </div>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface-elevated border border-edge/60">
-                    <div
-                      className="h-full rounded-full bg-accent transition-all duration-700 ease-out"
-                      style={{ width: `${realProject?.progress ?? 0}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-5 border-t border-edge/60 pt-4 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2 text-ink">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="font-medium">Grabación Master</span>
-                  </div>
-                  <span className="text-ink-muted font-mono">
-                    {chaptersState.length > 0
-                      ? `${chaptersState.filter(c => c.status === 'Entregado' || c.paymentStatus === 'Pagado' || c.status === 'Aprobado').length}/${chaptersState.length} caps.`
-                      : '0 caps.'}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div className="shrink-0 flex flex-col justify-between rounded-3xl border border-accent/30 bg-gradient-to-br from-accent/10 via-accent/5 to-transparent p-6 shadow-xs lg:w-80">
-                <div>
-                  <div className="flex items-center gap-2 text-accent">
-                    <UploadCloud className="h-4 w-4" />
-                    <span className="text-xs font-semibold uppercase tracking-wider">Paso 1 de 3: Cotización</span>
-                  </div>
-                  <p className="mt-2 text-xs text-ink-muted leading-relaxed">
-                    Adjunta tu archivo (.docx, .odt, .pdf) para calcular el tiempo total de locución y desglose presupuestario.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setUploaderModalOpen(true)}
-                  className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-accent px-4 py-3 text-xs font-medium text-surface transition hover:bg-accent-hover shadow-sm cursor-pointer"
-                >
-                  <FileUp className="h-4 w-4" />
-                  <span>Subir Manuscrito</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Fila de metadatos del proyecto (Solo visible en obra activa) */}
-          {hasActiveProject && (
-            <div className="mt-8 grid grid-cols-2 gap-4 border-t border-edge/60 pt-6 sm:grid-cols-4">
-              <div className="rounded-2xl border border-edge/50 bg-surface/60 p-4 shadow-2xs">
-                <p className="text-[10px] uppercase tracking-wider font-semibold text-ink-muted">Formato Seleccionado</p>
-                <p className="mt-1 text-xs font-medium text-ink sm:text-sm">
-                  {deliveryFormat === 'm4b' ? 'M4B Native Audiolibro' : deliveryFormat === 'wav' ? 'WAV Master Preservación' : 'MP3 High-Bitrate'}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-edge/50 bg-surface/60 p-4 shadow-2xs">
-                <p className="text-[10px] uppercase tracking-wider font-semibold text-ink-muted">Dirección de Arte</p>
-                <p className="mt-1 text-xs font-medium text-ink sm:text-sm">Studio Flamkit Editorial</p>
-              </div>
-              <div className="rounded-2xl border border-edge/50 bg-surface/60 p-4 shadow-2xs">
-                <p className="text-[10px] uppercase tracking-wider font-semibold text-ink-muted">Duración Estimada</p>
-                <p className="mt-1 text-xs font-medium text-ink sm:text-sm">~1h 10 min de audio</p>
-              </div>
-              <div className="rounded-2xl border border-edge/50 bg-surface/60 p-4 shadow-2xs">
-                <p className="text-[10px] uppercase tracking-wider font-semibold text-ink-muted">Fecha de Entrega Target</p>
-                <p className="mt-1 text-xs font-medium text-ink sm:text-sm">28 de Agosto, 2026</p>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Contenido principal con Sidebar */}
-      <div className="mx-auto max-w-6xl px-6 py-10 lg:px-8">
-        <div className="grid gap-8 lg:grid-cols-[240px_1fr]">
+      <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-8 xl:px-10 py-6 sm:py-8 lg:py-10">
+        <div className="grid gap-8 lg:grid-cols-[240px_1fr] xl:grid-cols-[260px_1fr]">
           
           {/* Sidebar de Navegación */}
-          <aside className="space-y-6">
+          <aside className="space-y-6 lg:sticky lg:top-20 self-start">
             <div className="rounded-3xl border border-edge bg-surface-elevated p-3 shadow-xs">
               <p className="px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-muted">
                 Navegación
@@ -625,10 +474,98 @@ export default function DashboardPage() {
           </aside>
 
           {/* Contenido de la Sección Activa */}
-          <div className="min-w-0">
+          <div className="min-w-0 space-y-8">
+            {/* Header unificado de la vista */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-edge/60">
+              <div>
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-0.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">
+                    Centro del Autor
+                  </span>
+
+                  {requestState === 'active' && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Producción Activa
+                    </span>
+                  )}
+
+                  {requestState === 'pending' && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+                      <Clock className="h-3.5 w-3.5 shrink-0" />
+                      En Evaluación Editorial
+                    </span>
+                  )}
+
+                  {(hasActiveProject || requestState === 'pending') && (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-surface border border-edge/60 px-2.5 py-0.5 text-xs font-mono font-medium text-ink-muted">
+                      ID: {requestContext?.projectId ? `#PROJ-${requestContext.projectId.slice(0, 8).toUpperCase()}` : requestContext?.requestId ? `#REQ-${requestContext.requestId.slice(0, 8).toUpperCase()}` : '#SOLICITUD'}
+                    </span>
+                  )}
+                </div>
+
+                <h1 className="mt-2.5 font-serif text-2xl font-medium tracking-tight text-ink sm:text-3xl lg:text-4xl">
+                  {requestState === 'active'
+                    ? (realProject?.title || requestContext?.title || 'Tu Obra en Grabación')
+                    : requestState === 'pending'
+                    ? (requestContext?.title || 'Manuscrito en Evaluación Editorial')
+                    : 'Bienvenido a Studio Flamkit'}
+                </h1>
+              </div>
+
+              <div className="flex items-center gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setUploaderModalOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-accent px-4 py-2.5 text-xs font-medium text-surface transition hover:bg-accent-hover shadow-xs cursor-pointer"
+                >
+                  <UploadCloud className="h-4 w-4" />
+                  <span>{requestState === 'none' ? 'Subir Manuscrito' : 'Enviar Nueva Versión'}</span>
+                </button>
+              </div>
+            </div>
             {active === 'resumen' && (
-              <div className="space-y-8">
-                {/* 1. Hero Principal según Estado del Manuscrito/Proyecto */}
+              <div className="space-y-6">
+                {/* Carrusel interactivo post-envío opcional (3:2) */}
+                {(showPostSubmitCarousel || (requestState === 'pending' && showPostSubmitCarousel)) && (
+                  <AuthorCarousel
+                    manuscriptTitle={requestContext?.title || 'Tu Obra'}
+                    onClose={() => setShowPostSubmitCarousel(false)}
+                  />
+                )}
+
+                {/* Grid Superior: Siguiente Acción Principal + Estado del Manuscrito */}
+                <div className="grid gap-6 lg:grid-cols-12">
+                  <div className="lg:col-span-12">
+                    <NextActionCard
+                      state={requestState}
+                      pendingActionTitle={
+                        requestState === 'pending'
+                          ? 'Análisis Técnico y Desglose Editorial'
+                          : requestState === 'active'
+                          ? 'Revisión y Aprobación de Capítulos'
+                          : undefined
+                      }
+                      pendingActionDesc={
+                        requestState === 'pending'
+                          ? 'Nuestro equipo está evaluando la obra. Recibirás el desglose y la cotización en tu cabina.'
+                          : requestState === 'active'
+                          ? 'Escucha las muestras de audio grabadas, deja comentarios o aprueba los capítulos.'
+                          : undefined
+                      }
+                      buttonLabel={requestState === 'active' ? 'Ver Capítulos Registrados' : undefined}
+                      onActionClick={
+                        requestState === 'none'
+                          ? () => setUploaderModalOpen(true)
+                          : requestState === 'active'
+                          ? () => setActive('capitulos')
+                          : undefined
+                      }
+                    />
+                  </div>
+                </div>
+
+                {/* Hero / Estado de Obra */}
                 <StatusHero
                   state={requestState}
                   projectTitle={realProject?.title || requestContext?.title}
@@ -637,39 +574,13 @@ export default function DashboardPage() {
                   statusLabel={requestState === 'active' ? 'Producción Audiocinematográfica' : undefined}
                   onUploadClick={() => setUploaderModalOpen(true)}
                   onViewFilesClick={() => setActive('entregables')}
+                  onToggleCarousel={() => setShowPostSubmitCarousel((prev) => !prev)}
                 />
 
-                {/* 2. Siguiente Acción Dominante */}
-                <NextActionCard
-                  state={requestState}
-                  pendingActionTitle={
-                    requestState === 'pending'
-                      ? 'Análisis Técnico y Desglose Editorial'
-                      : requestState === 'active'
-                      ? 'Revisión y Aprobación de Capítulos'
-                      : undefined
-                  }
-                  pendingActionDesc={
-                    requestState === 'pending'
-                      ? 'Nuestro equipo está evaluando la obra. Recibirás el desglose y la cotización en tu cabina.'
-                      : requestState === 'active'
-                      ? 'Escucha las muestras de audio grabadas, deja comentarios o aprueba los capítulos.'
-                      : undefined
-                  }
-                  buttonLabel={requestState === 'active' ? 'Ver Capítulos Registrados' : undefined}
-                  onActionClick={
-                    requestState === 'none'
-                      ? () => setUploaderModalOpen(true)
-                      : requestState === 'active'
-                      ? () => setActive('capitulos')
-                      : undefined
-                  }
-                />
-
-                {/* 3. Línea del Proceso Editorial */}
+                {/* Stepper Compacto Horizontal de Trayecto Editorial */}
                 <ProgressTimeline currentState={requestState} />
 
-                {/* 4. KPIs Compactos (Solo si hay proyecto o solicitud) */}
+                {/* KPIs Compactos de la Obra (Métricas Reales) */}
                 {(hasActiveProject || requestState === 'pending') && (
                   <div className="grid gap-4 sm:grid-cols-3">
                     <KpiCard
@@ -696,9 +607,9 @@ export default function DashboardPage() {
                   </div>
                 )}
 
-                {/* 5. Panel de Archivos & Soporte Directo */}
-                <div className="grid gap-6 lg:grid-cols-3">
-                  <div className="lg:col-span-2">
+                {/* Archivos Guardados & Soporte Editorial */}
+                <div className="grid gap-6 lg:grid-cols-12">
+                  <div className="lg:col-span-8">
                     <FilePanel
                       files={
                         requestContext?.title
@@ -718,7 +629,7 @@ export default function DashboardPage() {
                     />
                   </div>
 
-                  <div>
+                  <div className="lg:col-span-4">
                     <SupportPanel
                       onOpenMessageModal={() => {
                         router.push('/contacto');
@@ -737,8 +648,8 @@ export default function DashboardPage() {
               >
                 {!hasActiveProject ? (
                   <Card title="Capítulos del Audiolibro" description="Grabación, edición y muestras por capítulo.">
-                    <div className="mt-8 rounded-2xl border border-dashed border-edge bg-surface p-8 text-center">
-                      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-elevated text-ink-muted border border-edge">
+                    <div className="mt-8 rounded-2xl border border-dashed border-edge/50 bg-surface p-8 text-center">
+                      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-elevated text-ink-muted border border-edge/50">
                         <Inbox className="h-6 w-6" />
                       </div>
                       <p className="mt-3 font-medium text-ink">No hay capítulos asignados a producción</p>
@@ -757,8 +668,8 @@ export default function DashboardPage() {
                   </Card>
                 ) : chaptersState.length === 0 ? (
                   <Card title="Capítulos del Audiolibro" description="Grabación, edición y muestras por capítulo.">
-                    <div className="mt-8 rounded-2xl border border-dashed border-edge bg-surface p-8 text-center">
-                      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-elevated text-accent border border-edge">
+                    <div className="mt-8 rounded-2xl border border-dashed border-edge/50 bg-surface p-8 text-center">
+                      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-elevated text-accent border border-edge/50">
                         <BookOpen className="h-6 w-6" />
                       </div>
                       <p className="mt-3 font-semibold text-ink">Obra Activa en Producción</p>
@@ -778,11 +689,11 @@ export default function DashboardPage() {
                           transition={{ duration: 0.35, delay: index * 0.08, ease: 'easeOut' }}
                           whileHover={{ scale: 1.01, transition: { duration: 0.2, ease: 'easeOut' } }}
                           onClick={() => setSelectedChapter(chapter)}
-                          className="group rounded-2xl border border-edge bg-surface-elevated p-5 transition-colors hover:border-accent/40 hover:shadow-md cursor-pointer"
+                          className="group rounded-2xl border border-edge/50 bg-surface-elevated p-5 transition-colors hover:border-accent/40 hover:shadow-md cursor-pointer"
                         >
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-start gap-3.5">
-                              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-edge bg-surface text-accent group-hover:border-accent/30 group-hover:bg-accent/10">
+                              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-edge/50 bg-surface text-accent group-hover:border-accent/30 group-hover:bg-accent/10">
                                 <FileAudio className="h-5 w-5" strokeWidth={1.75} />
                               </div>
                               <div>
@@ -814,7 +725,7 @@ export default function DashboardPage() {
                                   e.stopPropagation();
                                   setSelectedChapter(chapter);
                                 }}
-                                className="inline-flex items-center gap-1.5 rounded-xl border border-edge bg-surface px-3 py-1.5 text-xs font-medium text-ink transition hover:border-accent/40 hover:text-accent cursor-pointer"
+                                className="inline-flex items-center gap-1.5 rounded-xl border border-edge/50 bg-surface px-3 py-1.5 text-xs font-medium text-ink transition hover:border-accent/40 hover:text-accent cursor-pointer"
                               >
                                 <Play className="h-3.5 w-3.5 text-accent" />
                                 <span>Abrir Panel</span>
@@ -853,8 +764,8 @@ export default function DashboardPage() {
             {active === 'entregables' && (
               <Card title="Entregables y Muestras de Audio" description="Descarga masters, muestras de evaluación y materiales finales.">
                 {!hasActiveProject ? (
-                  <div className="mt-8 rounded-2xl border border-dashed border-edge bg-surface p-8 text-center">
-                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-elevated text-ink-muted border border-edge">
+                  <div className="mt-8 rounded-2xl border border-dashed border-edge/50 bg-surface p-8 text-center">
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-elevated text-ink-muted border border-edge/50">
                       <Download className="h-6 w-6" />
                     </div>
                     <p className="mt-3 font-medium text-ink">Sin entregables disponibles</p>
@@ -867,10 +778,10 @@ export default function DashboardPage() {
                     {deliverables.map((item) => (
                       <div
                         key={item.title}
-                        className="group flex flex-col gap-3 rounded-2xl border border-edge bg-surface-elevated p-4 transition hover:border-accent/40 sm:flex-row sm:items-center sm:justify-between"
+                        className="group flex flex-col gap-3 rounded-2xl border border-edge/50 bg-surface-elevated p-4 transition hover:border-accent/40 sm:flex-row sm:items-center sm:justify-between"
                       >
                         <div className="flex items-center gap-3.5">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-edge bg-surface text-accent group-hover:border-accent/30">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-edge/50 bg-surface text-accent group-hover:border-accent/30">
                             <Download className="h-5 w-5" strokeWidth={1.75} />
                           </div>
                           <div>
@@ -895,7 +806,7 @@ export default function DashboardPage() {
                               <span>Descargar</span>
                             </button>
                           ) : (
-                            <span className="inline-flex items-center gap-1.5 rounded-full border border-edge bg-surface px-3 py-1 text-xs text-ink-muted">
+                            <span className="inline-flex items-center gap-1.5 rounded-full border border-edge/50 bg-surface px-3 py-1 text-xs text-ink-muted">
                               <Clock className="h-3.5 w-3.5" />
                               En proceso
                             </span>
@@ -914,21 +825,21 @@ export default function DashboardPage() {
                   {!hasActiveProject ? (
                     <div className="mt-6 space-y-6">
                       <div className="grid gap-4 sm:grid-cols-3">
-                        <div className="rounded-2xl border border-edge bg-surface p-4">
+                        <div className="rounded-2xl border border-edge/50 bg-surface p-4">
                           <p className="text-xs uppercase tracking-wider text-ink-muted">Inversión Total</p>
                           <p className="mt-1 text-xl font-semibold text-ink">$0.00</p>
                         </div>
-                        <div className="rounded-2xl border border-edge bg-surface p-4">
+                        <div className="rounded-2xl border border-edge/50 bg-surface p-4">
                           <p className="text-xs uppercase tracking-wider text-ink-muted">Total Pagado</p>
                           <p className="mt-1 text-xl font-semibold text-ink">$0.00</p>
                         </div>
-                        <div className="rounded-2xl border border-edge bg-surface p-4">
+                        <div className="rounded-2xl border border-edge/50 bg-surface p-4">
                           <p className="text-xs uppercase tracking-wider text-ink-muted">Pendiente</p>
                           <p className="mt-1 text-xl font-semibold text-ink">$0.00</p>
                         </div>
                       </div>
-                      <div className="rounded-2xl border border-dashed border-edge bg-surface p-8 text-center">
-                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-elevated text-ink-muted border border-edge">
+                      <div className="rounded-2xl border border-dashed border-edge/50 bg-surface p-8 text-center">
+                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-elevated text-ink-muted border border-edge/50">
                           <Wallet className="h-6 w-6" />
                         </div>
                         <p className="mt-3 font-medium text-ink">No hay facturas ni pagos pendientes</p>
@@ -963,7 +874,7 @@ export default function DashboardPage() {
                 <form onSubmit={handleSaveProfile} className="mt-6 space-y-8">
                   
                   {/* Banner de perfil de autor */}
-                  <div className="flex items-center gap-4 rounded-2xl border border-edge bg-surface p-4 shadow-sm">
+                  <div className="flex items-center gap-4 rounded-2xl border border-edge/50 bg-surface p-4 shadow-sm">
                     <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-accent font-serif text-xl font-bold text-surface shadow-md">
                       AU
                     </div>
@@ -997,7 +908,7 @@ export default function DashboardPage() {
                         className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${
                           paymentMethod === 'paypal'
                             ? 'border-accent bg-accent/5 shadow-sm'
-                            : 'border-edge bg-surface hover:border-accent/30'
+                            : 'border-edge/50 bg-surface hover:border-accent/30'
                         }`}
                       >
                         <input
@@ -1024,7 +935,7 @@ export default function DashboardPage() {
                         className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${
                           paymentMethod === 'bank'
                             ? 'border-accent bg-accent/5 shadow-sm'
-                            : 'border-edge bg-surface hover:border-accent/30'
+                            : 'border-edge/50 bg-surface hover:border-accent/30'
                         }`}
                       >
                         <input
@@ -1049,24 +960,24 @@ export default function DashboardPage() {
 
                     {/* Campos de configuración del método elegido */}
                     {paymentMethod === 'paypal' ? (
-                      <div className="rounded-2xl border border-edge bg-surface/50 p-4 space-y-2">
+                      <div className="rounded-2xl border border-edge/50 bg-surface/50 p-4 space-y-2">
                         <label className="text-xs font-medium text-ink-muted">Correo electrónico registrado en PayPal</label>
                         <input
                           type="email"
                           value={paypalEmail}
                           onChange={(e) => setPaypalEmail(e.target.value)}
-                          className="w-full rounded-xl border border-edge bg-surface px-3.5 py-2 text-xs font-mono text-ink focus:border-accent focus:outline-none"
+                          className="w-full rounded-xl border border-edge/50 bg-surface px-3.5 py-2 text-xs font-mono text-ink focus:border-accent focus:outline-none"
                         />
                       </div>
                     ) : (
-                      <div className="rounded-2xl border border-edge bg-surface/50 p-4 space-y-3">
+                      <div className="rounded-2xl border border-edge/50 bg-surface/50 p-4 space-y-3">
                         <div>
                           <label className="text-xs font-medium text-ink-muted">Titular de la cuenta</label>
                           <input
                             type="text"
                             value={bankHolder}
                             onChange={(e) => setBankHolder(e.target.value)}
-                            className="w-full rounded-xl border border-edge bg-surface px-3.5 py-2 text-xs text-ink focus:border-accent focus:outline-none mt-1"
+                            className="w-full rounded-xl border border-edge/50 bg-surface px-3.5 py-2 text-xs text-ink focus:border-accent focus:outline-none mt-1"
                           />
                         </div>
                         <div>
@@ -1075,7 +986,7 @@ export default function DashboardPage() {
                             type="text"
                             value={bankIban}
                             onChange={(e) => setBankIban(e.target.value)}
-                            className="w-full rounded-xl border border-edge bg-surface px-3.5 py-2 text-xs font-mono text-ink focus:border-accent focus:outline-none mt-1"
+                            className="w-full rounded-xl border border-edge/50 bg-surface px-3.5 py-2 text-xs font-mono text-ink focus:border-accent focus:outline-none mt-1"
                           />
                         </div>
                       </div>
@@ -1095,7 +1006,7 @@ export default function DashboardPage() {
                         className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${
                           deliveryFormat === 'mp3'
                             ? 'border-accent bg-accent/5 shadow-sm'
-                            : 'border-edge bg-surface hover:border-accent/30'
+                            : 'border-edge/50 bg-surface hover:border-accent/30'
                         }`}
                       >
                         <input
@@ -1119,7 +1030,7 @@ export default function DashboardPage() {
                         className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${
                           deliveryFormat === 'm4b'
                             ? 'border-accent bg-accent/5 shadow-sm'
-                            : 'border-edge bg-surface hover:border-accent/30'
+                            : 'border-edge/50 bg-surface hover:border-accent/30'
                         }`}
                       >
                         <input
@@ -1151,7 +1062,7 @@ export default function DashboardPage() {
                         className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${
                           deliveryFormat === 'wav'
                             ? 'border-accent bg-accent/5 shadow-sm'
-                            : 'border-edge bg-surface hover:border-accent/30'
+                            : 'border-edge/50 bg-surface hover:border-accent/30'
                         }`}
                       >
                         <input
@@ -1199,7 +1110,7 @@ export default function DashboardPage() {
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative w-full max-w-lg rounded-3xl border border-edge bg-surface p-6 shadow-2xl"
+              className="relative w-full max-w-lg rounded-3xl border border-edge/50 bg-surface p-6 shadow-2xl"
             >
               <button
                 type="button"
@@ -1237,7 +1148,7 @@ export default function DashboardPage() {
                     className={`flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center transition ${
                       dragOver
                         ? 'border-accent bg-accent/10'
-                        : 'border-edge bg-surface-elevated hover:border-accent/40'
+                        : 'border-edge/50 bg-surface-elevated hover:border-accent/40'
                     }`}
                   >
                     <FileUp className="h-10 w-10 text-accent animate-bounce" />
@@ -1261,7 +1172,7 @@ export default function DashboardPage() {
 
                     <label
                       htmlFor="manuscript-upload-input"
-                      className="mt-4 inline-flex items-center gap-2 rounded-xl border border-edge bg-surface px-4 py-2 text-xs font-medium text-ink transition hover:border-accent/40 hover:text-accent cursor-pointer"
+                      className="mt-4 inline-flex items-center gap-2 rounded-xl border border-edge/50 bg-surface px-4 py-2 text-xs font-medium text-ink transition hover:border-accent/40 hover:text-accent cursor-pointer"
                     >
                       <PlusCircle className="h-3.5 w-3.5" />
                       <span>Seleccionar Archivo</span>
@@ -1270,7 +1181,7 @@ export default function DashboardPage() {
 
                   {/* Estado de Carga / Archivo subido */}
                   {uploadingState && (
-                    <div className="rounded-2xl border border-edge bg-surface-elevated p-4">
+                    <div className="rounded-2xl border border-edge/50 bg-surface-elevated p-4">
                       <div className="flex items-center justify-between text-xs text-ink-muted">
                         <span>Analizando estructura del archivo...</span>
                         <span className="font-medium text-accent">{uploadProgress}%</span>
@@ -1312,7 +1223,7 @@ export default function DashboardPage() {
                           value={manuscriptTitle}
                           onChange={(e) => setManuscriptTitle(e.target.value)}
                           placeholder="El titulo de tu libro"
-                          className="mt-1 w-full rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink"
+                          className="mt-1 w-full rounded-xl border border-edge/50 bg-surface px-3 py-2 text-sm text-ink"
                         />
                       </div>
                       <div>
@@ -1322,7 +1233,7 @@ export default function DashboardPage() {
                           value={manuscriptWordCount}
                           onChange={(e) => setManuscriptWordCount(e.target.value)}
                           placeholder="Ej. 45000"
-                          className="mt-1 w-full rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink"
+                          className="mt-1 w-full rounded-xl border border-edge/50 bg-surface px-3 py-2 text-sm text-ink"
                         />
                       </div>
                       {submitError && <p className="text-xs text-red-400">{submitError}</p>}
@@ -1333,7 +1244,7 @@ export default function DashboardPage() {
                     <button
                       type="button"
                       onClick={() => setUploaderModalOpen(false)}
-                      className="rounded-xl border border-edge bg-surface px-4 py-2.5 text-xs font-medium text-ink hover:bg-surface-elevated cursor-pointer"
+                      className="rounded-xl border border-edge/50 bg-surface px-4 py-2.5 text-xs font-medium text-ink hover:bg-surface-elevated cursor-pointer"
                     >
                       Cancelar
                     </button>
@@ -1344,7 +1255,7 @@ export default function DashboardPage() {
                       className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-medium transition cursor-pointer ${
                         uploadedFile
                           ? 'bg-accent text-surface hover:bg-accent-hover shadow-sm'
-                          : 'bg-surface-elevated border border-edge text-ink-muted cursor-not-allowed'
+                          : 'bg-surface-elevated border border-edge/50 text-ink-muted cursor-not-allowed'
                       }`}
                     >
                       <Send className="h-3.5 w-3.5" />
@@ -1376,7 +1287,7 @@ export default function DashboardPage() {
               initial={{ opacity: 0, scale: 0.96, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 15 }}
-              className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl border border-edge bg-surface p-6 shadow-2xl space-y-6"
+              className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl border border-edge/50 bg-surface p-6 shadow-2xl space-y-6"
             >
               {/* Header del modal */}
               <div className="flex items-start justify-between border-b border-edge/60 pb-4">
@@ -1421,7 +1332,7 @@ export default function DashboardPage() {
                       <p className="text-[11px] text-ink-muted font-mono">03:45 / {selectedChapter.duration}</p>
                     </div>
                   </div>
-                  <span className="rounded-full border border-edge bg-surface px-3 py-1 text-[11px] text-ink-muted">
+                  <span className="rounded-full border border-edge/50 bg-surface px-3 py-1 text-[11px] text-ink-muted">
                     {selectedChapter.revisions} de {selectedChapter.maxRevisions} revisiones utilizadas
                   </span>
                 </div>
@@ -1455,14 +1366,14 @@ export default function DashboardPage() {
                   </span>
                 </div>
 
-                <div className="space-y-3 max-h-56 overflow-y-auto rounded-2xl border border-edge bg-surface-elevated p-4">
+                <div className="space-y-3 max-h-56 overflow-y-auto rounded-2xl border border-edge/50 bg-surface-elevated p-4">
                   {(commentsState[selectedChapter.id] || []).map((comm) => (
                     <div
                       key={comm.id}
                       className={`flex flex-col gap-1 rounded-xl p-3 text-xs ${
                         comm.author === 'Autor'
                           ? 'ml-auto max-w-[85%] border border-accent/30 bg-accent/10 text-ink'
-                          : 'mr-auto max-w-[85%] border border-edge bg-surface text-ink'
+                          : 'mr-auto max-w-[85%] border border-edge/50 bg-surface text-ink'
                       }`}
                     >
                       <div className="flex items-center justify-between gap-4 text-[10px] text-ink-muted font-medium">
@@ -1482,7 +1393,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Caja para redactar observación/comentario */}
-                <div className="flex flex-col gap-2.5 rounded-2xl border border-edge bg-surface p-3">
+                <div className="flex flex-col gap-2.5 rounded-2xl border border-edge/50 bg-surface p-3">
                   <div className="flex items-center justify-between text-xs text-ink-muted">
                     <label className="font-medium text-ink">Escribir observación o solicitud de cambio:</label>
                     <div className="flex items-center gap-1.5">
@@ -1491,7 +1402,7 @@ export default function DashboardPage() {
                         type="text"
                         value={newCommentTime}
                         onChange={(e) => setNewCommentTime(e.target.value)}
-                        className="w-16 rounded-md border border-edge bg-surface-elevated px-2 py-0.5 font-mono text-center text-xs text-ink focus:border-accent focus:outline-none"
+                        className="w-16 rounded-md border border-edge/50 bg-surface-elevated px-2 py-0.5 font-mono text-center text-xs text-ink focus:border-accent focus:outline-none"
                       />
                     </div>
                   </div>
@@ -1500,7 +1411,7 @@ export default function DashboardPage() {
                     value={newCommentText}
                     onChange={(e) => setNewCommentText(e.target.value)}
                     placeholder="Describe los detalles de locución, ruido o música a corregir..."
-                    className="w-full rounded-xl border border-edge bg-surface-elevated p-3 text-xs text-ink focus:border-accent focus:outline-none resize-none"
+                    className="w-full rounded-xl border border-edge/50 bg-surface-elevated p-3 text-xs text-ink focus:border-accent focus:outline-none resize-none"
                   />
                   <div className="flex justify-end">
                     <button
@@ -1510,7 +1421,7 @@ export default function DashboardPage() {
                       className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-medium transition cursor-pointer ${
                         selectedChapter.revisions < selectedChapter.maxRevisions
                           ? 'bg-accent text-surface hover:bg-accent-hover'
-                          : 'bg-surface-elevated border border-edge text-ink-muted cursor-not-allowed'
+                          : 'bg-surface-elevated border border-edge/50 text-ink-muted cursor-not-allowed'
                       }`}
                     >
                       <Send className="h-3.5 w-3.5" />
@@ -1578,7 +1489,7 @@ export default function DashboardPage() {
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative w-full max-w-md rounded-3xl border border-edge bg-surface p-6 shadow-2xl space-y-5"
+              className="relative w-full max-w-md rounded-3xl border border-edge/50 bg-surface p-6 shadow-2xl space-y-5"
             >
               <button
                 type="button"
@@ -1598,7 +1509,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-edge bg-surface-elevated p-4 space-y-2 text-xs">
+              <div className="rounded-2xl border border-edge/50 bg-surface-elevated p-4 space-y-2 text-xs">
                 <div className="flex justify-between text-ink-muted">
                   <span>Concepto:</span>
                   <span className="font-medium text-ink">Grabación & Edición Master</span>
@@ -1620,7 +1531,7 @@ export default function DashboardPage() {
                   <button
                     type="button"
                     onClick={() => setPayingChapter(null)}
-                    className="rounded-xl border border-edge bg-surface px-4 py-2.5 text-xs font-medium text-ink hover:bg-surface-elevated cursor-pointer"
+                    className="rounded-xl border border-edge/50 bg-surface px-4 py-2.5 text-xs font-medium text-ink hover:bg-surface-elevated cursor-pointer"
                   >
                     Cancelar
                   </button>
@@ -1652,7 +1563,7 @@ export default function DashboardPage() {
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative w-full max-w-lg rounded-3xl border border-edge bg-surface p-6 shadow-2xl space-y-5"
+              className="relative w-full max-w-lg rounded-3xl border border-edge/50 bg-surface p-6 shadow-2xl space-y-5"
             >
               <button
                 type="button"
@@ -1662,7 +1573,7 @@ export default function DashboardPage() {
                 <X className="h-5 w-5" />
               </button>
 
-              <div className="border-b border-edge pb-4 flex items-center justify-between">
+              <div className="border-b border-edge/60 pb-4 flex items-center justify-between">
                 <div>
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-accent">Studio Flamkit</span>
                   <h3 className="font-serif text-2xl font-semibold text-ink">Comprobante Oficial</h3>
@@ -1676,7 +1587,7 @@ export default function DashboardPage() {
               </div>
 
               <div className="space-y-3 text-xs">
-                <div className="grid grid-cols-2 gap-4 rounded-xl border border-edge bg-surface-elevated p-3.5">
+                <div className="grid grid-cols-2 gap-4 rounded-xl border border-edge/50 bg-surface-elevated p-3.5">
                   <div>
                     <span className="text-[11px] text-ink-muted uppercase">Fecha de emisión</span>
                     <p className="font-medium text-ink mt-0.5">{viewInvoice.date}</p>
@@ -1687,7 +1598,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-edge bg-surface-elevated p-3.5 space-y-2">
+                <div className="rounded-xl border border-edge/50 bg-surface-elevated p-3.5 space-y-2">
                   <div className="flex justify-between">
                     <span className="text-ink-muted">Concepto:</span>
                     <span className="font-medium text-ink">{viewInvoice.concept}</span>
@@ -1707,7 +1618,7 @@ export default function DashboardPage() {
                 <button
                   type="button"
                   onClick={() => setViewInvoice(null)}
-                  className="rounded-xl border border-edge bg-surface px-4 py-2 text-xs font-medium text-ink hover:bg-surface-elevated cursor-pointer"
+                  className="rounded-xl border border-edge/50 bg-surface px-4 py-2 text-xs font-medium text-ink hover:bg-surface-elevated cursor-pointer"
                 >
                   Cerrar
                 </button>

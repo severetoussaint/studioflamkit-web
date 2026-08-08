@@ -13,6 +13,7 @@ interface StatusHeroProps {
   statusLabel?: string;
   onUploadClick: () => void;
   onViewFilesClick?: () => void;
+  onToggleCarousel?: () => void;
 }
 
 export function StatusHero({
@@ -23,6 +24,7 @@ export function StatusHero({
   statusLabel,
   onUploadClick,
   onViewFilesClick,
+  onToggleCarousel,
 }: StatusHeroProps) {
   if (state === 'none') {
     return (
@@ -30,12 +32,12 @@ export function StatusHero({
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-        className="relative overflow-hidden rounded-3xl border border-edge/80 bg-surface-elevated/90 p-8 sm:p-12 shadow-[0_12px_40px_rgba(0,0,0,0.03)] backdrop-blur-xs"
+        className="relative overflow-hidden rounded-3xl border-edge/50 bg-surface-elevated/90 p-8 sm:p-12 shadow-[0_12px_40px_rgba(0,0,0,0.03)] backdrop-blur-xs"
       >
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_90%_10%,_var(--color-accent)_0%,_transparent_45%)] opacity-[0.07]" />
         
         <div className="relative z-10 max-w-2xl">
-          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-accent/25 bg-accent/8 px-4 py-1.5 text-[11px] font-medium tracking-wide text-accent">
+          <div className="mb-5 inline-flex items-center gap-2 rounded-full border-accent/25 bg-accent/8 px-4 py-1.5 text-[11px] font-medium tracking-wide text-accent">
             <Sparkles className="h-3.5 w-3.5" />
             <span className="uppercase tracking-[0.18em]">Centro del Autor · Studio Flamkit</span>
           </div>
@@ -81,12 +83,12 @@ export function StatusHero({
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-        className="relative overflow-hidden rounded-3xl border border-amber-500/25 bg-surface-elevated/95 p-8 sm:p-12 shadow-[0_12px_40px_rgba(0,0,0,0.03)]"
+        className="relative overflow-hidden rounded-3xl border-amber-500/25 bg-surface-elevated/95 p-8 sm:p-12 shadow-[0_12px_40px_rgba(0,0,0,0.03)]"
       >
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_90%_10%,_#f59e0b_0%,_transparent_40%)] opacity-[0.05]" />
 
         <div className="relative z-10 max-w-3xl">
-          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-4 py-1.5 text-[11px] font-medium tracking-wide text-amber-800 dark:text-amber-300">
+          <div className="mb-5 inline-flex items-center gap-2 rounded-full border-amber-500/30 bg-amber-500/10 px-4 py-1.5 text-[11px] font-medium tracking-wide text-amber-800 dark:text-amber-300">
             <Clock className="h-3.5 w-3.5" />
             <span className="uppercase tracking-[0.16em]">Manuscrito Recibido · Análisis en Cabina</span>
           </div>
@@ -101,6 +103,16 @@ export function StatusHero({
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-4">
+            {onToggleCarousel && (
+              <Button
+                variant="primary"
+                className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.12em]"
+                onClick={onToggleCarousel}
+              >
+                <Sparkles className="h-4 w-4" />
+                <span>Ver Ruta Editorial (3 Pasos)</span>
+              </Button>
+            )}
             {onViewFilesClick && (
               <Button
                 variant="secondary"
@@ -111,8 +123,8 @@ export function StatusHero({
                 <span>Ver Manuscrito en Custodia</span>
               </Button>
             )}
-            <div className="inline-flex items-center gap-2 rounded-2xl bg-surface/80 px-4 py-2.5 text-xs text-ink-muted border border-edge/60">
-              <Sparkles className="h-3.5 w-3.5 text-accent shrink-0" />
+            <div className="inline-flex items-center gap-2 rounded-2xl bg-surface/80 px-4 py-2.5 text-xs text-ink-muted border-edge/60">
+              <Clock className="h-3.5 w-3.5 text-accent shrink-0" />
               <span>Siguiente paso: Desglose técnico y propuesta de voces</span>
             </div>
           </div>
@@ -127,14 +139,14 @@ export function StatusHero({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-      className="relative overflow-hidden rounded-3xl border border-edge/80 bg-surface-elevated/95 p-8 sm:p-12 shadow-[0_12px_40px_rgba(0,0,0,0.03)]"
+      className="relative overflow-hidden rounded-3xl border-edge/50 bg-surface-elevated/95 p-8 sm:p-12 shadow-[0_12px_40px_rgba(0,0,0,0.03)]"
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_90%_10%,_var(--color-accent)_0%,_transparent_35%)] opacity-[0.07]" />
 
       <div className="relative z-10 flex flex-col justify-between gap-8 lg:flex-row lg:items-center">
         <div className="max-w-2xl">
           <div className="mb-4 flex flex-wrap items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3.5 py-1 text-[11px] font-medium text-emerald-800 dark:text-emerald-300">
+            <span className="inline-flex items-center gap-1.5 rounded-full border-emerald-500/25 bg-emerald-500/10 px-3.5 py-1 text-[11px] font-medium text-emerald-800 dark:text-emerald-300">
               <CheckCircle2 className="h-3.5 w-3.5" />
               <span className="uppercase tracking-[0.15em]">{statusLabel || 'En Producción Audiocinematográfica'}</span>
             </span>
@@ -151,7 +163,7 @@ export function StatusHero({
         </div>
 
         {/* Progress Gauge */}
-        <div className="flex shrink-0 flex-col items-start rounded-2xl border border-edge/70 bg-surface/80 p-6 sm:min-w-[240px] shadow-2xs backdrop-blur-xs">
+        <div className="flex shrink-0 flex-col items-start rounded-2xl border-edge/50 bg-surface/80 p-6 sm:min-w-[240px] shadow-2xs backdrop-blur-xs">
           <div className="flex items-center justify-between w-full mb-3">
             <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-ink-muted">Avance General</span>
             <span className="font-serif text-xl font-semibold text-accent">{progress}%</span>

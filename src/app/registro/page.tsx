@@ -55,14 +55,14 @@ export default function RegistroPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, ease: 'easeOut' }}
             >
-              <Card className="relative border-edge bg-surface-elevated/60 shadow-xl backdrop-blur-md p-8 sm:p-10 rounded-3xl">
+             <Card className="relative border-edge/50 bg-surface-elevated/60 shadow-xl backdrop-blur-md p-8 sm:p-10 rounded-3xl">
                 {/* Visual Icon Badge */}
                 <div className="mb-8 flex items-center justify-between">
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3.5 py-1 text-xs font-medium uppercase tracking-[0.25em] text-accent">
                     <Sparkles className="h-3.5 w-3.5" />
                     Nuevo Registro
                   </span>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-edge bg-surface text-accent shadow-inner">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-edge/50 bg-surface text-accent shadow-inner">
                     <BookOpen className="h-5 w-5" />
                   </div>
                 </div>

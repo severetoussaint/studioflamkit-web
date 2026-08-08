@@ -2,13 +2,13 @@
 
 import React from 'react';
 import { motion } from 'motion/react';
-import { Check, Clock, Disc, Sparkles } from 'lucide-react';
+import { Check, Clock, Disc, Lock, Sparkles } from 'lucide-react';
 
 export interface TimelineStep {
   id: string;
   title: string;
-  description: string;
-  status: 'completado' | 'activo' | 'pendiente';
+  description?: string;
+  status: 'completado' | 'activo' | 'pendiente' | 'bloqueado';
 }
 
 interface ProgressTimelineProps {
@@ -20,37 +20,37 @@ const defaultSteps: TimelineStep[] = [
   {
     id: 'recibido',
     title: 'Recibido',
-    description: 'Manuscrito cargado y cifrado en cabina',
+    description: 'Manuscrito resguardado',
     status: 'completado',
   },
   {
     id: 'analisis',
-    title: 'En análisis',
-    description: 'Evaluación de ritmo, voces y tono',
+    title: 'En Análisis',
+    description: 'Evaluación técnica de voz',
     status: 'activo',
   },
   {
     id: 'propuesta',
     title: 'Propuesta',
-    description: 'Presupuesto por capítulos y plan técnico',
+    description: 'Desglose y plan técnico',
     status: 'pendiente',
   },
   {
     id: 'produccion',
     title: 'Producción',
-    description: 'Grabación de voz y diseño sonoro',
+    description: 'Grabación y sonido',
     status: 'pendiente',
   },
   {
     id: 'revision',
     title: 'Revisión',
-    description: 'Escucha de muestras y observaciones del autor',
+    description: 'Escucha de muestras',
     status: 'pendiente',
   },
   {
     id: 'entrega',
-    title: 'Entrega final',
-    description: 'Másters M4B/MP3 listos para publicación',
+    title: 'Entrega Final',
+    description: 'Máster de publicación',
     status: 'pendiente',
   },
 ];
@@ -86,90 +86,118 @@ export function ProgressTimeline({ steps = defaultSteps, currentState }: Progres
   }, [steps, currentState]);
 
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-edge/80 bg-surface-elevated/95 p-6 sm:p-8 shadow-[0_12px_40px_rgba(0,0,0,0.02)] backdrop-blur-xs">
-      <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-accent/6 blur-3xl" />
-      <div className="pointer-events-none absolute -left-20 bottom-0 h-48 w-48 rounded-full bg-[#B98C52]/6 blur-3xl" />
+    <div className="relative overflow-hidden rounded-3xl border-edge/50 bg-surface-elevated/95 p-5 sm:p-6 shadow-[0_12px_36px_rgba(0,0,0,0.20)] backdrop-blur-xs">
+      <div className="pointer-events-none absolute -right-20 -top-20 h-48 w-48 rounded-full bg-accent/5 blur-3xl" />
 
-      <div className="relative mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-edge/40 pb-5">
-        <div>
-          <h2 className="font-serif text-xl font-normal tracking-tight text-ink">Trayecto Editorial</h2>
-          <p className="mt-0.5 text-xs font-light text-ink-muted/80">
-            Evolución de la obra desde el manuscrito preliminar hasta la edición de máster
-          </p>
+      {/* Header compact section */}
+      <div className="relative mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-edge/40 pb-4">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/10 text-accent border-accent/20">
+            <Sparkles className="h-4 w-4" />
+          </div>
+          <div>
+            <h2 className="font-serif text-lg font-medium tracking-tight text-ink">
+              Ruta Editorial de la Obra
+            </h2>
+            <p className="text-xs text-ink-muted/80 font-light">
+              Fase actual del manuscrito en el proceso de producción de audio
+            </p>
+          </div>
         </div>
 
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-edge/60 bg-surface/80 px-3.5 py-1 text-[11px] font-medium text-ink-muted/90 shadow-[0_4px_14px_rgba(0,0,0,0.02)]">
-          <Sparkles className="h-3.5 w-3.5 text-accent" />
-          <span>Garantía de Metodología Flamkit</span>
+        <span className="inline-flex items-center gap-1.5 rounded-full border-edge/60 bg-surface px-3 py-1 text-[11px] font-mono font-medium text-ink-muted">
+          Etapa {activeSteps.findIndex((s) => s.status === 'activo') + 1 || 1} de {activeSteps.length}
         </span>
       </div>
 
-      <div className="relative grid gap-3.5 sm:grid-cols-2 lg:grid-cols-6">
-        {activeSteps.map((step, index) => {
-          const isDone = step.status === 'completado';
-          const isActive = step.status === 'activo';
+      {/* Horizontal Stepper Line Layout */}
+      <div className="relative pt-2 pb-1">
+        {/* Progress Bar background connector line (hidden on small mobile, flex on desktop) */}
+        <div className="hidden md:block absolute top-[22px] left-[3%] right-[3%] h-[2px] bg-edge/60 z-0" />
 
-          return (
-            <motion.div
-              key={step.id}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: index * 0.04 }}
-              className={`group relative flex min-h-[178px] flex-col justify-between rounded-2xl border p-4.5 shadow-[0_8px_30px_rgba(0,0,0,0.02)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_14px_40px_rgba(0,0,0,0.04)] ${
-                isActive
-                  ? 'border-accent/35 bg-[linear-gradient(180deg,rgba(242,107,46,0.08),rgba(252,250,246,0.96))]'
-                  : isDone
-                  ? 'border-edge/70 bg-[linear-gradient(180deg,rgba(252,250,246,0.96),rgba(252,250,246,0.72))]'
-                  : 'border-edge/35 bg-surface/25 opacity-70'
-              }`}
-            >
-              <div className={`pointer-events-none absolute inset-0 rounded-2xl bg-[radial-gradient(circle_at_20%_0%,rgba(242,107,46,0.06),transparent_42%)] opacity-0 transition-opacity duration-300 ${
-                isActive ? 'opacity-100' : 'group-hover:opacity-100'
-              }`} />
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 sm:gap-2 relative z-10">
+          {activeSteps.map((step, index) => {
+            const isDone = step.status === 'completado';
+            const isActive = step.status === 'activo';
+            const isBlocked = step.status === 'bloqueado';
 
-              <div className="relative">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-ink-muted/75">
-                    Paso 0{index + 1}
-                  </span>
-
-                  <div
-                    className={`flex h-6 w-6 items-center justify-center rounded-full text-xs transition-all duration-300 ${
-                      isDone
-                        ? 'bg-accent text-white shadow-[0_6px_16px_rgba(242,107,46,0.18)]'
-                        : isActive
-                        ? 'border border-accent/35 bg-accent/12 text-accent'
-                        : 'border border-edge/60 bg-surface text-ink-muted/55'
-                    }`}
-                  >
-                    {isDone ? (
-                      <Check className="h-3.5 w-3.5 stroke-[2.5]" />
-                    ) : isActive ? (
-                      <Disc className="h-3.5 w-3.5 animate-spin text-accent" />
-                    ) : (
-                      <Clock className="h-3 w-3" />
-                    )}
-                  </div>
+            return (
+              <motion.div
+                key={step.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25, delay: index * 0.03 }}
+                className={`relative flex flex-col items-center text-center p-3.5 rounded-2xl transition-all duration-200 ${
+                  isActive
+                    ? 'border-accent/40 bg-accent/12 shadow-[0_4px_16px_rgba(255,116,24,0.12)]'
+                    : isDone
+                    ? 'border-edge/60 bg-surface/60'
+                    : 'border-edge/30 bg-surface/30 opacity-70'
+                }`}
+              >
+                {/* Node Icon Circle */}
+                <div
+                  className={`flex h-8 w-8 items-center justify-center rounded-full text-xs transition-all duration-300 z-10 ${
+                    isDone
+                      ? 'bg-accent text-white shadow-xs'
+                      : isActive
+                      ? 'border-2 border-accent bg-surface text-accent shadow-[0_0_12px_rgba(219,96,33,0.22)]'
+                      : isBlocked
+                      ? 'border-edge/60 bg-surface-elevated text-ink-muted/50'
+                      : 'border-edge/80 bg-surface text-ink-muted/60'
+                  }`}
+                >
+                  {isDone ? (
+                    <Check className="h-4 w-4 stroke-[2.5]" />
+                  ) : isActive ? (
+                    <Disc className="h-4 w-4 animate-spin text-accent" />
+                  ) : isBlocked ? (
+                    <Lock className="h-3.5 w-3.5" />
+                  ) : (
+                    <Clock className="h-3.5 w-3.5" />
+                  )}
                 </div>
 
-                <h3 className="font-serif text-base font-normal tracking-tight text-ink">{step.title}</h3>
-                <p className="mt-1 text-xs leading-relaxed font-light text-ink-muted/80">
-                  {step.description}
-                </p>
-              </div>
+                {/* Step labels - tightly constrained to avoid overflow */}
+                <div className="mt-2.5 w-full space-y-0.5">
+                  <span className="block text-[9px] font-mono uppercase tracking-widest text-ink-muted/70">
+                    Paso 0{index + 1}
+                  </span>
+                  <p className="font-serif text-sm font-medium tracking-tight text-ink truncate px-1">
+                    {step.title}
+                  </p>
+                  {step.description && (
+                    <p className="text-[10px] text-ink-muted/70 line-clamp-1 font-light px-0.5">
+                      {step.description}
+                    </p>
+                  )}
+                </div>
 
-              <div className="relative mt-4 border-t border-edge/35 pt-2.5 text-[10px] font-medium uppercase tracking-[0.18em]">
-                {isDone ? (
-                  <span className="text-accent/90">Completado</span>
-                ) : isActive ? (
-                  <span className="text-accent font-semibold">En Curso</span>
-                ) : (
-                  <span className="text-ink-muted/60">Pendiente</span>
-                )}
-              </div>
-            </motion.div>
-          );
-        })}
+                {/* Status Badge */}
+                <div className="mt-2.5 pt-1.5 border-t border-edge/30 w-full flex justify-center">
+                  {isDone ? (
+                    <span className="inline-flex items-center text-[10px] font-semibold uppercase tracking-wider text-accent">
+                      Completado
+                    </span>
+                  ) : isActive ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-accent animate-pulse">
+                      <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+                      En Curso
+                    </span>
+                  ) : isBlocked ? (
+                    <span className="inline-flex items-center text-[10px] font-medium uppercase tracking-wider text-ink-muted/50">
+                      Bloqueado
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center text-[10px] font-medium uppercase tracking-wider text-ink-muted/60">
+                      Pendiente
+                    </span>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

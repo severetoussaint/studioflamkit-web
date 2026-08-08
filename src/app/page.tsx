@@ -62,7 +62,7 @@ export default function HomePage() {
       <Navbar />
 
       {/* Hero */}
-      <section className="relative overflow-hidden border-b border-edge">
+      <section className="relative overflow-hidden border-b border-edge/50">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_-10%,_var(--color-accent)_0%,_transparent_28%)] opacity-[0.10]" />
         <div className="relative mx-auto max-w-5xl px-6 py-28 text-center lg:px-8">
           <p className="text-xs font-medium uppercase tracking-[0.36em] text-accent">
@@ -90,7 +90,7 @@ export default function HomePage() {
       </section>
 
       {/* Filosofía */}
-      <section className="border-b border-edge bg-surface-elevated">
+      <section className="border-b border-edge/50 bg-surface-elevated">
         <div className="mx-auto max-w-3xl px-6 py-24 text-center lg:px-8">
           <p className="font-serif text-3xl italic leading-relaxed text-ink sm:text-4xl">
             &ldquo;No solo producimos audio; damos una nueva forma de vivir tu historia.&rdquo;
@@ -102,7 +102,7 @@ export default function HomePage() {
       </section>
 
       {/* Sobre nosotros */}
-      <section id="sobre" className="scroll-mt-20 border-b border-edge bg-surface-elevated">
+      <section id="sobre" className="scroll-mt-20 border-b border-edge/50 bg-surface-elevated">
         <div className="mx-auto max-w-6xl px-6 py-24 lg:px-8">
           <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
             <div className="max-w-2xl">
@@ -117,7 +117,7 @@ export default function HomePage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               {aboutPoints.map((point) => (
-                <div key={point.title} className="rounded-3xl border border-edge bg-surface p-6">
+                <div key={point.title} className="rounded-3xl border border-edge/50 bg-surface p-6">
                   <h3 className="font-serif text-xl font-medium text-ink">{point.title}</h3>
                   <p className="mt-3 text-sm leading-7 text-ink-muted">{point.description}</p>
                 </div>
@@ -128,7 +128,7 @@ export default function HomePage() {
       </section>
 
       {/* Cómo trabajamos */}
-      <section className="border-b border-edge">
+      <section className="border-b border-edge/50">
         <div className="mx-auto max-w-6xl px-6 py-24 lg:px-8">
           <div className="max-w-2xl">
             <p className="text-xs font-medium uppercase tracking-[0.32em] text-accent">Cómo trabajamos</p>
@@ -139,7 +139,7 @@ export default function HomePage() {
 
           <div className="mt-14 grid gap-10 md:grid-cols-3">
             {steps.map((step) => (
-              <div key={step.number} className="border-t border-edge pt-6">
+              <div key={step.number} className="border-t border-edge/50 pt-6">
                 <span className="font-serif text-4xl text-accent">{step.number}</span>
                 <h3 className="mt-4 text-lg font-semibold text-ink">{step.title}</h3>
                 <p className="mt-3 text-sm leading-7 text-ink-muted">{step.description}</p>
@@ -150,7 +150,7 @@ export default function HomePage() {
       </section>
 
       {/* Pilares */}
-      <section className="border-b border-edge bg-surface-elevated">
+      <section className="border-b border-edge/50 bg-surface-elevated">
         <div className="mx-auto max-w-6xl px-6 py-24 lg:px-8">
           <div className="max-w-2xl">
             <p className="text-xs font-medium uppercase tracking-[0.32em] text-accent">Lo que nos guía</p>
@@ -161,7 +161,7 @@ export default function HomePage() {
 
           <div className="mt-14 grid gap-6 md:grid-cols-3">
             {pillars.map((pillar) => (
-              <div key={pillar.title} className="rounded-3xl border border-edge bg-surface p-8">
+              <div key={pillar.title} className="rounded-3xl border border-edge/50 bg-surface p-8">
                 <h3 className="font-serif text-xl font-medium text-ink">{pillar.title}</h3>
                 <p className="mt-4 text-sm leading-7 text-ink-muted">{pillar.description}</p>
               </div>

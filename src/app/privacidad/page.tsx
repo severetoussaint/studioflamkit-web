@@ -101,7 +101,7 @@ export default function PrivacidadPage() {
           <div className="overflow-x-auto mt-6">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="border-b border-edge bg-surface-elevated/50">
+                <tr className="border-b border-edge/50 bg-surface-elevated/50">
                   <th className="py-3 px-4 font-bold text-ink">Finalidad del Procesamiento</th>
                   <th className="py-3 px-4 font-bold text-ink">Descripción Corta</th>
                   <th className="py-3 px-4 font-bold text-ink">Periodo de Retención</th>
@@ -531,7 +531,7 @@ export default function PrivacidadPage() {
           <p>
             Si tienes dudas, consultas sobre el tratamiento de tu propiedad intelectual o deseas contactarnos sobre esta política, puedes dirigir tu correspondencia por correo postal o de manera electrónica a las siguientes direcciones:
           </p>
-          <div className="mt-6 rounded-2xl border border-edge bg-surface-elevated p-6 space-y-4 max-w-xl">
+          <div className="mt-6 rounded-2xl border border-edge/50 bg-surface-elevated p-6 space-y-4 max-w-xl">
             <div>
               <p className="text-xs font-bold uppercase tracking-wider text-accent">Correo Electrónico Directo</p>
               <p className="mt-1 font-semibold text-sm">
@@ -577,7 +577,7 @@ export default function PrivacidadPage() {
       <Navbar />
 
       {/* Header section with refined display typography */}
-      <section className="relative overflow-hidden border-b border-edge">
+      <section className="relative overflow-hidden border-b border-edge/50">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_-10%,_var(--color-accent)_0%,_transparent_28%)] opacity-[0.10]" />
         <div className="relative mx-auto max-w-5xl px-6 py-20 text-center lg:px-8">
           <p className="text-xs font-medium uppercase tracking-[0.32em] text-accent">Studio Flamkit & Art</p>
@@ -602,8 +602,8 @@ export default function PrivacidadPage() {
             
             {/* Sticky Navigation Index for Desktop */}
             <aside className="hidden lg:block">
-              <div className="sticky top-28 rounded-2xl border border-edge bg-surface-elevated p-6 max-h-[75vh] overflow-y-auto custom-scroll">
-                <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-ink border-b border-edge pb-3 mb-4">
+              <div className="sticky top-28 rounded-2xl border border-edge/50 bg-surface-elevated p-6 max-h-[75vh] overflow-y-auto custom-scroll">
+                <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-ink border-b border-edge/50 pb-3 mb-4">
                   Secciones de la Política
                 </h3>
                 <nav className="flex flex-col gap-2.5">
@@ -638,7 +638,7 @@ export default function PrivacidadPage() {
                 <div
                   key={section.id}
                   id={section.id}
-                  className="scroll-mt-28 rounded-3xl border border-edge bg-surface-elevated p-8 md:p-10 shadow-sm transition hover:shadow-md"
+                  className="scroll-mt-28 rounded-3xl border border-edge/50 bg-surface-elevated p-8 md:p-10 shadow-sm transition hover:shadow-md"
                 >
                   <div className="flex flex-col md:flex-row md:items-center gap-3 border-b border-edge/60 pb-4 mb-6">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 shrink-0">
@@ -660,7 +660,7 @@ export default function PrivacidadPage() {
               ))}
 
               {/* Termly Attribution and Final Actions */}
-              <div className="rounded-3xl border border-edge bg-surface-elevated p-8 text-center space-y-6">
+              <div className="rounded-3xl border border-edge/50 bg-surface-elevated p-8 text-center space-y-6">
                 <p className="text-xs text-ink-muted/80">
                   Esta Política de Privacidad fue generada y verificada mediante la tecnología de cumplimiento de <strong>Termly</strong> de conformidad con regulaciones vigentes de privacidad digital.
                 </p>

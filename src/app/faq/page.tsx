@@ -29,7 +29,7 @@ export default function FaqPage() {
     <main className="min-h-screen bg-surface text-ink">
       <Navbar />
 
-      <section className="relative overflow-hidden border-b border-edge">
+      <section className="relative overflow-hidden border-b border-edge/50">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_-10%,_var(--color-accent)_0%,_transparent_28%)] opacity-[0.10]" />
         <div className="relative mx-auto max-w-6xl px-6 py-24 lg:px-8">
           <div className="max-w-3xl">
@@ -44,7 +44,7 @@ export default function FaqPage() {
 
           <div className="mt-12 space-y-4">
             {faqs.map((item) => (
-              <details key={item.question} className="group rounded-3xl border border-edge bg-surface-elevated p-6">
+              <details key={item.question} className="group rounded-3xl border border-edge/50 bg-surface-elevated p-6">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-lg font-semibold text-ink">
                   <span>{item.question}</span>
                   <span className="text-2xl text-accent transition group-open:rotate-45">+</span>

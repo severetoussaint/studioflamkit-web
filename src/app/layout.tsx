@@ -1,6 +1,6 @@
 import React from 'react';
 import './globals.css';
-import { cormorant, inter } from './fonts';
+import { dmSerif, inter } from './fonts';
 import Providers from './providers';
 
 export const metadata = {
@@ -24,7 +24,7 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={`${cormorant.variable} ${inter.variable}`} suppressHydrationWarning>
+    <html lang="es" className={`${dmSerif.variable} ${inter.variable}`} suppressHydrationWarning>
       <body>
         <Providers>{children}</Providers>
       </body>
