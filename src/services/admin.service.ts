@@ -268,26 +268,26 @@ export async function listAdminProjects(): Promise<AdminProject[]> {
 
   console.log('listAdminProjects: Datos recibidos de Supabase:', data);
 
-  return (data ?? []).map((row: any) => {
-    const adminStatus = dbStatusToAdmin(row.status);
-    const deliverables: AudioDeliverable[] = (row.deliverables ?? []).map((d: any) => ({
-      id: d.id,
-      title: d.title,
+  return (data ?? []).map((row: Record<string, unknown>) => {
+    const adminStatus = dbStatusToAdmin(row.status as string);
+    const deliverables: AudioDeliverable[] = (Array.isArray(row.deliverables) ? row.deliverables : []).map((d: Record<string, unknown>) => ({
+      id: d.id as string,
+      title: d.title as string,
       completed: d.status === 'approved',
-      updatedAt: (d.created_at ?? '').slice(0, 10),
+      updatedAt: (d.created_at as string ?? '').slice(0, 10),
       comments: [],
     }));
 
-    const rawChapters = (row.chapters ?? []).sort((a: any, b: any) => a.chapter_number - b.chapter_number);
-    const chapterList: AdminChapter[] = rawChapters.map((c: any) => ({
-      id: c.id,
-      project_id: row.id,
-      chapter_number: c.chapter_number,
-      title: c.title || `Capítulo ${c.chapter_number}`,
-      word_count: c.word_count || 0,
-      duration_minutes: c.duration_minutes || Math.round((c.word_count || 0) / 155),
-      pfh_rate_used: c.pfh_rate_used || 400,
-      price: c.price || 0,
+    const rawChapters = (Array.isArray(row.chapters) ? row.chapters : []).sort((a: Record<string, unknown>, b: Record<string, unknown>) => (a.chapter_number as number) - (b.chapter_number as number));
+    const chapterList: AdminChapter[] = rawChapters.map((c: Record<string, unknown>) => ({
+      id: c.id as string,
+      project_id: row.id as string,
+      chapter_number: c.chapter_number as number,
+      title: (c.title as string) || `Capítulo ${c.chapter_number}`,
+      word_count: (c.word_count as number) || 0,
+      duration_minutes: (c.duration_minutes as number) || Math.round(((c.word_count as number) || 0) / 155),
+      pfh_rate_used: (c.pfh_rate_used as number) || 400,
+      price: (c.price as number) || 0,
       currency: c.currency || 'USD',
       tier: c.tier || 'entrada',
       status: (c.status as AdminChapter['status']) || 'pendiente',
@@ -355,7 +355,7 @@ export async function createAdminProject(
 ): Promise<AdminProject> {
   let createdProjectId: string | undefined;
   let authorId = newProj.author_id;
-  let manuscriptId = newProj.manuscript_id;
+  const manuscriptId = newProj.manuscript_id;
 
   if (manuscriptId && !authorId) {
     const { data: m } = await supabaseClient

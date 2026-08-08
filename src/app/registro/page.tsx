@@ -28,8 +28,8 @@ export default function RegistroPage() {
     try {
       await signUp(email, password, fullName);
       router.push('/dashboard');
-    } catch (err: any) {
-      setError(err.message || 'Ocurrió un error al registrarse. Inténtalo de nuevo.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Ocurrió un error al registrarse. Inténtalo de nuevo.');
     } finally {
       setIsLoading(false);
     }

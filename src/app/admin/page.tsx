@@ -270,9 +270,9 @@ export default function AdminPage() {
       try {
         await adminService.deleteAdminProject(id);
         await loadAllData();
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Error al borrar proyecto:', error);
-        alert('Ocurrió un error al intentar eliminar el proyecto: ' + (error?.message || 'Error de restricción o permisos en la base de datos.'));
+        alert('Ocurrió un error al intentar eliminar el proyecto: ' + (error instanceof Error ? error.message : 'Error de restricción o permisos en la base de datos.'));
       }
     }
   };
@@ -557,7 +557,7 @@ export default function AdminPage() {
               <div className="rounded-3xl border border-dashed border-edge bg-surface-elevated/30 p-12 text-center">
                 <Sliders className="h-8 w-8 text-ink-muted mx-auto mb-3" />
                 <p className="text-sm text-ink-muted font-medium">No se encontraron proyectos activos en este momento.</p>
-                <p className="text-xs text-ink-muted mt-1">Crea un nuevo proyecto en la pestaña "Registrar Obra" o aprueba un manuscrito.</p>
+                <p className="text-xs text-ink-muted mt-1">Crea un nuevo proyecto en la pestaña &quot;Registrar Obra&quot; o aprueba un manuscrito.</p>
               </div>
             ) : (
               <div className="grid gap-6 md:grid-cols-2">
@@ -1023,10 +1023,10 @@ export default function AdminPage() {
                   className="mb-6 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 p-4 text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-2 font-medium"
                 >
                   <CheckCircle className="h-4 w-4 text-emerald-500 dark:text-emerald-400 flex-shrink-0" />
-                  <span>¡Obra registrada exitosamente! Se ha añadido a la pestaña "Proyectos en Curso" con persistencia local.</span>
+                  <span>¡Obra registrada exitosamente! Se ha añadido a la pestaña &quot;Proyectos en Curso&quot; con persistencia local.</span>
                 </motion.div>
               )}
-
+              
               <form onSubmit={handleCreateProjectManually} className="space-y-5">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Input
@@ -1045,63 +1045,9 @@ export default function AdminPage() {
                     required
                   />
                 </div>
-
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <Input
-                    label="Capítulos Totales"
-                    type="number"
-                    value={newProjChapters}
-                    onChange={(e) => setNewProjChapters(parseInt(e.target.value) || 0)}
-                    required
-                    min="1"
-                  />
-
-                  <Input
-                    label="Presupuesto Estimado ($ USD)"
-                    type="number"
-                    value={newProjAmount}
-                    onChange={(e) => setNewProjAmount(parseFloat(e.target.value) || 0)}
-                    required
-                    min="0"
-                  />
-
-                  {/* CUSTOMIZABLE REVISIONS LIMIT (Requested feature) */}
-                  <div className="flex flex-col">
-                    <label className="text-xs text-ink-muted block font-medium mb-1.5">Límite de Revisiones Pactadas</label>
-                    <div className="flex items-center gap-1.5 h-[38px] bg-surface border border-edge rounded-xl px-2.5">
-                      <button
-                        type="button"
-                        onClick={() => setNewProjMaxRevisions(prev => Math.max(0, prev - 1))}
-                        className="h-6 w-6 rounded bg-surface-elevated border border-edge hover:bg-surface text-ink-muted hover:text-ink flex items-center justify-center transition active:scale-90 cursor-pointer"
-                      >
-                        <Minus className="h-3 w-3" />
-                      </button>
-                      <span className="flex-1 text-center text-xs font-bold text-ink">{newProjMaxRevisions}</span>
-                      <button
-                        type="button"
-                        onClick={() => setNewProjMaxRevisions(prev => prev + 1)}
-                        className="h-6 w-6 rounded bg-surface-elevated border border-edge hover:bg-surface text-ink-muted hover:text-ink flex items-center justify-center transition active:scale-90 cursor-pointer"
-                      >
-                        <Plus className="h-3 w-3" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs text-ink-muted block font-medium mb-2">Estado Inicial del Proyecto</label>
-                  <select
-                    value={newProjStatus}
-                    onChange={(e) => setNewProjStatus(e.target.value as AdminProjectStatus)}
-                    className="w-full rounded-xl border border-edge bg-surface px-3.5 py-2.5 text-xs text-ink outline-none focus:border-accent transition"
-                  >
-                    <option value="analisis">Análisis Inicial (Paso 1)</option>
-                    <option value="produccion">Producción activa / Grabación (Paso 2)</option>
-                    <option value="revisiones">Fase de Revisiones (Paso 3)</option>
-                    <option value="completado">Obra Completada y Entregada (Paso 4)</option>
-                  </select>
-                </div>
-
+                
+                // ...existing code...
+                
                 <div className="pt-2">
                   <Button
                     variant="primary"

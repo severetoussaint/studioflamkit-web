@@ -135,6 +135,37 @@ export default function DashboardPage() {
   const [requestContext, setRequestContext] = useState<AuthorRequestContext | null>(null);
   const [realProject, setRealProject] = useState<AuthorProjectData | null>(null);
 
+  // Estados de gestión de capítulos y comentarios
+  const [chaptersState, setChaptersState] = useState<ChapterItem[]>(initialChapters);
+  const [commentsState, setCommentsState] = useState<Record<string, CommentItem[]>>(initialComments);
+  const [selectedChapter, setSelectedChapter] = useState<ChapterItem | null>(null);
+  const [newCommentText, setNewCommentText] = useState('');
+  const [newCommentTime, setNewCommentTime] = useState('03:45');
+
+  // Estados de navegación, audio y modales
+  const [active, setActive] = useState<SectionId>('resumen');
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [audioProgress, setAudioProgress] = useState(35);
+  const [uploaderModalOpen, setUploaderModalOpen] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<{ name: string; size: string; wordCount: string } | null>(null);
+  const [uploadingState, setUploadingState] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadSubmitted, setUploadSubmitted] = useState(false);
+  const [payingChapter, setPayingChapter] = useState<ChapterItem | null>(null);
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const [viewInvoice, setViewInvoice] = useState<InvoiceItem | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'bank'>('paypal');
+  const [paypalEmail, setPaypalEmail] = useState('autor@ejemplo.com');
+  const [bankIban, setBankIban] = useState('ES91 2100 0418 4502 0005 1234');
+  const [bankHolder, setBankHolder] = useState('Joens Don');
+  const [deliveryFormat, setDeliveryFormat] = useState<'mp3' | 'm4b' | 'wav'>('m4b');
+  const [profileNotification, setProfileNotification] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [manuscriptTitle, setManuscriptTitle] = useState('');
+  const [manuscriptWordCount, setManuscriptWordCount] = useState('');
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
   useEffect(() => {
     let isMounted = true;
     async function checkAuth() {
@@ -217,43 +248,6 @@ export default function DashboardPage() {
     };
   }, [router]);
 
-  const [active, setActive] = useState<SectionId>('resumen');
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [audioProgress, setAudioProgress] = useState(35);
-
-  // hasActiveProject ahora se deriva del estado REAL (requestState), no de un switch manual
-  const hasActiveProject = requestState === 'active';
-
-  // Estado del modal de subida de manuscrito
-  const [uploaderModalOpen, setUploaderModalOpen] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState<{ name: string; size: string; wordCount: string } | null>(null);
-  const [uploadingState, setUploadingState] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadSubmitted, setUploadSubmitted] = useState(false);
-
-  // Estado del modal de revisión e interacción del capítulo
-  const [selectedChapter, setSelectedChapter] = useState<ChapterItem | null>(null);
-  const [chaptersState, setChaptersState] = useState<ChapterItem[]>(initialChapters);
-  const [commentsState, setCommentsState] = useState<Record<string, CommentItem[]>>(initialComments);
-  const [newCommentText, setNewCommentText] = useState('');
-  const [newCommentTime, setNewCommentTime] = useState('03:45');
-
-  // Estado del modal de pago de capítulo
-  const [payingChapter, setPayingChapter] = useState<ChapterItem | null>(null);
-  const [paymentProcessing, setPaymentProcessing] = useState(false);
-
-  // Estado del modal de detalle de factura
-  const [viewInvoice, setViewInvoice] = useState<InvoiceItem | null>(null);
-
-  // Configuración de Perfil (Métodos de pago y Formato de entrega)
-  const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'bank'>('paypal');
-  const [paypalEmail, setPaypalEmail] = useState('autor@ejemplo.com');
-  const [bankIban, setBankIban] = useState('ES91 2100 0418 4502 0005 1234');
-  const [bankHolder, setBankHolder] = useState('Joens Don');
-  const [deliveryFormat, setDeliveryFormat] = useState<'mp3' | 'm4b' | 'wav'>('m4b');
-  const [profileNotification, setProfileNotification] = useState<string | null>(null);
-
   const togglePlay = () => {
     setIsPlaying(!isPlaying);
   };
@@ -327,11 +321,12 @@ export default function DashboardPage() {
       }, 1500);
     } catch (err) {
       console.error('Error al enviar el manuscrito:', JSON.stringify(err, null, 2));
-      if (err && typeof err === 'object') {
-        console.error('message:', (err as any).message);
-        console.error('code:', (err as any).code);
-        console.error('details:', (err as any).details);
-        console.error('hint:', (err as any).hint);
+      if (err && typeof err === 'object' && 'message' in err) {
+        const error = err as { message: string; code?: string; details?: string; hint?: string };
+        console.error('message:', error.message);
+        console.error('code:', error.code);
+        console.error('details:', error.details);
+        console.error('hint:', error.hint);
       }
       setSubmitError('No se pudo enviar el manuscrito. Intenta de nuevo.');
     } finally {
@@ -431,97 +426,126 @@ export default function DashboardPage() {
     <main className="min-h-screen bg-surface text-ink transition-colors duration-200">
       <Navbar />
 
-
-
       {/* Header Banner principal */}
-      <div className="relative overflow-hidden border-b border-edge bg-surface-elevated">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_-10%,_var(--color-accent)_0%,_transparent_35%)] opacity-[0.14]" />
+      <div className="relative overflow-hidden border-b border-edge/80 bg-surface-elevated/90 backdrop-blur-sm">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_25%_-20%,_var(--color-accent)_0%,_transparent_50%)] opacity-[0.16]" />
         
         <div className="relative mx-auto max-w-6xl px-6 py-10 lg:px-8">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-0.5 text-xs font-medium uppercase tracking-[0.25em] text-accent">
-                  <Sparkles className="h-3 w-3" />
+          <div className="flex flex-col gap-8 lg:flex-row lg:items-stretch lg:justify-between">
+            {/* Título e Identidad Principal del Espacio */}
+            <div className="flex-1 space-y-3">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3.5 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-accent">
+                  <Sparkles className="h-3.5 w-3.5 shrink-0 text-accent" />
                   Centro del Autor
                 </span>
+
+                {requestState === 'active' && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Producción Activa
+                  </span>
+                )}
+
+                {requestState === 'pending' && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-600 dark:text-amber-400">
+                    <Clock className="h-3.5 w-3.5 shrink-0" />
+                    En Evaluación Editorial
+                  </span>
+                )}
+
+                {requestState === 'none' && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-edge bg-surface px-3 py-1 text-xs font-medium text-ink-muted">
+                    Estudio Creativo & Producción
+                  </span>
+                )}
+
                 {(hasActiveProject || requestState === 'pending') && (
-                  <>
-                    <span className="text-xs text-ink-muted">·</span>
-                    <span className="text-xs font-medium font-mono text-ink-muted">
-                      ID: {requestContext?.projectId ? `#PROJ-${requestContext.projectId.slice(0, 8).toUpperCase()}` : requestContext?.requestId ? `#REQ-${requestContext.requestId.slice(0, 8).toUpperCase()}` : '#SOLICITUD'}
-                    </span>
-                  </>
+                  <span className="inline-flex items-center gap-1 rounded-md bg-surface border border-edge/60 px-2.5 py-1 text-xs font-mono font-medium text-ink-muted">
+                    ID: {requestContext?.projectId ? `#PROJ-${requestContext.projectId.slice(0, 8).toUpperCase()}` : requestContext?.requestId ? `#REQ-${requestContext.requestId.slice(0, 8).toUpperCase()}` : '#SOLICITUD'}
+                  </span>
                 )}
               </div>
 
-              <h1 className="mt-3 font-serif text-3xl font-medium tracking-tight text-ink sm:text-4xl lg:text-5xl">
+              <h1 className="font-serif text-3xl font-medium tracking-tight text-ink sm:text-4xl lg:text-5xl leading-[1.15]">
                 {requestState === 'active'
-                  ? (realProject?.title || requestContext?.title || 'Tu Obra de Audio')
+                  ? (realProject?.title || requestContext?.title || 'Tu Obra en Grabación')
                   : requestState === 'pending'
-                  ? (requestContext?.title || 'Tu manuscrito está en evaluación')
+                  ? (requestContext?.title || 'Manuscrito en Evaluación Editorial')
                   : 'Bienvenido a Studio Flamkit'}
               </h1>
-              <p className="mt-2 text-sm leading-relaxed text-ink-muted sm:text-base max-w-2xl">
+
+              <p className="max-w-2xl text-sm leading-relaxed text-ink-muted sm:text-base font-light">
                 {requestState === 'active'
-                  ? 'Supervisa el proceso de producción audiocinematográfica, escucha avances de capítulos y gestiona entregables de tu obra.'
+                  ? 'Gestiona la dirección artística de tu audiolibro, escucha muestras de capítulos en tiempo real y descarga tus entregables de preservación.'
                   : requestState === 'pending'
-                  ? 'Recibimos tu manuscrito. Nuestro equipo lo está evaluando y te avisaremos en cuanto tengamos una propuesta.'
-                  : 'Tu espacio exclusivo para llevar tu libro a la vida en formato audiocinematográfico con producción sonora profesional.'}
+                  ? 'Hemos recibido tu manuscrito. La dirección técnica está evaluando el número de palabras y tono lírico para formalizar tu propuesta de producción.'
+                  : 'Transformamos tu texto impreso en una experiencia de escucha cinematográfica. Sube tu manuscrito para obtener una cotización técnica sin compromiso.'}
               </p>
             </div>
 
-            {/* Tarjeta rápida de estado en header */}
+            {/* Tarjeta Dominante Contextual de Estado a la Derecha */}
             {requestState === 'pending' ? (
-              <div className="shrink-0 rounded-2xl border border-accent/30 bg-accent/5 p-5 shadow-sm lg:w-80">
-                <div className="flex items-center gap-2 text-accent">
-                  <Clock className="h-4 w-4" />
-                  <span className="text-xs font-semibold uppercase tracking-wider">En evaluación</span>
+              <div className="shrink-0 flex flex-col justify-between rounded-3xl border border-amber-500/30 bg-amber-500/5 p-6 shadow-xs lg:w-80">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                      <Clock className="h-4 w-4" />
+                      Manuscrito Recibido
+                    </span>
+                    <span className="text-[10px] font-mono text-ink-muted">24-48 hrs est.</span>
+                  </div>
+                  <p className="text-xs text-ink-muted leading-relaxed">
+                    Solicitud <strong className="font-mono text-ink">#REQ-{requestContext?.requestId?.slice(0, 8).toUpperCase() || 'REGISTRADA'}</strong> en fase de lectura y estimación técnica.
+                  </p>
                 </div>
-                <p className="mt-2 text-xs text-ink-muted leading-relaxed">
-                  Solicitud <strong className="text-ink font-mono">{requestContext?.requestId ? `#REQ-${requestContext.requestId.slice(0, 8).toUpperCase()}` : ''}</strong> recibida.
-                </p>
-                <p className="mt-1 text-[11px] text-ink-muted">
-                  Obra: <strong>{requestContext?.title || 'Manuscrito'}</strong>
-                </p>
+                <div className="mt-4 border-t border-amber-500/20 pt-3 flex items-center justify-between text-[11px] text-ink-muted">
+                  <span>Obra registrada:</span>
+                  <strong className="text-ink truncate max-w-[150px]">{requestContext?.title || 'Sin Título'}</strong>
+                </div>
               </div>
             ) : hasActiveProject ? (
-              <div className="shrink-0 rounded-2xl border border-edge bg-surface p-4 shadow-sm lg:w-72">
-                <div className="flex items-center justify-between text-xs text-ink-muted">
-                  <span>Progreso General</span>
-                  <span className="font-semibold text-accent">{realProject?.progress ?? 0}%</span>
+              <div className="shrink-0 flex flex-col justify-between rounded-3xl border border-edge/80 bg-surface p-6 shadow-sm lg:w-80">
+                <div>
+                  <div className="flex items-center justify-between text-xs text-ink-muted">
+                    <span className="uppercase tracking-wider font-medium text-[11px]">Progreso de Producción</span>
+                    <span className="font-serif text-lg font-semibold text-accent">{realProject?.progress ?? 0}%</span>
+                  </div>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface-elevated border border-edge/60">
+                    <div
+                      className="h-full rounded-full bg-accent transition-all duration-700 ease-out"
+                      style={{ width: `${realProject?.progress ?? 0}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="mt-2.5 h-2.5 overflow-hidden rounded-full bg-surface-elevated border border-edge/50">
-                  <div
-                    className="h-full rounded-full bg-accent transition-all duration-500 ease-out"
-                    style={{ width: `${realProject?.progress ?? 0}%` }}
-                  />
-                </div>
-                <div className="mt-3 flex items-center justify-between text-xs">
-                  <span className="flex items-center gap-1.5 text-ink">
-                    <span className="h-2 w-2 rounded-full bg-accent animate-pulse" />
-                    Producción Activa
-                  </span>
-                  <span className="text-ink-muted">
+
+                <div className="mt-5 border-t border-edge/60 pt-4 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 text-ink">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="font-medium">Grabación Master</span>
+                  </div>
+                  <span className="text-ink-muted font-mono">
                     {chaptersState.length > 0
-                      ? `${chaptersState.filter(c => c.status === 'Entregado' || c.paymentStatus === 'Pagado' || c.status === 'Aprobado').length}/${chaptersState.length} Capítulos`
-                      : '0 Capítulos'}
+                      ? `${chaptersState.filter(c => c.status === 'Entregado' || c.paymentStatus === 'Pagado' || c.status === 'Aprobado').length}/${chaptersState.length} caps.`
+                      : '0 caps.'}
                   </span>
                 </div>
               </div>
             ) : (
-              <div className="shrink-0 rounded-2xl border border-accent/30 bg-accent/5 p-5 shadow-sm lg:w-80">
-                <div className="flex items-center gap-2 text-accent">
-                  <UploadCloud className="h-4 w-4" />
-                  <span className="text-xs font-semibold uppercase tracking-wider">Análisis y Presupuesto</span>
+              <div className="shrink-0 flex flex-col justify-between rounded-3xl border border-accent/30 bg-gradient-to-br from-accent/10 via-accent/5 to-transparent p-6 shadow-xs lg:w-80">
+                <div>
+                  <div className="flex items-center gap-2 text-accent">
+                    <UploadCloud className="h-4 w-4" />
+                    <span className="text-xs font-semibold uppercase tracking-wider">Paso 1 de 3: Cotización</span>
+                  </div>
+                  <p className="mt-2 text-xs text-ink-muted leading-relaxed">
+                    Adjunta tu archivo (.docx, .odt, .pdf) para calcular el tiempo total de locución y desglose presupuestario.
+                  </p>
                 </div>
-                <p className="mt-2 text-xs text-ink-muted leading-relaxed">
-                  Sube el archivo manuscrito de tu libro (.docx, .odt, .pdf) para estimar duración y costos.
-                </p>
                 <button
                   type="button"
                   onClick={() => setUploaderModalOpen(true)}
-                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-xs font-medium text-surface transition hover:bg-accent-hover shadow-sm cursor-pointer"
+                  className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-accent px-4 py-3 text-xs font-medium text-surface transition hover:bg-accent-hover shadow-sm cursor-pointer"
                 >
                   <FileUp className="h-4 w-4" />
                   <span>Subir Manuscrito</span>
@@ -532,23 +556,23 @@ export default function DashboardPage() {
 
           {/* Fila de metadatos del proyecto (Solo visible en obra activa) */}
           {hasActiveProject && (
-            <div className="mt-8 grid grid-cols-2 gap-3 border-t border-edge/60 pt-6 sm:grid-cols-4 lg:gap-6">
-              <div className="rounded-xl border border-edge/50 bg-surface/50 p-3">
-                <p className="text-[11px] uppercase tracking-wider text-ink-muted">Formato Seleccionado</p>
-                <p className="mt-1 text-xs font-medium text-ink sm:text-sm capitalize">
-                  {deliveryFormat === 'm4b' ? 'Audiolibro M4B Native' : deliveryFormat === 'wav' ? 'WAV Máster Preservación' : 'MP3 320kbps'}
+            <div className="mt-8 grid grid-cols-2 gap-4 border-t border-edge/60 pt-6 sm:grid-cols-4">
+              <div className="rounded-2xl border border-edge/50 bg-surface/60 p-4 shadow-2xs">
+                <p className="text-[10px] uppercase tracking-wider font-semibold text-ink-muted">Formato Seleccionado</p>
+                <p className="mt-1 text-xs font-medium text-ink sm:text-sm">
+                  {deliveryFormat === 'm4b' ? 'M4B Native Audiolibro' : deliveryFormat === 'wav' ? 'WAV Master Preservación' : 'MP3 High-Bitrate'}
                 </p>
               </div>
-              <div className="rounded-xl border border-edge/50 bg-surface/50 p-3">
-                <p className="text-[11px] uppercase tracking-wider text-ink-muted">Director de Arte</p>
-                <p className="mt-1 text-xs font-medium text-ink sm:text-sm">Studio Flamkit</p>
+              <div className="rounded-2xl border border-edge/50 bg-surface/60 p-4 shadow-2xs">
+                <p className="text-[10px] uppercase tracking-wider font-semibold text-ink-muted">Dirección de Arte</p>
+                <p className="mt-1 text-xs font-medium text-ink sm:text-sm">Studio Flamkit Editorial</p>
               </div>
-              <div className="rounded-xl border border-edge/50 bg-surface/50 p-3">
-                <p className="text-[11px] uppercase tracking-wider text-ink-muted">Duración Estimada</p>
-                <p className="mt-1 text-xs font-medium text-ink sm:text-sm">~1h 10 min</p>
+              <div className="rounded-2xl border border-edge/50 bg-surface/60 p-4 shadow-2xs">
+                <p className="text-[10px] uppercase tracking-wider font-semibold text-ink-muted">Duración Estimada</p>
+                <p className="mt-1 text-xs font-medium text-ink sm:text-sm">~1h 10 min de audio</p>
               </div>
-              <div className="rounded-xl border border-edge/50 bg-surface/50 p-3">
-                <p className="text-[11px] uppercase tracking-wider text-ink-muted">Entrega Estimada</p>
+              <div className="rounded-2xl border border-edge/50 bg-surface/60 p-4 shadow-2xs">
+                <p className="text-[10px] uppercase tracking-wider font-semibold text-ink-muted">Fecha de Entrega Target</p>
                 <p className="mt-1 text-xs font-medium text-ink sm:text-sm">28 de Agosto, 2026</p>
               </div>
             </div>
@@ -562,7 +586,7 @@ export default function DashboardPage() {
           
           {/* Sidebar de Navegación */}
           <aside className="space-y-6">
-            <div className="rounded-3xl border border-edge bg-surface-elevated p-3 shadow-sm">
+            <div className="rounded-3xl border border-edge bg-surface-elevated p-3 shadow-xs">
               <p className="px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-muted">
                 Navegación
               </p>
@@ -577,7 +601,7 @@ export default function DashboardPage() {
                       onClick={() => setActive(section.id)}
                       className={`group relative flex shrink-0 items-center justify-between rounded-2xl px-3.5 py-3 text-sm font-medium transition-all cursor-pointer ${
                         isActive
-                          ? 'border border-accent/30 bg-accent/10 text-accent shadow-sm'
+                          ? 'border border-accent/30 bg-accent/10 text-accent shadow-2xs'
                           : 'border border-transparent text-ink-muted hover:border-edge hover:bg-surface hover:text-ink'
                       }`}
                     >
@@ -599,7 +623,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Widget informativo de soporte en la columna izquierda */}
-            <div className="hidden rounded-3xl border border-edge bg-surface-elevated p-5 shadow-sm lg:block">
+            <div className="hidden rounded-3xl border border-edge bg-surface-elevated p-5 shadow-xs lg:block">
               <div className="flex items-center gap-2 text-accent">
                 <Headphones className="h-4 w-4" />
                 <span className="text-xs font-semibold uppercase tracking-wider">Atención Directa</span>
@@ -609,7 +633,7 @@ export default function DashboardPage() {
               </p>
               <Link
                 href="/contacto"
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-edge bg-surface px-3 py-2 text-xs font-medium text-ink transition hover:border-accent/40 hover:text-accent"
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-edge bg-surface px-3 py-2.5 text-xs font-medium text-ink transition hover:border-accent/40 hover:text-accent shadow-2xs"
               >
                 <MessageCircle className="h-3.5 w-3.5" />
                 Contactar Productor
@@ -622,40 +646,71 @@ export default function DashboardPage() {
             {active === 'resumen' && (
               <div className="space-y-6">
                 {requestState === 'pending' ? (
-                  <Card className="border-accent/30 bg-surface-elevated p-8">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-accent/30 bg-accent/10 text-accent">
-                        <Clock className="h-6 w-6" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-mono text-accent">
-                            Tracking ID: #REQ-{requestContext?.requestId?.slice(0, 8).toUpperCase() || 'PENDIENTE'}
-                          </span>
-                          <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
-                            En Evaluación
-                          </span>
+                  <Card className="border-accent/30 bg-surface-elevated p-8 shadow-xs">
+                    <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="flex items-start gap-4">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                          <Clock className="h-6 w-6" />
                         </div>
-                        <h3 className="mt-1 font-serif text-2xl font-medium text-ink">
-                          {requestContext?.title || 'Tu Manuscrito'}
-                        </h3>
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-mono font-medium text-accent">
+                              Tracking: #REQ-{requestContext?.requestId?.slice(0, 8).toUpperCase() || 'PENDIENTE'}
+                            </span>
+                            <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                              En Evaluación Editorial
+                            </span>
+                          </div>
+                          <h3 className="font-serif text-2xl font-medium text-ink">
+                            {requestContext?.title || 'Tu Manuscrito'}
+                          </h3>
+                        </div>
                       </div>
                     </div>
+
                     <p className="mt-4 text-sm leading-relaxed text-ink-muted">
-                      Tu manuscrito fue recibido y registrado en el sistema. El equipo de dirección técnica de Studio Flamkit está realizando el análisis de conteo de palabras y tono dramático para enviarte una propuesta de cotización y desglose por capítulos.
+                      Tu manuscrito fue recibido y registrado con éxito. Nuestro equipo de dirección técnica está realizando el desglose de palabras y análisis de tono dramático para preparar tu propuesta formal con presupuesto y casting de voces.
                     </p>
-                    <div className="mt-6 flex flex-wrap gap-4 pt-4 border-t border-edge/60">
+
+                    {/* Timeline de la solicitud */}
+                    <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3 border-t border-edge/60 pt-6">
+                      <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-1">
+                        <div className="flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                          <CheckCircle2 className="h-4 w-4" />
+                          <span>1. Recepción</span>
+                        </div>
+                        <p className="text-[11px] text-ink-muted">Documento registrado en el sistema</p>
+                      </div>
+
+                      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 space-y-1">
+                        <div className="flex items-center gap-2 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                          <Clock className="h-4 w-4 animate-spin" />
+                          <span>2. Análisis de Guion</span>
+                        </div>
+                        <p className="text-[11px] text-ink-muted">Evaluación de ritmo y duración</p>
+                      </div>
+
+                      <div className="rounded-2xl border border-edge bg-surface/50 p-4 space-y-1 opacity-60">
+                        <div className="flex items-center gap-2 text-xs font-semibold text-ink-muted">
+                          <Sparkles className="h-4 w-4" />
+                          <span>3. Cotización & Casting</span>
+                        </div>
+                        <p className="text-[11px] text-ink-muted">Muestra de voz y desglose</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 flex flex-wrap gap-3 pt-4 border-t border-edge/60">
                       <button
                         type="button"
                         onClick={() => setActive('capitulos')}
-                        className="inline-flex items-center gap-2 rounded-xl bg-accent/10 border border-accent/30 px-4 py-2 text-xs font-medium text-accent hover:bg-accent/20 transition cursor-pointer"
+                        className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-xs font-medium text-surface hover:bg-accent-hover transition cursor-pointer shadow-xs"
                       >
                         <BookOpen className="h-4 w-4" />
                         <span>Ver Estado de Producción</span>
                       </button>
                       <Link
                         href="/contacto"
-                        className="inline-flex items-center gap-2 rounded-xl border border-edge bg-surface px-4 py-2 text-xs font-medium text-ink hover:border-accent/40 transition"
+                        className="inline-flex items-center gap-2 rounded-xl border border-edge bg-surface px-4 py-2.5 text-xs font-medium text-ink hover:border-accent/40 transition"
                       >
                         <MessageCircle className="h-4 w-4" />
                         <span>Consultar al Director</span>
@@ -663,33 +718,63 @@ export default function DashboardPage() {
                     </div>
                   </Card>
                 ) : !hasActiveProject ? (
-                  /* Estado vacío para nuevo autor en sección Resumen */
+                  /* Estado 'none': bienvenida editorial e inicio del proceso */
                   <div className="space-y-6">
-                    <Card className="border-accent/30 bg-gradient-to-br from-surface-elevated via-surface-elevated to-accent/5 p-8 text-center">
-                      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl border border-accent/30 bg-accent/10 text-accent">
+                    <Card className="border-accent/30 bg-gradient-to-br from-surface-elevated via-surface-elevated to-accent/5 p-8 sm:p-10 text-center shadow-xs">
+                      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl border border-accent/30 bg-accent/10 text-accent shadow-xs">
                         <UploadCloud className="h-8 w-8" />
                       </div>
-                      <h3 className="mt-4 font-serif text-2xl font-medium text-ink">
-                        Sube tu manuscrito para presupuestar tu audiolibro
+                      <h3 className="mt-5 font-serif text-2xl sm:text-3xl font-normal text-ink tracking-tight">
+                        Transforma tu manuscrito en una experiencia audiocinematográfica
                       </h3>
-                      <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-ink-muted">
-                        Adjunta tu archivo manuscrito en formato <strong>.DOCX, .ODT o .PDF</strong>. Nuestro equipo realizará un análisis de conteo de palabras, estructura dramática y te enviará una propuesta técnica detallada.
+                      <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-ink-muted font-light">
+                        Adjunta tu archivo en formato <strong>.DOCX, .ODT o .PDF</strong>. Nuestro estudio realizará un análisis técnico gratuito, estimación de horas de locución y propuesta de voces.
                       </p>
+
+                      {/* 3 Pasos del flujo editorial */}
+                      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3 text-left max-w-3xl mx-auto">
+                        <div className="rounded-2xl border border-edge/60 bg-surface/80 p-4 shadow-2xs space-y-1.5">
+                          <div className="flex items-center gap-2 text-xs font-semibold text-accent uppercase tracking-wider">
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent/15 text-[10px]">1</span>
+                            Análisis
+                          </div>
+                          <p className="text-xs font-medium text-ink">Conteo & Estimación</p>
+                          <p className="text-[11px] text-ink-muted leading-relaxed">Mapeo de palabras, tono narrativo y tiempo total de reproducción.</p>
+                        </div>
+
+                        <div className="rounded-2xl border border-edge/60 bg-surface/80 p-4 shadow-2xs space-y-1.5">
+                          <div className="flex items-center gap-2 text-xs font-semibold text-accent uppercase tracking-wider">
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent/15 text-[10px]">2</span>
+                            Casting
+                          </div>
+                          <p className="text-xs font-medium text-ink">Muestra de Voz</p>
+                          <p className="text-[11px] text-ink-muted leading-relaxed">Selección de locutores profesionales y muestra personalizada.</p>
+                        </div>
+
+                        <div className="rounded-2xl border border-edge/60 bg-surface/80 p-4 shadow-2xs space-y-1.5">
+                          <div className="flex items-center gap-2 text-xs font-semibold text-accent uppercase tracking-wider">
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent/15 text-[10px]">3</span>
+                            Master
+                          </div>
+                          <p className="text-xs font-medium text-ink">Entrega M4B / WAV</p>
+                          <p className="text-[11px] text-ink-muted leading-relaxed">Edición, diseño sonoro, mezcla y entrega en formato nativo.</p>
+                        </div>
+                      </div>
                       
-                      <div className="mt-6 flex flex-wrap items-center justify-center gap-4">
+                      <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
                         <button
                           type="button"
                           onClick={() => setUploaderModalOpen(true)}
-                          className="inline-flex items-center gap-2.5 rounded-xl bg-accent px-6 py-3 text-xs font-medium text-surface transition hover:bg-accent-hover shadow-sm cursor-pointer"
+                          className="inline-flex items-center gap-2.5 rounded-2xl bg-accent px-6 py-3.5 text-xs font-medium text-surface transition hover:bg-accent-hover shadow-sm cursor-pointer"
                         >
-                          <FileUp className="h-4 w-4" />
-                          <span>Subir Archivo (.DOCX, .ODT, .PDF)</span>
+                          <FileUp className="h-4.5 w-4.5" />
+                          <span>Subir Manuscrito (.DOCX, .ODT, .PDF)</span>
                         </button>
                         <Link
                           href="/servicios"
-                          className="inline-flex items-center gap-2 rounded-xl border border-edge bg-surface px-6 py-3 text-xs font-medium text-ink transition hover:border-accent/40"
+                          className="inline-flex items-center gap-2 rounded-2xl border border-edge bg-surface px-6 py-3.5 text-xs font-medium text-ink transition hover:border-accent/40"
                         >
-                          <span>Conocer el Proceso</span>
+                          <span>Conocer Metodología Editorial</span>
                           <ChevronRight className="h-4 w-4" />
                         </Link>
                       </div>
@@ -698,53 +783,75 @@ export default function DashboardPage() {
                 ) : (
                   /* Estado activo con proyecto real */
                   <div className="space-y-6">
-                    <Card className="border-edge bg-surface-elevated p-6">
+                    <Card className="border-edge/80 bg-surface-elevated p-6 sm:p-8 shadow-xs space-y-6">
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-mono text-accent">
+                            <span className="text-xs font-mono font-medium text-accent">
                               ID Proy: #PROJ-{realProject?.id.slice(0, 8).toUpperCase()}
                             </span>
-                            <span className="rounded-full border border-accent/30 bg-accent/15 px-2.5 py-0.5 text-[11px] font-medium text-accent">
+                            <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
                               Producción Activa
                             </span>
                           </div>
-                          <h3 className="mt-2 font-serif text-2xl font-semibold text-ink">
+                          <h3 className="mt-2 font-serif text-2xl font-medium text-ink sm:text-3xl">
                             {realProject?.title}
                           </h3>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => setActive('capitulos')}
-                          className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-xs font-medium text-surface transition hover:bg-accent-hover cursor-pointer"
-                        >
-                          <BookOpen className="h-4 w-4" />
-                          <span>Ver Capítulos ({chaptersState.length})</span>
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setActive('capitulos')}
+                            className="inline-flex items-center gap-2 rounded-2xl bg-accent px-5 py-2.5 text-xs font-medium text-surface transition hover:bg-accent-hover shadow-xs cursor-pointer"
+                          >
+                            <BookOpen className="h-4 w-4" />
+                            <span>Ver Capítulos ({chaptersState.length})</span>
+                          </button>
+                        </div>
                       </div>
 
-                      <div className="mt-6 grid gap-4 sm:grid-cols-3 border-t border-edge/60 pt-6">
-                        <div className="rounded-2xl border border-edge/60 bg-surface p-4">
-                          <p className="text-xs uppercase tracking-wider text-ink-muted">Progreso Global</p>
-                          <p className="mt-1 text-2xl font-semibold text-accent">{realProject?.progress}%</p>
-                          <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface-elevated border border-edge/40">
-                            <div className="h-full bg-accent" style={{ width: `${realProject?.progress}%` }} />
+                      {/* KPIs del Proyecto */}
+                      <div className="grid gap-4 sm:grid-cols-3 border-t border-edge/60 pt-6">
+                        <div className="rounded-2xl border border-edge/60 bg-surface p-4 shadow-2xs">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Progreso Global</p>
+                          <p className="mt-1 font-serif text-2xl font-medium text-accent">{realProject?.progress}%</p>
+                          <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-surface-elevated border border-edge/40">
+                            <div className="h-full bg-accent transition-all duration-500" style={{ width: `${realProject?.progress}%` }} />
                           </div>
                         </div>
 
-                        <div className="rounded-2xl border border-edge/60 bg-surface p-4">
-                          <p className="text-xs uppercase tracking-wider text-ink-muted">Capítulos Configurados</p>
-                          <p className="mt-1 text-2xl font-semibold text-ink">{chaptersState.length}</p>
+                        <div className="rounded-2xl border border-edge/60 bg-surface p-4 shadow-2xs">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Capítulos Registrados</p>
+                          <p className="mt-1 font-serif text-2xl font-medium text-ink">{chaptersState.length}</p>
                           <p className="mt-1 text-xs text-ink-muted">
-                            {chaptersState.filter(c => c.paymentStatus === 'Pagado').length} pagados / {chaptersState.length} totales
+                            {chaptersState.filter(c => c.paymentStatus === 'Pagado').length} pagados / {chaptersState.length} en sistema
                           </p>
                         </div>
 
-                        <div className="rounded-2xl border border-edge/60 bg-surface p-4">
-                          <p className="text-xs uppercase tracking-wider text-ink-muted">Revisiones por Capítulo</p>
-                          <p className="mt-1 text-2xl font-semibold text-ink">{realProject?.maxRevisions || 3}</p>
-                          <p className="mt-1 text-xs text-ink-muted">Revisiones pactadas en contrato</p>
+                        <div className="rounded-2xl border border-edge/60 bg-surface p-4 shadow-2xs">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Revisiones por Capítulo</p>
+                          <p className="mt-1 font-serif text-2xl font-medium text-ink">{realProject?.maxRevisions || 3}</p>
+                          <p className="mt-1 text-xs text-ink-muted">Límite contractual garantizado</p>
+                        </div>
+                      </div>
+
+                      {/* Timeline de Producción */}
+                      <div className="border-t border-edge/60 pt-6">
+                        <h4 className="text-xs font-semibold uppercase tracking-wider text-ink mb-4">Etapas de Producción Sonora</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                          {productionSteps.map((step, idx) => (
+                            <div key={step.title} className="rounded-2xl border border-edge/50 bg-surface p-3.5 space-y-1">
+                              <div className="flex items-center justify-between text-[11px]">
+                                <span className="font-mono text-ink-muted">0{idx + 1}</span>
+                                <span className={`font-medium ${step.status === 'Completado' ? 'text-emerald-500' : step.status === 'En curso' ? 'text-accent' : 'text-ink-muted'}`}>
+                                  {step.status}
+                                </span>
+                              </div>
+                              <p className="text-xs font-semibold text-ink">{step.title}</p>
+                              <p className="text-[11px] text-ink-muted leading-tight">{step.desc}</p>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     </Card>
