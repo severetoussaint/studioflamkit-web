@@ -14,19 +14,39 @@ export interface AuthorRequestContext {
   createdAt: string | null;
 }
 
+interface ManuscriptWithRequests {
+  id: string;
+  title: string;
+  created_at?: string;
+  project_requests?: Array<{ id: string; status: string }> | { id: string; status: string } | null;
+}
+
+interface ProjectRecord {
+  id: string;
+  manuscript_id?: string | null;
+  created_at?: string | null;
+  manuscripts?: { title?: string | null } | null;
+}
+
+interface ProjectRequestRecord {
+  id: string;
+  status: string;
+}
+
 export async function getAuthorRequestContext(authorId: string): Promise<AuthorRequestContext> {
   try {
     // 1. Obtener todos los manuscritos del autor
-    const { data: authorManuscripts } = await supabaseClient
+    const { data: authorManuscriptsData } = await supabaseClient
       .from('manuscripts')
       .select('id, title, created_at, project_requests(id, status)')
       .eq('author_id', authorId)
       .order('created_at', { ascending: false });
 
-    const manuscriptIds = (authorManuscripts || []).map((m: any) => m.id);
+    const authorManuscripts = (authorManuscriptsData as unknown as ManuscriptWithRequests[]) || [];
+    const manuscriptIds = authorManuscripts.map((m) => m.id);
 
     // 2. Verificar si existe algún proyecto activo vinculado al author_id o a sus manuscritos
-    let activeProject: any = null;
+    let activeProject: ProjectRecord | null = null;
 
     if (manuscriptIds.length > 0) {
       const { data: projs } = await supabaseClient
@@ -37,7 +57,7 @@ export async function getAuthorRequestContext(authorId: string): Promise<AuthorR
         .limit(1);
 
       if (projs && projs.length > 0) {
-        activeProject = projs[0];
+        activeProject = projs[0] as unknown as ProjectRecord;
       }
     } else {
       const { data: projs } = await supabaseClient
@@ -48,7 +68,7 @@ export async function getAuthorRequestContext(authorId: string): Promise<AuthorR
         .limit(1);
 
       if (projs && projs.length > 0) {
-        activeProject = projs[0];
+        activeProject = projs[0] as unknown as ProjectRecord;
       }
     }
 
@@ -65,13 +85,13 @@ export async function getAuthorRequestContext(authorId: string): Promise<AuthorR
 
     // 3. Si no hay proyecto activo, verificar si hay alguna solicitud en estado pendiente/evaluación
     if (authorManuscripts && authorManuscripts.length > 0) {
-      for (const m of authorManuscripts as any[]) {
-        const reqList = Array.isArray(m.project_requests)
+      for (const m of authorManuscripts) {
+        const reqList: ProjectRequestRecord[] = Array.isArray(m.project_requests)
           ? m.project_requests
           : m.project_requests
           ? [m.project_requests]
           : [];
-        const pendingReq = reqList.find((r: any) => r.status === 'pending' || r.status === 'evaluating');
+        const pendingReq = reqList.find((r) => r.status === 'pending' || r.status === 'evaluating');
 
         if (pendingReq || reqList.length === 0) {
           return {
@@ -167,7 +187,7 @@ export async function submitManuscript({ authorId, title, wordCount, file }: Sub
     const manuscriptRow = manuscript as ManuscriptRow;
 
     // 5. Crear o recuperar la fila real en project_requests
-    let requestRow: any = null;
+    let requestRow: { id: string } | null = null;
 
     // Verificar primero si un trigger de base de datos o inserción previa ya creó la solicitud
     const { data: existingReq } = await supabaseClient
@@ -177,7 +197,7 @@ export async function submitManuscript({ authorId, title, wordCount, file }: Sub
       .maybeSingle();
 
     if (existingReq) {
-      requestRow = existingReq;
+      requestRow = existingReq as { id: string };
     } else {
       const { data: requestData, error: requestError } = await supabaseClient
         .from('project_requests')
@@ -201,12 +221,12 @@ export async function submitManuscript({ authorId, title, wordCount, file }: Sub
           .maybeSingle();
 
         if (fallbackReq) {
-          requestRow = fallbackReq;
+          requestRow = fallbackReq as { id: string };
         } else {
           throw requestError;
         }
       } else {
-        requestRow = requestData;
+        requestRow = requestData as { id: string } | null;
       }
     }
 
@@ -219,10 +239,11 @@ export async function submitManuscript({ authorId, title, wordCount, file }: Sub
   } catch (err) {
     console.error('Error al enviar el manuscrito:', JSON.stringify(err, null, 2));
     if (err && typeof err === 'object') {
-      console.error('message:', (err as any).message);
-      console.error('code:', (err as any).code);
-      console.error('details:', (err as any).details);
-      console.error('hint:', (err as any).hint);
+      const e = err as Record<string, unknown>;
+      console.error('message:', e.message);
+      console.error('code:', e.code);
+      console.error('details:', e.details);
+      console.error('hint:', e.hint);
     }
     throw err;
   }

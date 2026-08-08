@@ -120,6 +120,61 @@ function adminRequestStatusToDb(status: QuotationRequestStatus): string {
 
 // ─── SOLICITUDES (project_requests + manuscripts + authors) ───────────────────
 
+interface QuotationRequestRow {
+  id: string;
+  status: string;
+  created_at: string;
+  manuscripts?: {
+    id?: string;
+    title?: string;
+    word_count?: number;
+    author_id?: string;
+    authors?: {
+      full_name?: string;
+    } | null;
+  } | null;
+}
+
+interface ChapterItemRow {
+  id: string;
+  chapter_number: number;
+  title?: string;
+  word_count?: number;
+  duration_minutes?: number;
+  pfh_rate_used?: number;
+  price?: number;
+  currency?: string;
+  tier?: string;
+  status?: string;
+}
+
+interface DeliverableItemRow {
+  id: string;
+  title: string;
+  status: string;
+  created_at?: string;
+}
+
+interface ProjectRow {
+  id: string;
+  status: string;
+  updated_at: string;
+  authors?: {
+    full_name?: string;
+  } | null;
+  manuscripts?: {
+    id?: string;
+    title?: string;
+    word_count?: number;
+    author_id?: string;
+    authors?: {
+      full_name?: string;
+    } | null;
+  } | null;
+  chapters?: ChapterItemRow[];
+  deliverables?: DeliverableItemRow[];
+}
+
 export async function listQuotationRequests(): Promise<QuotationRequest[]> {
   const { data, error } = await supabaseClient
     .from('project_requests')
@@ -143,7 +198,7 @@ export async function listQuotationRequests(): Promise<QuotationRequest[]> {
     throw error;
   }
 
-  return (data ?? []).map((row: any) => {
+  return ((data as unknown as QuotationRequestRow[]) ?? []).map((row) => {
     const wordCount = row.manuscripts?.word_count ?? 0;
     const amount = wordCount > 0 ? calculateManuscriptPrice(wordCount) : 0;
     const estimatedChapters = Math.max(1, Math.round(wordCount / 3000)) || 1;
@@ -185,7 +240,7 @@ export async function updateQuotationRequestStatus(
     return undefined;
   }
 
-  let row = data as any;
+  let row = data as unknown as QuotationRequestRow | null;
 
   if (!row) {
     const { data: fallbackData } = await supabaseClient
@@ -201,7 +256,7 @@ export async function updateQuotationRequestStatus(
       console.warn(`updateQuotationRequestStatus: No request found with id/manuscript_id ${id}`);
       return undefined;
     }
-    row = fallbackData;
+    row = fallbackData as unknown as QuotationRequestRow;
   }
 
   const wordCount = row.manuscripts?.word_count ?? 0;
@@ -268,26 +323,26 @@ export async function listAdminProjects(): Promise<AdminProject[]> {
 
   console.log('listAdminProjects: Datos recibidos de Supabase:', data);
 
-  return (data ?? []).map((row: Record<string, unknown>) => {
-    const adminStatus = dbStatusToAdmin(row.status as string);
-    const deliverables: AudioDeliverable[] = (Array.isArray(row.deliverables) ? row.deliverables : []).map((d: Record<string, unknown>) => ({
-      id: d.id as string,
-      title: d.title as string,
+  return ((data as unknown as ProjectRow[]) ?? []).map((row) => {
+    const adminStatus = dbStatusToAdmin(row.status);
+    const deliverables: AudioDeliverable[] = (Array.isArray(row.deliverables) ? row.deliverables : []).map((d: DeliverableItemRow) => ({
+      id: d.id,
+      title: d.title,
       completed: d.status === 'approved',
-      updatedAt: (d.created_at as string ?? '').slice(0, 10),
+      updatedAt: (d.created_at ?? '').slice(0, 10),
       comments: [],
     }));
 
-    const rawChapters = (Array.isArray(row.chapters) ? row.chapters : []).sort((a: Record<string, unknown>, b: Record<string, unknown>) => (a.chapter_number as number) - (b.chapter_number as number));
-    const chapterList: AdminChapter[] = rawChapters.map((c: Record<string, unknown>) => ({
-      id: c.id as string,
-      project_id: row.id as string,
-      chapter_number: c.chapter_number as number,
-      title: (c.title as string) || `Capítulo ${c.chapter_number}`,
-      word_count: (c.word_count as number) || 0,
-      duration_minutes: (c.duration_minutes as number) || Math.round(((c.word_count as number) || 0) / 155),
-      pfh_rate_used: (c.pfh_rate_used as number) || 400,
-      price: (c.price as number) || 0,
+    const rawChapters = (Array.isArray(row.chapters) ? row.chapters : []).sort((a: ChapterItemRow, b: ChapterItemRow) => a.chapter_number - b.chapter_number);
+    const chapterList: AdminChapter[] = rawChapters.map((c: ChapterItemRow) => ({
+      id: c.id,
+      project_id: row.id,
+      chapter_number: c.chapter_number,
+      title: c.title || `Capítulo ${c.chapter_number}`,
+      word_count: c.word_count || 0,
+      duration_minutes: c.duration_minutes || Math.round((c.word_count || 0) / 155),
+      pfh_rate_used: c.pfh_rate_used || 400,
+      price: c.price || 0,
       currency: c.currency || 'USD',
       tier: c.tier || 'entrada',
       status: (c.status as AdminChapter['status']) || 'pendiente',
@@ -519,7 +574,7 @@ export async function toggleAudioDeliverable(
     .select('status')
     .eq('id', deliverableId)
     .single();
-  const newStatus = (current as any)?.status === 'approved' ? 'pending' : 'approved';
+  const newStatus = (current as { status?: string } | null)?.status === 'approved' ? 'pending' : 'approved';
   await supabaseClient.from('deliverables').update({ status: newStatus }).eq('id', deliverableId);
   const projects = await listAdminProjects();
   return projects.find((p) => p.id === id);
@@ -572,19 +627,19 @@ export async function createAdminChapter(input: CreateChapterInput): Promise<Adm
     throw error;
   }
 
-  const row = data as any;
+  const row = data as ChapterItemRow & { id: string; project_id: string };
   return {
     id: row.id,
     project_id: row.project_id,
     chapter_number: row.chapter_number,
-    title: row.title,
-    word_count: row.word_count,
+    title: row.title || `Capítulo ${row.chapter_number}`,
+    word_count: row.word_count || 0,
     duration_minutes: row.duration_minutes || calc.durationMinutes,
     pfh_rate_used: row.pfh_rate_used || calc.pfhRate,
     price: row.price || calc.price,
     currency: row.currency || 'USD',
     tier: row.tier || calc.tier,
-    status: row.status || 'pendiente',
+    status: (row.status as AdminChapter['status']) || 'pendiente',
   };
 }
 

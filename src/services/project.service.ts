@@ -77,6 +77,38 @@ export interface AuthorProjectData {
   }[];
 }
 
+interface ManuscriptIdRow {
+  id: string;
+}
+
+interface AuthorProjectChapterRow {
+  id: string;
+  chapter_number: number;
+  title?: string;
+  word_count?: number;
+  duration_minutes?: number;
+  price?: number;
+  currency?: string;
+  tier?: string;
+  status?: string;
+}
+
+interface AuthorProjectDeliverableRow {
+  id: string;
+  title: string;
+  status?: string;
+  created_at?: string;
+}
+
+interface AuthorProjectQueryResult {
+  id: string;
+  status?: string;
+  updated_at?: string;
+  manuscripts?: { id?: string; title?: string; word_count?: number; author_id?: string } | null;
+  chapters?: AuthorProjectChapterRow[];
+  deliverables?: AuthorProjectDeliverableRow[];
+}
+
 export async function getAuthorProjectData(authorId: string): Promise<AuthorProjectData | null> {
   try {
     // 1. Obtener manuscritos vinculados al autor
@@ -85,7 +117,7 @@ export async function getAuthorProjectData(authorId: string): Promise<AuthorProj
       .select('id')
       .eq('author_id', authorId);
 
-    const manuscriptIds = (userManuscripts || []).map((m: any) => m.id);
+    const manuscriptIds = ((userManuscripts as unknown as ManuscriptIdRow[]) || []).map((m) => m.id);
 
     // 2. Filtrar proyectos por author_id o manuscript_id (ambas columnas directas de projects)
     let query = supabaseClient
@@ -118,12 +150,12 @@ export async function getAuthorProjectData(authorId: string): Promise<AuthorProj
       return null;
     }
 
-    const project = projects[0] as any;
+    const project = projects[0] as unknown as AuthorProjectQueryResult;
     const dbStatus = project.status ?? 'planning';
 
-    const dbChapters = (project.chapters ?? []).sort((a: any, b: any) => a.chapter_number - b.chapter_number);
+    const dbChapters = (project.chapters ?? []).sort((a, b) => a.chapter_number - b.chapter_number);
 
-    const chapters: AuthorChapterData[] = dbChapters.map((c: any) => ({
+    const chapters: AuthorChapterData[] = dbChapters.map((c) => ({
       id: c.id,
       chapter_number: c.chapter_number,
       title: c.title || `Capítulo ${c.chapter_number}`,
@@ -135,7 +167,7 @@ export async function getAuthorProjectData(authorId: string): Promise<AuthorProj
       status: (c.status as AuthorChapterData['status']) || 'pendiente',
     }));
 
-    const deliverables = (project.deliverables ?? []).map((d: any) => ({
+    const deliverables = (project.deliverables ?? []).map((d) => ({
       id: d.id,
       title: d.title,
       completed: d.status === 'approved',
