@@ -283,7 +283,7 @@ export async function listQuotationRequests(): Promise<QuotationRequest[]> {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('listQuotationRequests error:', error, formatSupabaseError(error));
+      console.error('listQuotationRequests error:', formatSupabaseError(error));
       throw error;
     }
 
@@ -726,7 +726,6 @@ export async function createAdminChapter(input: CreateChapterInput): Promise<Adm
         chapter_number: input.chapter_number,
         title: input.title || `Capítulo ${input.chapter_number}`,
         word_count: calc.wordCount,
-        duration_minutes: calc.durationMinutes,
         pfh_rate_used: calc.pfhRate,
         price: calc.price,
         currency: calc.currency,
