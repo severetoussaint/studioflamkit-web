@@ -73,10 +73,47 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<'proyectos' | 'cotizaciones' | 'crear'>('proyectos');
   const [requests, setRequests] = useState<QuotationRequest[]>([]);
   const [projects, setProjects] = useState<AdminProject[]>([]);
+
+  // Selector states for multi-manuscript/project support per author
+  const [selectedAuthor, setSelectedAuthor] = useState<string>('');
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   
   // Authorization states
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
+
+  // Group projects by author
+  const groupedAuthors = useMemo(() => {
+    const groups: Record<string, AdminProject[]> = {};
+    const safeProjects = Array.isArray(projects) ? projects : [];
+    safeProjects.forEach((p) => {
+      const authorName = p.client || 'Autor Desconocido';
+      if (!groups[authorName]) {
+        groups[authorName] = [];
+      }
+      groups[authorName].push(p);
+    });
+    return groups;
+  }, [projects]);
+
+  const authorNames = useMemo(() => Object.keys(groupedAuthors).sort(), [groupedAuthors]);
+
+  // Derived selections (with safe default fallback calculation during render)
+  const currentAuthor = useMemo(() => {
+    if (selectedAuthor && groupedAuthors[selectedAuthor]) {
+      return selectedAuthor;
+    }
+    return authorNames[0] || '';
+  }, [selectedAuthor, authorNames, groupedAuthors]);
+
+  const activeProject = useMemo(() => {
+    const authorProjects = groupedAuthors[currentAuthor] || [];
+    const found = authorProjects.find((p) => p.id === selectedProjectId);
+    if (found) {
+      return found;
+    }
+    return authorProjects[0] || null;
+  }, [groupedAuthors, currentAuthor, selectedProjectId]);
 
   // Deliverables add state
   const [newDeliverableTitles, setNewDeliverableTitles] = useState<Record<string, string>>({});
@@ -231,7 +268,7 @@ export default function AdminPage() {
   // Convert Quotation Request to an Active Project automatically
   const handleConvertQuoteToProject = async (request: QuotationRequest) => {
     try {
-      await adminService.createAdminProject({
+      const created = await adminService.createAdminProject({
         title: request.title,
         client: request.client,
         status: 'produccion',
@@ -246,6 +283,12 @@ export default function AdminPage() {
       // Mark quote as approved
       await adminService.updateQuotationRequestStatus(request.id, 'aprobada');
       await loadAllData();
+      
+      if (created) {
+        setSelectedAuthor(created.client || request.client);
+        setSelectedProjectId(created.id);
+      }
+      
       setActiveTab('proyectos');
     } catch (error) {
       console.error(error);
@@ -400,7 +443,7 @@ export default function AdminPage() {
     }
 
     try {
-      await adminService.createAdminProject({
+      const created = await adminService.createAdminProject({
         title: newProjTitle.trim(),
         client: newProjClient.trim(),
         status: newProjStatus,
@@ -411,10 +454,17 @@ export default function AdminPage() {
       });
 
       await loadAllData();
+      
+      if (created) {
+        setSelectedAuthor(created.client || newProjClient.trim());
+        setSelectedProjectId(created.id);
+      }
+      
       setNewProjTitle('');
       setNewProjClient('');
       setCreationSuccess(true);
       setTimeout(() => setCreationSuccess(false), 3500);
+      setActiveTab('proyectos');
     } catch (error) {
       console.error(error);
     }
@@ -544,11 +594,11 @@ export default function AdminPage() {
         {/* Tab 1: Active Projects Editor */}
         {activeTab === 'proyectos' && (
           <div className="space-y-8">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <h2 className="text-xl font-serif font-medium text-ink">Gestión Directa de Obras Activas</h2>
+                <h2 className="text-xl font-serif font-medium text-ink">Gestión de Obras y Manuscritos Activos</h2>
                 <p className="text-ink-muted text-xs mt-1">
-                  Aquí controlas la cantidad de revisiones máximas, presupuestos, estados y los audios disponibles para cada autor.
+                  Controla de forma independiente cada manuscrito de tus autores, gestiona capítulos, entregables de audio y feedback.
                 </p>
               </div>
             </div>
@@ -560,199 +610,295 @@ export default function AdminPage() {
                 <p className="text-xs text-ink-muted mt-1">Crea un nuevo proyecto en la pestaña &quot;Registrar Obra&quot; o aprueba un manuscrito.</p>
               </div>
             ) : (
-              <div className="grid gap-6 md:grid-cols-2">
-                {projects.map((project) => (
-                  <motion.div 
-                    layout
-                    key={project.id} 
-                    className="rounded-3xl border-edge bg-surface-elevated p-6 relative overflow-hidden flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-200"
-                  >
-                    <div>
-                      {/* Top bar details */}
-                      <div className="flex items-start justify-between gap-3 mb-4">
-                        <div>
-                          <span className="text-[10px] font-semibold uppercase tracking-wider text-accent">Obra Activa</span>
-                          <h3 className="font-serif text-lg font-semibold text-ink leading-tight mt-0.5">{project.title}</h3>
-                          <p className="text-ink-muted text-xs mt-1">Autor: <span className="text-ink font-semibold">{project.client}</span></p>
-                        </div>
-                        <button
-                          onClick={() => handleDeleteProject(project.id)}
-                          className="p-1.5 text-ink-muted hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
-                          title="Eliminar Obra"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+              <div className="space-y-6">
+                {/* 1. Context Selectors Header */}
+                <div className="rounded-2xl border border-edge bg-surface p-4 flex flex-col md:flex-row gap-4 items-center justify-between shadow-xs">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="h-8 w-8 rounded-full bg-accent/10 flex items-center justify-center text-accent">
+                        <User className="h-4 w-4" />
                       </div>
+                      <span className="text-xs font-semibold text-ink-muted uppercase tracking-wider">Autor:</span>
+                    </div>
+                    <select
+                      value={selectedAuthor}
+                      onChange={(e) => {
+                        const author = e.target.value;
+                        setSelectedAuthor(author);
+                        const firstProj = groupedAuthors[author]?.[0]?.id || '';
+                        setSelectedProjectId(firstProj);
+                      }}
+                      className="rounded-xl border border-edge bg-surface-elevated px-3 py-2 text-sm text-ink outline-none focus:border-accent transition font-medium min-w-[200px]"
+                    >
+                      {authorNames.map((name) => (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                      {/* Info & Status row */}
-                      <div className="grid grid-cols-2 gap-3 mb-4 rounded-2xl bg-surface p-3.5 border-edge">
-                        <div>
-                          <p className="text-[10px] text-ink-muted uppercase tracking-wide">Capítulos totales</p>
-                          <p className="text-sm font-semibold text-ink mt-0.5">{project.chapters} capítulos</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] text-ink-muted uppercase tracking-wide">Presupuesto</p>
-                          <button 
-                            onClick={() => handleUpdateBudget(project.id, project.amount || 0)}
-                            className="text-xs font-semibold text-accent hover:underline flex items-center gap-1 mt-0.5 cursor-pointer bg-transparent border-none p-0"
-                            title="Editar presupuesto"
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="h-8 w-8 rounded-full bg-accent/10 flex items-center justify-center text-accent">
+                        <BookOpen className="h-4 w-4" />
+                      </div>
+                      <span className="text-xs font-semibold text-ink-muted uppercase tracking-wider">Obra Activa:</span>
+                    </div>
+                    <select
+                      value={selectedProjectId}
+                      onChange={(e) => setSelectedProjectId(e.target.value)}
+                      className="rounded-xl border border-edge bg-surface-elevated px-3 py-2 text-sm text-ink outline-none focus:border-accent transition font-medium min-w-[250px]"
+                    >
+                      {(groupedAuthors[selectedAuthor] || []).map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Quick switcher pills */}
+                <div className="flex flex-wrap gap-2 items-center px-1">
+                  <span className="text-xs text-ink-muted font-medium">Obras de {selectedAuthor}:</span>
+                  {(groupedAuthors[selectedAuthor] || []).map((p) => {
+                    const isActive = p.id === selectedProjectId;
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => setSelectedProjectId(p.id)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition cursor-pointer ${
+                          isActive
+                            ? 'bg-accent/10 border-accent text-accent font-semibold'
+                            : 'bg-surface-elevated border-edge text-ink-muted hover:text-ink hover:bg-surface'
+                        }`}
+                      >
+                        {p.title} <span className="text-[10px] opacity-75">({statusLabels[p.status]})</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* 2. Detail Workspace */}
+                {activeProject && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="grid grid-cols-1 lg:grid-cols-12 gap-8"
+                  >
+                    {/* Column A: Metadata & Status Controls */}
+                    <div className="lg:col-span-4 space-y-6">
+                      <div className="rounded-3xl border border-edge bg-surface p-6 shadow-xs relative overflow-hidden">
+                        <div className="flex items-start justify-between gap-3 mb-4">
+                          <div>
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-accent">Estado de la Obra</span>
+                            <h3 className="font-serif text-lg font-semibold text-ink leading-tight mt-0.5">{activeProject.title}</h3>
+                            <p className="text-ink-muted text-xs mt-1">Autor: <span className="text-ink font-semibold">{activeProject.client}</span></p>
+                          </div>
+                          <button
+                            onClick={() => handleDeleteProject(activeProject.id)}
+                            className="p-1.5 text-ink-muted hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
+                            title="Eliminar Obra"
                           >
-                            <span>${project.amount || 0} USD</span>
-                            <Sliders className="h-3 w-3" />
+                            <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
-                      </div>
 
-                      {/* Customizable Revisions Panel (Core User Request) */}
-                      <div className="mb-6 rounded-2xl border-accent/10 bg-accent/[0.02] p-4">
-                        <div className="flex items-center justify-between mb-3">
+                        {/* Progress Bar */}
+                        <div className="mb-6">
+                          <div className="flex justify-between text-xs font-medium text-ink-muted mb-1.5">
+                            <span>Progreso General</span>
+                            <span className="text-accent font-bold">{activeProject.progress}%</span>
+                          </div>
+                          <div className="h-2 w-full bg-surface-elevated rounded-full overflow-hidden border border-edge">
+                            <div 
+                              className="h-full bg-accent transition-all duration-500 rounded-full" 
+                              style={{ width: `${activeProject.progress}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Info Rows */}
+                        <div className="grid grid-cols-2 gap-3 mb-6 rounded-2xl bg-surface-elevated p-3.5 border border-edge">
                           <div>
-                            <p className="text-xs font-semibold text-accent flex items-center gap-1">
-                              <Sliders className="h-3.5 w-3.5 text-accent" />
-                              Límite de Revisiones Pactado
-                            </p>
-                            <p className="text-[10px] text-ink-muted mt-0.5">Define cuántos cambios puede pedir el cliente.</p>
+                            <p className="text-[10px] text-ink-muted uppercase tracking-wide">Capítulos</p>
+                            <p className="text-sm font-semibold text-ink mt-0.5">{activeProject.chapters} capítulos</p>
                           </div>
-                          <span className="text-xs font-bold text-accent px-2 py-0.5 bg-accent/10 rounded-lg">
-                            {project.revisionsUsed} / {project.maxRevisions} Usadas
-                          </span>
-                        </div>
-
-                        {/* Adjust revisions limits */}
-                        <div className="flex items-center justify-between gap-4 bg-surface rounded-xl p-2 border-edge">
-                          <span className="text-xs font-medium text-ink-muted pl-2">Límite Permitido:</span>
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => handleUpdateMaxRevisions(project.id, false, project.maxRevisions)}
-                              className="h-8 w-8 rounded-lg bg-surface-elevated hover:bg-surface border-edge text-ink-muted hover:text-ink flex items-center justify-center transition active:scale-90 cursor-pointer"
-                              title="Disminuir revisiones máximas"
+                          <div>
+                            <p className="text-[10px] text-ink-muted uppercase tracking-wide">Presupuesto</p>
+                            <button 
+                              onClick={() => handleUpdateBudget(activeProject.id, activeProject.amount || 0)}
+                              className="text-xs font-semibold text-accent hover:underline flex items-center gap-1 mt-0.5 cursor-pointer bg-transparent border-none p-0"
+                              title="Editar presupuesto"
                             >
-                              <Minus className="h-3.5 w-3.5" />
-                            </button>
-                            <span className="w-10 text-center font-bold text-ink text-sm">
-                              {project.maxRevisions}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleUpdateMaxRevisions(project.id, true, project.maxRevisions)}
-                              className="h-8 w-8 rounded-lg bg-surface-elevated hover:bg-surface border-edge text-ink-muted hover:text-ink flex items-center justify-center transition active:scale-90 cursor-pointer"
-                              title="Aumentar revisiones máximas"
-                            >
-                              <Plus className="h-3.5 w-3.5" />
+                              <span>${activeProject.amount || 0} USD</span>
+                              <Sliders className="h-3 w-3" />
                             </button>
                           </div>
                         </div>
-                      </div>
 
-                      {/* Status Selector */}
-                      <div className="mb-6">
-                        <label className="text-[10px] text-ink-muted uppercase tracking-wide block mb-2 font-semibold">Estado actual de la producción</label>
-                        <div className="grid grid-cols-4 gap-1.5 bg-surface border-edge rounded-xl p-1">
-                          {(['analisis', 'produccion', 'revisiones', 'completado'] as AdminProjectStatus[]).map((st) => (
-                            <button
-                              key={st}
-                              onClick={() => handleProjectStatus(project.id, st)}
-                              className={`rounded-lg py-1.5 px-1 text-[10px] font-bold uppercase tracking-wider text-center transition cursor-pointer ${
-                                project.status === st
-                                  ? 'bg-accent text-surface font-bold'
-                                  : 'text-ink-muted hover:text-ink hover:bg-surface-elevated'
-                              }`}
-                            >
-                              {st === 'analisis' ? 'Análisis' : st === 'produccion' ? 'Progreso' : st === 'revisiones' ? 'Revisar' : 'Final'}
-                            </button>
-                          ))}
+                        {/* Customizable Revisions */}
+                        <div className="mb-6 rounded-2xl border border-accent/10 bg-accent/[0.02] p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <div>
+                              <p className="text-xs font-semibold text-accent flex items-center gap-1">
+                                <Sliders className="h-3.5 w-3.5 text-accent" />
+                                Límite de Revisiones Pactado
+                              </p>
+                              <p className="text-[10px] text-ink-muted mt-0.5">Define cuántas solicitudes de cambio tiene permitidas.</p>
+                            </div>
+                            <span className="text-xs font-bold text-accent px-2 py-0.5 bg-accent/10 rounded-lg">
+                              {activeProject.revisionsUsed} / {activeProject.maxRevisions} Usadas
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-4 bg-surface rounded-xl p-2 border border-edge">
+                            <span className="text-xs font-medium text-ink-muted pl-2">Límite Permitido:</span>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateMaxRevisions(activeProject.id, false, activeProject.maxRevisions)}
+                                className="h-8 w-8 rounded-lg bg-surface-elevated hover:bg-surface border border-edge text-ink-muted hover:text-ink flex items-center justify-center transition active:scale-90 cursor-pointer"
+                                title="Disminuir revisiones máximas"
+                              >
+                                <Minus className="h-3.5 w-3.5" />
+                              </button>
+                              <span className="w-10 text-center font-bold text-ink text-sm">
+                                {activeProject.maxRevisions}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateMaxRevisions(activeProject.id, true, activeProject.maxRevisions)}
+                                className="h-8 w-8 rounded-lg bg-surface-elevated hover:bg-surface border border-edge text-ink-muted hover:text-ink flex items-center justify-center transition active:scale-90 cursor-pointer"
+                                title="Aumentar revisiones máximas"
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Status Change Selector */}
+                        <div className="mb-2">
+                          <label className="text-[10px] text-ink-muted uppercase tracking-wide block mb-2 font-semibold">Estado actual de la producción</label>
+                          <div className="grid grid-cols-4 gap-1.5 bg-surface-elevated border border-edge rounded-xl p-1">
+                            {(['analisis', 'produccion', 'revisiones', 'completado'] as AdminProjectStatus[]).map((st) => (
+                              <button
+                                key={st}
+                                onClick={() => handleProjectStatus(activeProject.id, st)}
+                                className={`rounded-lg py-1.5 px-1 text-[10px] font-bold uppercase tracking-wider text-center transition cursor-pointer ${
+                                  activeProject.status === st
+                                    ? 'bg-accent text-surface font-bold'
+                                    : 'text-ink-muted hover:text-ink hover:bg-surface'
+                                }`}
+                              >
+                                {st === 'analisis' ? 'Análisis' : st === 'produccion' ? 'Progreso' : st === 'revisiones' ? 'Revisar' : 'Final'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Project Footer ID and Sync info */}
+                        <div className="mt-6 pt-4 border-t border-edge/60 flex items-center justify-between text-[10px] text-ink-muted">
+                          <span>ID: {activeProject.id}</span>
+                          <span>Actualizado: {activeProject.lastUpdate}</span>
                         </div>
                       </div>
+                    </div>
 
-                      {/* Real Chapters Management in Supabase */}
-                      <div className="space-y-4 pt-4 mb-6 border-t border-edge">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-ink flex items-center gap-1.5">
-                            <BookOpen className="h-3.5 w-3.5 text-accent" />
-                            Capítulos Reales del Proyecto ({project.chapterList?.length || 0})
-                          </span>
-                          {project.chapterList && project.chapterList.length > 0 && (
-                            <span className="text-[10px] font-medium text-accent bg-accent/10 px-2 py-0.5 rounded-full">
-                              Avance Real: {project.progress}%
+                    {/* Column B: Chapters & Forms */}
+                    <div className="lg:col-span-4 space-y-6">
+                      <div className="rounded-3xl border border-edge bg-surface p-6 shadow-xs flex flex-col h-full justify-between">
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between pb-2 border-b border-edge">
+                            <span className="text-sm font-semibold text-ink flex items-center gap-1.5">
+                              <BookOpen className="h-4 w-4 text-accent" />
+                              Capítulos Reales ({activeProject.chapterList?.length || 0})
                             </span>
+                            {activeProject.chapterList && activeProject.chapterList.length > 0 && (
+                              <span className="text-[10px] font-medium text-accent bg-accent/10 px-2 py-0.5 rounded-full">
+                                Avance Real: {activeProject.progress}%
+                              </span>
+                            )}
+                          </div>
+
+                          {(!activeProject.chapterList || activeProject.chapterList.length === 0) ? (
+                            <p className="text-[11px] text-ink-muted italic py-4 text-center">Aún no hay capítulos creados en la base de datos para este proyecto.</p>
+                          ) : (
+                            <ul className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
+                              {activeProject.chapterList.map((chap) => (
+                                <li
+                                  key={chap.id}
+                                  className="flex flex-col gap-2 rounded-xl bg-surface-elevated/50 border border-edge p-3 text-xs"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <span className="font-bold text-ink">
+                                        Capítulo {chap.chapter_number}: {chap.title}
+                                      </span>
+                                      <div className="text-[10px] text-ink-muted mt-0.5 flex gap-2">
+                                        <span>{chap.word_count.toLocaleString()} palabras</span>
+                                        <span>•</span>
+                                        <span>~{chap.duration_minutes} min</span>
+                                        <span>•</span>
+                                        <span className="font-semibold text-accent">${chap.price} USD</span>
+                                      </div>
+                                    </div>
+                                    <button
+                                      onClick={() => handleDeleteChapter(chap.id)}
+                                      className="p-1 text-ink-muted hover:text-rose-500 rounded transition cursor-pointer"
+                                      title="Eliminar capítulo"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
+
+                                  <div className="flex items-center gap-1 pt-1.5 border-t border-edge/40">
+                                    <span className="text-[9px] text-ink-muted uppercase font-semibold mr-1">Estado:</span>
+                                    {(['pendiente', 'cotizado', 'pagado', 'en_produccion', 'entregado'] as const).map((st) => (
+                                      <button
+                                        key={st}
+                                        onClick={() => handleUpdateChapterStatus(chap.id, st)}
+                                        className={`px-1.5 py-0.5 text-[9px] font-semibold rounded-md uppercase tracking-wider transition cursor-pointer ${
+                                          chap.status === st
+                                            ? 'bg-accent text-surface'
+                                            : 'bg-surface text-ink-muted hover:text-ink border border-edge'
+                                        }`}
+                                      >
+                                        {st === 'en_produccion' ? 'grabación' : st}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
                           )}
                         </div>
 
-                        {(!project.chapterList || project.chapterList.length === 0) ? (
-                          <p className="text-[11px] text-ink-muted italic py-1">Aún no hay capítulos reales creados en la base de datos para este proyecto.</p>
-                        ) : (
-                          <ul className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                            {project.chapterList.map((chap) => (
-                              <li
-                                key={chap.id}
-                                className="flex flex-col gap-2 rounded-xl bg-surface/60 border-edge p-3 text-xs"
-                              >
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <span className="font-bold text-ink">
-                                      Capítulo {chap.chapter_number}: {chap.title}
-                                    </span>
-                                    <div className="text-[10px] text-ink-muted mt-0.5 flex gap-2">
-                                      <span>{chap.word_count.toLocaleString()} palabras</span>
-                                      <span>•</span>
-                                      <span>~{chap.duration_minutes} min</span>
-                                      <span>•</span>
-                                      <span className="font-semibold text-accent">${chap.price} USD</span>
-                                    </div>
-                                  </div>
-                                  <button
-                                    onClick={() => handleDeleteChapter(chap.id)}
-                                    className="p-1 text-ink-muted hover:text-rose-500 rounded transition cursor-pointer"
-                                    title="Eliminar capítulo"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </button>
-                                </div>
-
-                                <div className="flex items-center gap-1 pt-1 border-t border-edge/40">
-                                  <span className="text-[9px] text-ink-muted uppercase font-semibold mr-1">Estado:</span>
-                                  {(['pendiente', 'cotizado', 'pagado', 'en_produccion', 'entregado'] as const).map((st) => (
-                                    <button
-                                      key={st}
-                                      onClick={() => handleUpdateChapterStatus(chap.id, st)}
-                                      className={`px-1.5 py-0.5 text-[9px] font-semibold rounded-md uppercase tracking-wider transition cursor-pointer ${
-                                        chap.status === st
-                                          ? 'bg-accent text-surface'
-                                          : 'bg-surface text-ink-muted hover:text-ink border-edge'
-                                      }`}
-                                    >
-                                      {st === 'en_produccion' ? 'grabación' : st}
-                                    </button>
-                                  ))}
-                                </div>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-
                         {/* Add Real Chapter Form */}
-                        <div className="bg-surface/40 rounded-2xl border-edge p-3 space-y-2">
-                          <span className="text-[10px] text-ink-muted uppercase font-semibold block">Crear Capítulo Real en Supabase</span>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="bg-surface-elevated/40 rounded-2xl border border-edge p-3 mt-4 space-y-2">
+                          <span className="text-[10px] text-ink-muted uppercase font-semibold block">Crear Capítulo en Supabase</span>
+                          <div className="space-y-2">
                             <input
                               type="text"
-                              placeholder={`Título (ej: Capítulo ${(project.chapterList?.length || 0) + 1})`}
-                              value={newChapterTitles[project.id] || ''}
-                              onChange={(e) => setNewChapterTitles((prev) => ({ ...prev, [project.id]: e.target.value }))}
-                              className="rounded-xl border-edge bg-surface px-3 py-1.5 text-xs text-ink outline-none focus:border-accent transition"
+                              placeholder={`Título (ej: Capítulo ${(activeProject.chapterList?.length || 0) + 1})`}
+                              value={newChapterTitles[activeProject.id] || ''}
+                              onChange={(e) => setNewChapterTitles((prev) => ({ ...prev, [activeProject.id]: e.target.value }))}
+                              className="w-full rounded-xl border border-edge bg-surface px-3 py-1.5 text-xs text-ink outline-none focus:border-accent transition"
                             />
                             <div className="flex gap-2">
                               <input
                                 type="number"
                                 placeholder="Conteo de palabras (ej: 3000)"
-                                value={newChapterWords[project.id] || ''}
-                                onChange={(e) => setNewChapterWords((prev) => ({ ...prev, [project.id]: parseInt(e.target.value) || 0 }))}
-                                className="flex-1 rounded-xl border-edge bg-surface px-3 py-1.5 text-xs text-ink outline-none focus:border-accent transition"
+                                value={newChapterWords[activeProject.id] || ''}
+                                onChange={(e) => setNewChapterWords((prev) => ({ ...prev, [activeProject.id]: parseInt(e.target.value) || 0 }))}
+                                className="flex-1 rounded-xl border border-edge bg-surface px-3 py-1.5 text-xs text-ink outline-none focus:border-accent transition"
                               />
                               <Button
                                 variant="primary"
-                                onClick={() => handleCreateChapter(project.id, project.chapterList?.length || 0)}
+                                onClick={() => handleCreateChapter(activeProject.id, activeProject.chapterList?.length || 0)}
                                 className="px-3 text-xs py-1.5 cursor-pointer whitespace-nowrap"
                               >
                                 <Plus className="h-3 w-3 mr-1" />
@@ -762,89 +908,93 @@ export default function AdminPage() {
                           </div>
                         </div>
                       </div>
+                    </div>
 
-                      {/* Deliverables management */}
-                      <div className="space-y-4 pt-4 border-t border-edge">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-ink flex items-center gap-1.5">
-                            <Music className="h-3.5 w-3.5 text-accent" />
-                            Archivos de Sonido de la Obra ({project.deliverables.length})
-                          </span>
+                    {/* Column C: Audio Deliverables & Feedback */}
+                    <div className="lg:col-span-4 space-y-6">
+                      <div className="rounded-3xl border border-edge bg-surface p-6 shadow-xs flex flex-col h-full justify-between">
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between pb-2 border-b border-edge">
+                            <span className="text-sm font-semibold text-ink flex items-center gap-1.5">
+                              <Music className="h-4 w-4 text-accent" />
+                              Archivos de Sonido ({activeProject.deliverables.length})
+                            </span>
+                          </div>
+
+                          {/* Deliverables lists */}
+                          {activeProject.deliverables.length === 0 ? (
+                            <p className="text-[11px] text-ink-muted italic py-4 text-center">Aún no se han enviado audios para este proyecto.</p>
+                          ) : (
+                            <ul className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
+                              {activeProject.deliverables.map((del) => (
+                                <li 
+                                  key={del.id} 
+                                  className="flex items-center justify-between rounded-xl bg-surface-elevated/50 border border-edge p-2.5 hover:border-accent transition cursor-pointer"
+                                >
+                                  <div className="flex items-center gap-2 max-w-[65%]">
+                                    <input
+                                      type="checkbox"
+                                      checked={del.completed}
+                                      onChange={() => handleToggleDeliverable(activeProject.id, del.id)}
+                                      className="h-4 w-4 rounded border-edge bg-surface text-accent focus:ring-accent cursor-pointer"
+                                    />
+                                    <div className="truncate">
+                                      <span className={`text-xs block font-medium truncate ${del.completed ? 'line-through text-ink-muted' : 'text-ink'}`}>
+                                        {del.title}
+                                      </span>
+                                      <span className="text-[9px] text-ink-muted">Modificado: {del.updatedAt}</span>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-1.5">
+                                    {/* Open feedback chat dialog */}
+                                    <button
+                                      onClick={() => openChatPanel(activeProject, del)}
+                                      className="relative flex items-center gap-1 rounded-lg bg-surface border border-edge hover:bg-surface-elevated text-ink-muted hover:text-accent text-[10px] px-2 py-1 transition cursor-pointer"
+                                      title="Ver comentarios / Chat de audio"
+                                    >
+                                      <MessageSquare className="h-3 w-3" />
+                                      <span>Chat</span>
+                                      {del.comments && del.comments.length > 0 && (
+                                        <span className="absolute -top-1.5 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[8px] font-bold text-surface">
+                                          {del.comments.length}
+                                        </span>
+                                      )}
+                                    </button>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
                         </div>
 
-                        {/* Deliverables lists */}
-                        {project.deliverables.length === 0 ? (
-                          <p className="text-[11px] text-ink-muted italic py-1">Aún no se han enviado audios para este proyecto.</p>
-                        ) : (
-                          <ul className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                            {project.deliverables.map((del) => (
-                              <li 
-                                key={del.id} 
-                                className="flex items-center justify-between rounded-xl bg-surface/60 border-edge p-2.5 hover:border-accent transition cursor-pointer"
-                              >
-                                <div className="flex items-center gap-2 max-w-[65%]">
-                                  <input
-                                    type="checkbox"
-                                    checked={del.completed}
-                                    onChange={() => handleToggleDeliverable(project.id, del.id)}
-                                    className="h-4 w-4 rounded border-edge bg-surface text-accent focus:ring-accent cursor-pointer"
-                                  />
-                                  <div className="truncate">
-                                    <span className={`text-xs block font-medium truncate ${del.completed ? 'line-through text-ink-muted' : 'text-ink'}`}>
-                                      {del.title}
-                                    </span>
-                                    <span className="text-[9px] text-ink-muted">Último cambio: {del.updatedAt}</span>
-                                  </div>
-                                </div>
-
-                                <div className="flex items-center gap-1.5">
-                                  {/* Open feedback chat dialog */}
-                                  <button
-                                    onClick={() => openChatPanel(project, del)}
-                                    className="relative flex items-center gap-1 rounded-lg bg-surface border-edge hover:bg-surface-elevated text-ink-muted hover:text-accent text-[10px] px-2 py-1 transition cursor-pointer"
-                                    title="Ver comentarios / Chat de audio"
-                                  >
-                                    <MessageSquare className="h-3 w-3" />
-                                    <span>Chat</span>
-                                    {del.comments && del.comments.length > 0 && (
-                                      <span className="absolute -top-1.5 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[8px] font-bold text-surface">
-                                        {del.comments.length}
-                                      </span>
-                                    )}
-                                  </button>
-                                </div>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-
                         {/* Add audio deliverable form */}
-                        <div className="bg-surface/40 rounded-2xl border-edge p-3 space-y-2">
-                          <span className="text-[10px] text-ink-muted uppercase font-semibold">Subir Nuevo Entregable de Audio</span>
+                        <div className="bg-surface-elevated/40 rounded-2xl border border-edge p-3 mt-4 space-y-2">
+                          <span className="text-[10px] text-ink-muted uppercase font-semibold">Subir Nuevo Audio</span>
                           <div className="flex gap-2">
                             <input
                               type="text"
                               placeholder="Ejem: Capítulo 1 - Master Final"
-                              value={newDeliverableTitles[project.id] || ''}
-                              onChange={(e) => setNewDeliverableTitles(prev => ({ ...prev, [project.id]: e.target.value }))}
-                              className="flex-1 rounded-xl border-edge bg-surface px-3 py-1.5 text-xs text-ink outline-none focus:border-accent transition"
+                              value={newDeliverableTitles[activeProject.id] || ''}
+                              onChange={(e) => setNewDeliverableTitles(prev => ({ ...prev, [activeProject.id]: e.target.value }))}
+                              className="flex-1 rounded-xl border border-edge bg-surface px-3 py-1.5 text-xs text-ink outline-none focus:border-accent transition"
                             />
                             <Button 
                               variant="primary" 
-                              onClick={() => handleAddDeliverable(project.id)}
+                              onClick={() => handleAddDeliverable(activeProject.id)}
                               className="px-3 text-xs py-1.5 cursor-pointer"
                             >
                               Agregar
                             </Button>
                           </div>
 
-                          <div className="flex flex-col sm:flex-row gap-2 items-center">
-                            <label className="flex flex-1 w-full items-center gap-1.5 text-[10px] text-ink bg-surface border-edge px-3 py-1.5 rounded-xl cursor-pointer hover:border-accent transition">
+                          <div className="flex flex-col gap-1.5">
+                            <label className="flex w-full items-center gap-1.5 text-[10px] text-ink bg-surface border border-edge px-3 py-1.5 rounded-xl cursor-pointer hover:border-accent transition">
                               <UploadCloud className="h-3.5 w-3.5 text-accent shrink-0" />
                               <span className="truncate">
-                                {newDeliverableFiles[project.id] 
-                                  ? newDeliverableFiles[project.id]?.name 
-                                  : 'Subir archivo (.mp3, .wav, .m4b)'}
+                                {newDeliverableFiles[activeProject.id] 
+                                  ? newDeliverableFiles[activeProject.id]?.name 
+                                  : 'Sube un archivo de audio'}
                               </span>
                               <input
                                 type="file"
@@ -853,35 +1003,28 @@ export default function AdminPage() {
                                 onChange={(e) => {
                                   const file = e.target.files?.[0];
                                   if (file) {
-                                    setNewDeliverableFiles(prev => ({ ...prev, [project.id]: file }));
-                                    if (!newDeliverableTitles[project.id]) {
-                                      setNewDeliverableTitles(prev => ({ ...prev, [project.id]: file.name }));
+                                    setNewDeliverableFiles(prev => ({ ...prev, [activeProject.id]: file }));
+                                    if (!newDeliverableTitles[activeProject.id]) {
+                                      setNewDeliverableTitles(prev => ({ ...prev, [activeProject.id]: file.name }));
                                     }
                                   }
                                 }}
                               />
                             </label>
                             
-                            <span className="text-[10px] text-ink-muted">o</span>
-                            
                             <input
                               type="text"
-                              placeholder="URL de audio opcional"
-                              value={newDeliverableUrls[project.id] || ''}
-                              onChange={(e) => setNewDeliverableUrls(prev => ({ ...prev, [project.id]: e.target.value }))}
-                              className="flex-1 w-full rounded-xl border-edge bg-surface px-3 py-1.5 text-[10px] text-ink outline-none focus:border-accent transition"
+                              placeholder="o pega URL de audio"
+                              value={newDeliverableUrls[activeProject.id] || ''}
+                              onChange={(e) => setNewDeliverableUrls(prev => ({ ...prev, [activeProject.id]: e.target.value }))}
+                              className="w-full rounded-xl border border-edge bg-surface px-3 py-1.5 text-[10px] text-ink outline-none focus:border-accent transition"
                             />
                           </div>
                         </div>
                       </div>
                     </div>
-
-                    <div className="mt-4 pt-3 border-t border-edge/40 flex items-center justify-between text-[10px] text-ink-muted">
-                      <span>ID: {project.id}</span>
-                      <span>Último cambio: {project.lastUpdate}</span>
-                    </div>
                   </motion.div>
-                ))}
+                )}
               </div>
             )}
           </div>

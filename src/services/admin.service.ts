@@ -63,6 +63,8 @@ export interface AdminProject {
   amount?: number;
   deliverables: AudioDeliverable[];
   lastUpdate: string;
+  author_id?: string;
+  manuscript_id?: string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -159,6 +161,8 @@ interface ProjectRow {
   id: string;
   status: string;
   updated_at: string;
+  author_id?: string;
+  manuscript_id?: string;
   authors?: {
     full_name?: string;
   } | null;
@@ -380,6 +384,8 @@ export async function listAdminProjects(): Promise<AdminProject[]> {
       amount: totalAmount,
       deliverables,
       lastUpdate: (row.updated_at ?? '').slice(0, 10),
+      author_id: row.author_id,
+      manuscript_id: row.manuscript_id,
     };
   });
 }
