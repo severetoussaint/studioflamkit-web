@@ -109,16 +109,8 @@ interface AuthorProjectQueryResult {
   deliverables?: AuthorProjectDeliverableRow[];
 }
 
-export async function getAuthorProjectData(authorId: string): Promise<AuthorProjectData | null> {
+export async function getAuthorProjectData(authorId: string, manuscriptId?: string | null): Promise<AuthorProjectData | null> {
   try {
-    // 1. Obtener manuscritos vinculados al autor
-    const { data: userManuscripts } = await supabaseClient
-      .from('manuscripts')
-      .select('id')
-      .eq('author_id', authorId);
-
-    const manuscriptIds = ((userManuscripts as unknown as ManuscriptIdRow[]) || []).map((m) => m.id);
-
     // 2. Filtrar proyectos por author_id o manuscript_id (ambas columnas directas de projects)
     let query = supabaseClient
       .from('projects')
@@ -131,10 +123,22 @@ export async function getAuthorProjectData(authorId: string): Promise<AuthorProj
         deliverables ( id, title, status, created_at )
       `);
 
-    if (manuscriptIds.length > 0) {
-      query = query.or(`author_id.eq.${authorId},manuscript_id.in.(${manuscriptIds.join(',')})`);
+    if (manuscriptId) {
+      query = query.eq('manuscript_id', manuscriptId);
     } else {
-      query = query.eq('author_id', authorId);
+      // 1. Obtener manuscritos vinculados al autor
+      const { data: userManuscripts } = await supabaseClient
+        .from('manuscripts')
+        .select('id')
+        .eq('author_id', authorId);
+
+      const manuscriptIds = ((userManuscripts as unknown as ManuscriptIdRow[]) || []).map((m) => m.id);
+
+      if (manuscriptIds.length > 0) {
+        query = query.or(`author_id.eq.${authorId},manuscript_id.in.(${manuscriptIds.join(',')})`);
+      } else {
+        query = query.eq('author_id', authorId);
+      }
     }
 
     const { data: projects, error } = await query

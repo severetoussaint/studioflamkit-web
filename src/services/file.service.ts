@@ -1,6 +1,35 @@
 import { supabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/database.types';
 
+export interface ProductionStageRelation {
+  id: string;
+  name: string;
+  status: string | null;
+  order_index: number;
+}
+
+export interface ProjectRelation {
+  id: string;
+  status: string | null;
+  production_stages?: ProductionStageRelation[] | null;
+}
+
+export interface ProjectRequestRelation {
+  id: string;
+  status: string | null;
+}
+
+export interface ManuscriptWithDetails {
+  id: string;
+  title: string;
+  created_at: string | null;
+  status: string | null;
+  word_count: number | null;
+  original_file_path: string | null;
+  project_requests?: ProjectRequestRelation[] | null;
+  projects?: ProjectRelation[] | null;
+}
+
 export type ManuscriptRow = Database['public']['Tables']['manuscripts']['Row'];
 export type FileRow = Database['public']['Tables']['files']['Row'];
 export type DeliverableRow = Database['public']['Tables']['deliverables']['Row'];
@@ -109,11 +138,34 @@ export async function getDashboardFileLibraryData(
 ): Promise<DashboardFileLibraryData> {
   const { data: manuscriptRows, error: manuscriptError } = await supabaseClient
     .from('manuscripts')
-    .select('id, title, created_at, status, word_count, original_file_path')
+    .select(`
+      id, 
+      title, 
+      created_at, 
+      status, 
+      word_count, 
+      original_file_path,
+      project_requests (
+        id,
+        status
+      ),
+      projects (
+        id,
+        status,
+        production_stages (
+          id,
+          name,
+          status,
+          order_index
+        )
+      )
+    `)
     .eq('author_id', authorId)
     .order('created_at', { ascending: false });
 
   if (manuscriptError) throw manuscriptError;
+
+  const typedManuscriptRows = (manuscriptRows as unknown as ManuscriptWithDetails[]) || [];
 
   let resolvedProjectId = projectId;
   let projectTitle: string | null = null;
@@ -153,10 +205,6 @@ export async function getDashboardFileLibraryData(
     projectTitle = (projectRow as { manuscripts?: { title?: string | null } | null } | null)?.manuscripts?.title || null;
     projectStatus = projectRow?.status || null;
   }
-
-  const filteredManuscripts = selectedManuscriptId
-    ? (manuscriptRows ?? []).filter((m) => m.id === selectedManuscriptId)
-    : (manuscriptRows ?? []);
 
   const { data: fileRows } = resolvedProjectId
     ? await supabaseClient
@@ -206,9 +254,62 @@ export async function getDashboardFileLibraryData(
   const paidAmountLabel = formatMoney(paidAmount);
   const currentStage = getStageLabel((stageRows ?? []) as ProductionStageRow[]);
 
-  const manuscriptItems: DashboardFileItem[] = (filteredManuscripts ?? []).map((manuscript) => {
+  const manuscriptItems: DashboardFileItem[] = typedManuscriptRows.map((manuscript: ManuscriptWithDetails) => {
     const downloadUrl = buildPublicUrl('manuscripts', manuscript.original_file_path);
     const wordCountLabel = manuscript.word_count ? `${manuscript.word_count.toLocaleString()} palabras` : 'Sin conteo';
+
+    const projects = Array.isArray(manuscript.projects)
+      ? manuscript.projects
+      : manuscript.projects
+      ? [manuscript.projects]
+      : [];
+
+    const requests = Array.isArray(manuscript.project_requests)
+      ? manuscript.project_requests
+      : manuscript.project_requests
+      ? [manuscript.project_requests]
+      : [];
+
+    let statusLabel = 'Registrado';
+    let statusTone: FileTone = 'en_revision';
+
+    if (projects.length > 0) {
+      const proj = projects[0];
+      if (proj.status === 'completed') {
+        statusLabel = 'Completado';
+        statusTone = 'aprobado';
+      } else {
+        const stages = Array.isArray(proj.production_stages) ? proj.production_stages : [];
+        const activeStage = stages.find((s: ProductionStageRelation) => /active|activo|en_curso|en curso/i.test(s.status || ''));
+        if (activeStage) {
+          statusLabel = activeStage.name;
+        } else {
+          statusLabel = 'En revisión';
+        }
+        statusTone = 'en_revision';
+      }
+    } else if (requests.length > 0) {
+      const req = requests[0];
+      if (req.status === 'evaluating') {
+        statusLabel = 'En análisis';
+        statusTone = 'en_revision';
+      } else if (req.status === 'pending') {
+        statusLabel = 'Pendiente de aceptación';
+        statusTone = 'bloqueado';
+      } else if (req.status === 'rejected') {
+        statusLabel = 'Rechazado';
+        statusTone = 'bloqueado';
+      } else if (req.status === 'approved') {
+        statusLabel = 'Aprobado';
+        statusTone = 'aprobado';
+      } else {
+        statusLabel = req.status || 'En evaluación';
+        statusTone = 'en_revision';
+      }
+    } else if (manuscript.status) {
+      statusLabel = manuscript.status;
+      statusTone = createManuscriptTone(manuscript.status);
+    }
 
     return {
       id: `manuscript-${manuscript.id}`,
@@ -217,14 +318,14 @@ export async function getDashboardFileLibraryData(
       sourceLabel: 'Manuscrito original del autor',
       createdAt: manuscript.created_at || null,
       sizeLabel: wordCountLabel,
-      statusLabel: manuscript.status ? manuscript.status : 'Registrado',
-      statusTone: createManuscriptTone(manuscript.status),
+      statusLabel,
+      statusTone,
       amountLabel: acceptedAmount > 0 ? acceptedAmountLabel : null,
       stageLabel: currentStage,
       details: [
         `Título: ${manuscript.title}`,
         `Subido el ${formatDate(manuscript.created_at)}`,
-        `Estado: ${manuscript.status ?? 'registrado'}`,
+        `Estado: ${statusLabel}`,
         `Palabras: ${wordCountLabel}`,
         resolvedProjectId ? `Monto aprobado por admin: ${acceptedAmountLabel}` : 'Monto aprobado por admin: pendiente',
       ],

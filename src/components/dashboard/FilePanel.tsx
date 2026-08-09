@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { FileText, Download, Lock, CheckCircle2, FileCheck, UploadCloud, Eye, X, DollarSign, Calendar } from 'lucide-react';
+import { FileText, Download, Lock, CheckCircle2, FileCheck, UploadCloud, Eye, X, DollarSign, Calendar, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 export interface FileItemProps {
@@ -9,7 +9,7 @@ export interface FileItemProps {
   name: string;
   size?: string;
   date?: string;
-  status: 'bloqueado' | 'disponible' | 'en_revision' | 'aprobado';
+  status: 'bloqueado' | 'disponible' | 'en_revision' | 'aprobado' | 'en_analisis';
   downloadUrl?: string;
   acceptedPrice?: number;
   currency?: string;
@@ -27,11 +27,19 @@ interface FilePanelProps {
 }
 
 function getStatusChip(fileStatus: FileItemProps['status'], isLocked: boolean) {
-  if (fileStatus === 'bloqueado' || isLocked) {
+  if (fileStatus === 'bloqueado' || (isLocked && fileStatus !== 'en_revision' && fileStatus !== 'aprobado' && fileStatus !== 'en_analisis')) {
     return {
       tone: 'border-edge/60 bg-surface/75 text-ink-muted/90',
       icon: <Lock className="h-3.5 w-3.5 text-amber-700 dark:text-amber-300 shrink-0" />,
       label: 'En custodia / evaluación',
+    };
+  }
+
+  if (fileStatus === 'en_analisis') {
+    return {
+      tone: 'border-blue-500/20 bg-blue-500/8 text-blue-800 dark:text-blue-300',
+      icon: <Clock className="h-3.5 w-3.5 text-blue-500 shrink-0" />,
+      label: 'En análisis',
     };
   }
 

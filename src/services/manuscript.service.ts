@@ -20,11 +20,31 @@ export interface AuthorRequestContext {
   }>;
 }
 
-interface ManuscriptWithRequests {
+export interface ProductionStageRelation {
+  id: string;
+  name: string;
+  status: string | null;
+  order_index: number;
+}
+
+export interface ProjectRelation {
+  id: string;
+  status: string | null;
+  production_stages?: ProductionStageRelation[] | null;
+}
+
+export interface ProjectRequestRelation {
+  id: string;
+  status: string | null;
+}
+
+export interface ManuscriptWithDetails {
   id: string;
   title: string;
-  created_at?: string;
-  project_requests?: Array<{ id: string; status: string }> | { id: string; status: string } | null;
+  created_at: string | null;
+  status: string | null;
+  project_requests?: ProjectRequestRelation[] | null;
+  projects?: ProjectRelation[] | null;
 }
 
 interface ProjectRecord {
@@ -34,108 +54,115 @@ interface ProjectRecord {
   manuscripts?: { title?: string | null } | null;
 }
 
-interface ProjectRequestRecord {
-  id: string;
-  status: string;
-}
-
-export async function getAuthorRequestContext(authorId: string): Promise<AuthorRequestContext> {
+export async function getAuthorRequestContext(authorId: string, selectedManuscriptId?: string | null): Promise<AuthorRequestContext> {
   try {
     // 1. Obtener todos los manuscritos del autor
     const { data: authorManuscriptsData } = await supabaseClient
       .from('manuscripts')
-      .select('id, title, created_at, project_requests(id, status)')
+      .select('id, title, created_at, status, project_requests(id, status), projects(id, status, production_stages(id, name, status, order_index))')
       .eq('author_id', authorId)
       .order('created_at', { ascending: false });
 
-    const authorManuscripts = (authorManuscriptsData as unknown as ManuscriptWithRequests[]) || [];
-    const manuscriptsList = authorManuscripts.map((m) => {
-      const reqList: ProjectRequestRecord[] = Array.isArray(m.project_requests)
+    const authorManuscripts = (authorManuscriptsData as unknown as ManuscriptWithDetails[]) || [];
+    const manuscriptsList = authorManuscripts.map((m: ManuscriptWithDetails) => {
+      const reqList = Array.isArray(m.project_requests)
         ? m.project_requests
         : m.project_requests
         ? [m.project_requests]
         : [];
+      const projList = Array.isArray(m.projects)
+        ? m.projects
+        : m.projects
+        ? [m.projects]
+        : [];
+
+      let resolvedStatus = 'evaluating';
+
+      if (projList.length > 0) {
+        const proj = projList[0];
+        if (proj.status === 'completed') {
+          resolvedStatus = 'completed';
+        } else {
+          const stages = Array.isArray(proj.production_stages) ? proj.production_stages : [];
+          const activeStage = stages.find((s: ProductionStageRelation) => /active|activo|en_curso|en curso/i.test(s.status || ''));
+          if (activeStage) {
+            resolvedStatus = 'en_revision';
+          } else {
+            resolvedStatus = 'active';
+          }
+        }
+      } else if (reqList.length > 0) {
+        resolvedStatus = reqList[0].status || 'evaluating';
+      } else if (m.status) {
+        resolvedStatus = m.status;
+      }
+
       return {
         id: m.id,
         title: m.title || 'Sin título',
         createdAt: m.created_at || null,
-        requestStatus: reqList[0]?.status || 'evaluating',
+        requestStatus: resolvedStatus,
       };
     });
-    const manuscriptIds = authorManuscripts.map((m) => m.id);
 
-    // 2. Verificar si existe algún proyecto activo vinculado al author_id o a sus manuscritos
-    let activeProject: ProjectRecord | null = null;
+    // Encontrar el manuscrito activo según el id seleccionado
+    let activeManuscript = authorManuscripts.find((m) => m.id === selectedManuscriptId);
 
-    if (manuscriptIds.length > 0) {
-      const { data: projs } = await supabaseClient
-        .from('projects')
-        .select('id, manuscript_id, created_at, manuscripts(title)')
-        .or(`author_id.eq.${authorId},manuscript_id.in.(${manuscriptIds.join(',')})`)
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (projs && projs.length > 0) {
-        activeProject = projs[0] as unknown as ProjectRecord;
-      }
-    } else {
-      const { data: projs } = await supabaseClient
-        .from('projects')
-        .select('id, manuscript_id, created_at, manuscripts(title)')
-        .eq('author_id', authorId)
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (projs && projs.length > 0) {
-        activeProject = projs[0] as unknown as ProjectRecord;
-      }
+    // Si no se proporcionó id o no se encontró, seleccionamos el primero con proyecto activo, o el primero de la lista
+    if (!activeManuscript && authorManuscripts.length > 0) {
+      activeManuscript = authorManuscripts.find((m) => {
+        const projList = Array.isArray(m.projects) ? m.projects : m.projects ? [m.projects] : [];
+        return projList.length > 0;
+      }) || authorManuscripts[0];
     }
 
-    if (activeProject) {
+    if (!activeManuscript) {
+      return {
+        state: 'none',
+        requestId: null,
+        manuscriptId: null,
+        projectId: null,
+        title: null,
+        createdAt: null,
+        manuscripts: [],
+      };
+    }
+
+    const projList = Array.isArray(activeManuscript.projects)
+      ? activeManuscript.projects
+      : activeManuscript.projects
+      ? [activeManuscript.projects]
+      : [];
+
+    const reqList = Array.isArray(activeManuscript.project_requests)
+      ? activeManuscript.project_requests
+      : activeManuscript.project_requests
+      ? [activeManuscript.project_requests]
+      : [];
+
+    if (projList.length > 0) {
+      const activeProject = projList[0];
       return {
         state: 'active',
         projectId: activeProject.id,
-        manuscriptId: activeProject.manuscript_id || null,
+        manuscriptId: activeManuscript.id,
         requestId: null,
-        title: activeProject.manuscripts?.title || 'Obra en producción',
-        createdAt: activeProject.created_at || null,
+        title: activeManuscript.title || 'Obra en producción',
+        createdAt: activeManuscript.created_at || null,
+        manuscripts: manuscriptsList,
+      };
+    } else {
+      const pendingReq = reqList.find((r) => r.status === 'pending' || r.status === 'evaluating');
+      return {
+        state: 'pending',
+        projectId: null,
+        manuscriptId: activeManuscript.id,
+        requestId: pendingReq?.id || activeManuscript.id,
+        title: activeManuscript.title || 'Manuscrito enviado',
+        createdAt: activeManuscript.created_at || null,
         manuscripts: manuscriptsList,
       };
     }
-
-    // 3. Si no hay proyecto activo, verificar si hay alguna solicitud en estado pendiente/evaluación
-    if (authorManuscripts && authorManuscripts.length > 0) {
-      for (const m of authorManuscripts) {
-        const reqList: ProjectRequestRecord[] = Array.isArray(m.project_requests)
-          ? m.project_requests
-          : m.project_requests
-          ? [m.project_requests]
-          : [];
-        const pendingReq = reqList.find((r) => r.status === 'pending' || r.status === 'evaluating');
-
-        if (pendingReq || reqList.length === 0) {
-          return {
-            state: 'pending',
-            projectId: null,
-            manuscriptId: m.id,
-            requestId: pendingReq?.id || m.id,
-            title: m.title || 'Manuscrito enviado',
-            createdAt: m.created_at || null,
-            manuscripts: manuscriptsList,
-          };
-        }
-      }
-    }
-
-    return {
-      state: 'none',
-      requestId: null,
-      manuscriptId: null,
-      projectId: null,
-      title: null,
-      createdAt: null,
-      manuscripts: manuscriptsList,
-    };
   } catch (err) {
     console.error('Error en getAuthorRequestContext:', err);
     return {

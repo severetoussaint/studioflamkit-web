@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUser } from '@/services/auth.service';
 import { getAuthorRequestContext, submitManuscript, type AuthorRequestState, type AuthorRequestContext } from '@/services/manuscript.service';
-import { getAuthorProjectData, type AuthorProjectData } from '@/services/project.service';
+import { getAuthorProjectData, getAuthorProjectsList, type AuthorProjectData, type AuthorProjectOverview } from '@/services/project.service';
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
 import {
@@ -121,6 +121,53 @@ export default function DashboardPage() {
   const [requestContext, setRequestContext] = useState<AuthorRequestContext | null>(null);
   const [realProject, setRealProject] = useState<AuthorProjectData | null>(null);
 
+  // Estados de multiproyecto
+  const [selectedManuscriptId, setSelectedManuscriptId] = useState<string | null>(null);
+  const [projectsOverview, setProjectsOverview] = useState<AuthorProjectOverview[]>([]);
+  const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+
+  const getManuscriptSelectorInfo = (m: { id: string; title: string; requestStatus: string | null }) => {
+    const project = projectsOverview.find((p) => p.manuscriptId === m.id);
+
+    if (project) {
+      let label = 'Producción';
+      let dotColor = 'bg-emerald-500';
+      if (project.status === 'planning') {
+        label = project.progress <= 30 ? 'En análisis' : 'Propuesta';
+        dotColor = 'bg-amber-500';
+      } else if (project.status === 'production') {
+        label = 'Producción';
+        dotColor = 'bg-violet-500';
+      } else if (project.status === 'review') {
+        label = 'En revisión';
+        dotColor = 'bg-blue-500';
+      } else if (project.status === 'completed') {
+        label = 'Entregado';
+        dotColor = 'bg-emerald-500';
+      }
+      return {
+        label,
+        progress: project.progress,
+        dotColor,
+      };
+    } else {
+      let label = 'Pendiente de evaluación';
+      let dotColor = 'bg-zinc-400';
+      if (m.requestStatus === 'evaluating') {
+        label = 'En análisis';
+        dotColor = 'bg-amber-500';
+      } else if (m.requestStatus === 'rejected') {
+        label = 'Rechazado';
+        dotColor = 'bg-rose-500';
+      }
+      return {
+        label,
+        progress: null,
+        dotColor,
+      };
+    }
+  };
+
   // Estados de gestión de capítulos y comentarios
   const [chaptersState, setChaptersState] = useState<ChapterItem[]>(initialChapters);
   const [commentsState, setCommentsState] = useState<Record<string, CommentItem[]>>(initialComments);
@@ -155,6 +202,7 @@ export default function DashboardPage() {
 
   const hasActiveProject = requestState === 'active' || Boolean(realProject);
 
+  // 1. Efecto para verificar autenticación y obtener el id del autor
   useEffect(() => {
     let isMounted = true;
     async function checkAuth() {
@@ -165,65 +213,100 @@ export default function DashboardPage() {
         return;
       }
       setAuthorId(u.id);
+    }
+    checkAuth();
+    return () => {
+      isMounted = false;
+    };
+  }, [router]);
+
+  // 2. Efecto para cargar datos del proyecto/contexto basados en authorId y selectedManuscriptId
+  useEffect(() => {
+    if (!authorId) return;
+    const currentAuthorId = authorId;
+    let isMounted = true;
+
+    async function loadData() {
       try {
-        const ctx = await getAuthorRequestContext(u.id);
-        if (isMounted) {
-          setRequestContext(ctx);
-          setRequestState(ctx.state);
+        // Cargar el listado de proyectos resumido del autor
+        const projs = await getAuthorProjectsList(currentAuthorId);
+        if (!isMounted) return;
+        setProjectsOverview(projs);
+
+        // Cargar el contexto del manuscrito seleccionado (o el primero activo por defecto)
+        const ctx = await getAuthorRequestContext(currentAuthorId, selectedManuscriptId);
+        if (!isMounted) return;
+
+        setRequestContext(ctx);
+        setRequestState(ctx.state);
+
+        // Si no hay manuscriptId seleccionado localmente, inicializarlo con el del contexto resuelto
+        if (!selectedManuscriptId && ctx.manuscriptId) {
+          setSelectedManuscriptId(ctx.manuscriptId);
         }
 
-        // Cargar proyecto real con sus capítulos de Supabase
-        const projectData = await getAuthorProjectData(u.id);
-        if (isMounted && projectData) {
-          setRealProject(projectData);
+        // Si es un proyecto activo, cargar sus datos correspondientes
+        if (ctx.state === 'active' && ctx.manuscriptId) {
+          const projectData = await getAuthorProjectData(currentAuthorId, ctx.manuscriptId);
+          if (!isMounted) return;
 
-          if (projectData.chapters && projectData.chapters.length > 0) {
-            const mappedChapters: ChapterItem[] = projectData.chapters.map((c) => {
-              let progress = 0;
-              let statusLabel: ChapterItem['status'] = 'Pendiente';
-              let payStatus: ChapterItem['paymentStatus'] = 'Pendiente';
+          if (projectData) {
+            setRealProject(projectData);
 
-              if (c.status === 'pendiente') {
-                progress = 0;
-                statusLabel = 'Pendiente';
-                payStatus = 'Pendiente';
-              } else if (c.status === 'cotizado') {
-                progress = 20;
-                statusLabel = 'Cotizado';
-                payStatus = 'Pendiente';
-              } else if (c.status === 'pagado') {
-                progress = 40;
-                statusLabel = 'Pagado';
-                payStatus = 'Pagado';
-              } else if (c.status === 'en_produccion') {
-                progress = 75;
-                statusLabel = 'En Grabación';
-                payStatus = 'Pagado';
-              } else if (c.status === 'entregado') {
-                progress = 100;
-                statusLabel = 'Entregado';
-                payStatus = 'Pagado';
-              }
+            if (projectData.chapters && projectData.chapters.length > 0) {
+              const mappedChapters: ChapterItem[] = projectData.chapters.map((c) => {
+                let progress = 0;
+                let statusLabel: ChapterItem['status'] = 'Pendiente';
+                let payStatus: ChapterItem['paymentStatus'] = 'Pendiente';
 
-              return {
-                id: c.id,
-                number: c.chapter_number,
-                title: c.title,
-                progress,
-                revisions: 0,
-                maxRevisions: projectData.maxRevisions || 3,
-                status: statusLabel,
-                rawStatus: c.status,
-                paymentStatus: payStatus,
-                price: c.price,
-                words: `${c.word_count.toLocaleString()} palabras`,
-                duration: `~${c.duration_minutes} min`,
-              };
-            });
-            setChaptersState(mappedChapters);
+                if (c.status === 'pendiente') {
+                  progress = 0;
+                  statusLabel = 'Pendiente';
+                  payStatus = 'Pendiente';
+                } else if (c.status === 'cotizado') {
+                  progress = 20;
+                  statusLabel = 'Cotizado';
+                  payStatus = 'Pendiente';
+                } else if (c.status === 'pagado') {
+                  progress = 40;
+                  statusLabel = 'Pagado';
+                  payStatus = 'Pagado';
+                } else if (c.status === 'en_produccion') {
+                  progress = 75;
+                  statusLabel = 'En Grabación';
+                  payStatus = 'Pagado';
+                } else if (c.status === 'entregado') {
+                  progress = 100;
+                  statusLabel = 'Entregado';
+                  payStatus = 'Pagado';
+                }
+
+                return {
+                  id: c.id,
+                  number: c.chapter_number,
+                  title: c.title,
+                  progress,
+                  revisions: 0,
+                  maxRevisions: projectData.maxRevisions || 3,
+                  status: statusLabel,
+                  rawStatus: c.status,
+                  paymentStatus: payStatus,
+                  price: c.price,
+                  words: `${c.word_count.toLocaleString()} palabras`,
+                  duration: `~${c.duration_minutes} min`,
+                };
+              });
+              setChaptersState(mappedChapters);
+            } else {
+              setChaptersState([]);
+            }
           } else {
+            setRealProject(null);
             setChaptersState([]);
           }
+        } else {
+          setRealProject(null);
+          setChaptersState([]);
         }
       } catch (err) {
         console.error('Error al cargar datos del proyecto/autor:', err);
@@ -231,11 +314,13 @@ export default function DashboardPage() {
         if (isMounted) setIsChecking(false);
       }
     }
-    checkAuth();
+
+    loadData();
+
     return () => {
       isMounted = false;
     };
-  }, [router]);
+  }, [authorId, selectedManuscriptId]);
 
   const togglePlay = () => {
     setIsPlaying(!isPlaying);
@@ -277,7 +362,7 @@ export default function DashboardPage() {
     setUploadProgress(50);
 
     try {
-      await submitManuscript({
+      const res = await submitManuscript({
         authorId,
         title: manuscriptTitle.trim(),
         wordCount: wordCountNumber,
@@ -291,11 +376,12 @@ export default function DashboardPage() {
         setPendingFile(null);
         setManuscriptTitle('');
         setManuscriptWordCount('');
-        if (authorId) {
+        if (authorId && res && res.id) {
           try {
-            const freshCtx = await getAuthorRequestContext(authorId);
+            const freshCtx = await getAuthorRequestContext(authorId, res.id);
             setRequestContext(freshCtx);
             setRequestState(freshCtx.state);
+            setSelectedManuscriptId(res.id);
           } catch {
             setRequestState('pending');
           }
@@ -476,7 +562,7 @@ export default function DashboardPage() {
           <div className="min-w-0 space-y-8">
             {/* Header unificado de la vista */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-edge/60">
-              <div>
+              <div className="w-full sm:max-w-xl">
                 <div className="flex flex-wrap items-center gap-2.5">
                   <span className="inline-flex items-center gap-1.5 rounded-full border-accent/30 bg-accent/10 px-3 py-0.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">
                     Centro del Autor
@@ -503,13 +589,73 @@ export default function DashboardPage() {
                   )}
                 </div>
 
-                <h1 className="mt-2.5 font-serif text-2xl font-medium tracking-tight text-ink sm:text-3xl lg:text-4xl">
-                  {requestState === 'active'
-                    ? (realProject?.title || requestContext?.title || 'Tu Obra en Grabación')
-                    : requestState === 'pending'
-                    ? (requestContext?.title || 'Manuscrito en Evaluación Editorial')
-                    : 'Bienvenido a Studio Flamkit'}
-                </h1>
+                <div className="mt-3 relative inline-block text-left w-full">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-accent/90 mb-1">
+                    Obra Consultada
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsSelectorOpen(!isSelectorOpen)}
+                    className="group inline-flex items-center gap-2.5 rounded-2xl border border-edge bg-surface-elevated px-4 py-2 text-xl sm:text-2xl font-serif font-medium text-ink shadow-2xs hover:bg-surface transition cursor-pointer select-none max-w-full"
+                  >
+                    <span className="truncate">
+                      {requestState === 'active'
+                        ? (realProject?.title || requestContext?.title || 'Tu Obra en Grabación')
+                        : requestState === 'pending'
+                        ? (requestContext?.title || 'Manuscrito en Evaluación Editorial')
+                        : 'Bienvenido a Studio Flamkit'}
+                    </span>
+                    <span className="text-xs text-ink-muted/80 transition-transform duration-200 group-hover:translate-y-0.5 shrink-0">▼</span>
+                  </button>
+
+                  {isSelectorOpen && (
+                    <>
+                      {/* Invisible backdrop to capture outside clicks and close the selector safely in iframes */}
+                      <div className="fixed inset-0 z-40 cursor-default" onClick={() => setIsSelectorOpen(false)} />
+                      
+                      <div className="absolute left-0 mt-2 w-72 sm:w-80 origin-top-left rounded-3xl border border-edge bg-surface-elevated/95 p-3 shadow-xl z-50 backdrop-blur-md">
+                        <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-ink-muted/70 border-b border-edge/40 pb-2 mb-2">
+                          Mis obras
+                        </div>
+                        <div className="space-y-1">
+                          {requestContext?.manuscripts && requestContext.manuscripts.length > 0 ? (
+                            requestContext.manuscripts.map((m) => {
+                              const info = getManuscriptSelectorInfo(m);
+                              const isSelected = m.id === selectedManuscriptId;
+                              return (
+                                <button
+                                  key={m.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedManuscriptId(m.id);
+                                    setIsSelectorOpen(false);
+                                  }}
+                                  className={`w-full text-left rounded-2xl p-2.5 transition flex flex-col gap-0.5 cursor-pointer ${
+                                    isSelected
+                                      ? 'bg-accent/10 text-accent font-medium'
+                                      : 'hover:bg-surface text-ink'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2 text-sm font-medium">
+                                    <span className={`h-2 w-2 rounded-full ${info.dotColor} shrink-0`} />
+                                    <span className="truncate">{m.title}</span>
+                                  </div>
+                                  <div className="pl-4 text-[11px] text-ink-muted/90 font-light">
+                                    {info.label} {info.progress !== null ? `· ${info.progress}%` : ''}
+                                  </div>
+                                </button>
+                              );
+                            })
+                          ) : (
+                            <div className="px-3 py-2 text-xs text-ink-muted">
+                              No tienes manuscritos registrados.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
 
               <div className="flex items-center gap-3 shrink-0">
@@ -615,13 +761,27 @@ export default function DashboardPage() {
                       files={
                         requestContext?.manuscripts && requestContext.manuscripts.length > 0
                           ? [
-                              ...requestContext.manuscripts.map((m) => ({
-                                id: `manuscript-${m.id}`,
-                                name: `${m.title}.docx`,
-                                size: 'Manuscrito Original',
-                                date: m.createdAt ? new Date(m.createdAt).toLocaleDateString() : 'Recientemente',
-                                status: (m.requestStatus === 'pending' || m.requestStatus === 'evaluating') ? 'bloqueado' as const : 'aprobado' as const,
-                              })),
+                              ...requestContext.manuscripts.map((m) => {
+                                let status: 'bloqueado' | 'disponible' | 'en_revision' | 'aprobado' | 'en_analisis' = 'bloqueado';
+                                if (m.requestStatus === 'evaluating') {
+                                  status = 'en_analisis';
+                                } else if (m.requestStatus === 'pending') {
+                                  status = 'bloqueado';
+                                } else if (m.requestStatus === 'en_revision' || m.requestStatus === 'active') {
+                                  status = 'en_revision';
+                                } else if (m.requestStatus === 'completed' || m.requestStatus === 'approved') {
+                                  status = 'aprobado';
+                                } else {
+                                  status = 'disponible';
+                                }
+                                return {
+                                  id: `manuscript-${m.id}`,
+                                  name: `${m.title}.docx`,
+                                  size: 'Manuscrito Original',
+                                  date: m.createdAt ? new Date(m.createdAt).toLocaleDateString() : 'Recientemente',
+                                  status,
+                                };
+                              }),
                               ...(realProject?.deliverables || []).map((d) => ({
                                 id: d.id,
                                 name: d.title,
@@ -632,7 +792,7 @@ export default function DashboardPage() {
                             ]
                           : []
                       }
-                      isLocked={requestState === 'pending'}
+                      isLocked={false}
                       onUploadReplacement={requestState !== 'pending' ? () => setUploaderModalOpen(true) : undefined}
                     />
                   </div>
