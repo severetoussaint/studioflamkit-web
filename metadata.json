@@ -1,0 +1,6 @@
+{
+  "name": "Studio Flamkit & Art",
+  "description": "Plataforma para autores independientes para transformar sus libros en experiencias audiológicas cinematográficas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

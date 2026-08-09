@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"name": "studioflamkit-web",
+			"path": "../../../../../studioflamkit-web"
+		},
+		{
+			"name": "src",
+			"path": "../.."
+		},
+		{
+			"name": "supabase",
+			"path": "../../../supabase"
+		}
+	],
+	"settings": {}
+}
