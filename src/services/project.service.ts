@@ -63,6 +63,7 @@ export interface AuthorChapterData {
 
 export interface AuthorProjectData {
   id: string;
+  manuscriptId?: string | null;
   title: string;
   status: string;
   maxRevisions: number;
@@ -75,6 +76,14 @@ export interface AuthorProjectData {
     completed: boolean;
     createdAt: string;
   }[];
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface AuthorProjectOverview extends AuthorProjectData {
+  manuscriptId: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
 }
 
 interface ManuscriptIdRow {
@@ -102,112 +111,121 @@ interface AuthorProjectDeliverableRow {
 
 interface AuthorProjectQueryResult {
   id: string;
+  manuscript_id?: string | null;
   status?: string;
-  updated_at?: string;
+  created_at?: string | null;
+  updated_at?: string | null;
   manuscripts?: { id?: string; title?: string; word_count?: number; author_id?: string } | null;
   chapters?: AuthorProjectChapterRow[];
   deliverables?: AuthorProjectDeliverableRow[];
 }
 
-export async function getAuthorProjectData(authorId: string): Promise<AuthorProjectData | null> {
-  try {
-    // 1. Obtener manuscritos vinculados al autor
-    const { data: userManuscripts } = await supabaseClient
-      .from('manuscripts')
-      .select('id')
-      .eq('author_id', authorId);
+function mapProjectRow(project: AuthorProjectQueryResult): AuthorProjectOverview {
+  const dbStatus = project.status ?? 'planning';
+  const dbChapters = (project.chapters ?? []).sort((a, b) => a.chapter_number - b.chapter_number);
 
-    const manuscriptIds = ((userManuscripts as unknown as ManuscriptIdRow[]) || []).map((m) => m.id);
+  const chapters: AuthorChapterData[] = dbChapters.map((c) => ({
+    id: c.id,
+    chapter_number: c.chapter_number,
+    title: c.title || `Capítulo ${c.chapter_number}`,
+    word_count: c.word_count || 0,
+    duration_minutes: c.duration_minutes || Math.round((c.word_count || 0) / 155),
+    price: c.price || 0,
+    currency: c.currency || 'USD',
+    tier: c.tier || 'entrada',
+    status: (c.status as AuthorChapterData['status']) || 'pendiente',
+  }));
 
-    // 2. Filtrar proyectos por author_id o manuscript_id (ambas columnas directas de projects)
-    let query = supabaseClient
-      .from('projects')
-      .select(`
-        id,
-        status,
-        updated_at,
-        manuscripts ( id, title, word_count, author_id ),
-        chapters ( id, chapter_number, title, word_count, duration_minutes, pfh_rate_used, price, currency, tier, status ),
-        deliverables ( id, title, status, created_at )
-      `);
+  const deliverables = (project.deliverables ?? []).map((d) => ({
+    id: d.id,
+    title: d.title,
+    completed: d.status === 'approved',
+    createdAt: (d.created_at ?? '').slice(0, 10),
+  }));
 
-    if (manuscriptIds.length > 0) {
-      query = query.or(`author_id.eq.${authorId},manuscript_id.in.(${manuscriptIds.join(',')})`);
-    } else {
-      query = query.eq('author_id', authorId);
-    }
-
-    const { data: projects, error } = await query
-      .order('updated_at', { ascending: false })
-      .limit(1);
-
-    if (error) {
-      console.error('getAuthorProjectData query error:', error);
-      return null;
-    }
-
-    if (!projects || projects.length === 0) {
-      return null;
-    }
-
-    const project = projects[0] as unknown as AuthorProjectQueryResult;
-    const dbStatus = project.status ?? 'planning';
-
-    const dbChapters = (project.chapters ?? []).sort((a, b) => a.chapter_number - b.chapter_number);
-
-    const chapters: AuthorChapterData[] = dbChapters.map((c) => ({
-      id: c.id,
-      chapter_number: c.chapter_number,
-      title: c.title || `Capítulo ${c.chapter_number}`,
-      word_count: c.word_count || 0,
-      duration_minutes: c.duration_minutes || Math.round((c.word_count || 0) / 155),
-      price: c.price || 0,
-      currency: c.currency || 'USD',
-      tier: c.tier || 'entrada',
-      status: (c.status as AuthorChapterData['status']) || 'pendiente',
-    }));
-
-    const deliverables = (project.deliverables ?? []).map((d) => ({
-      id: d.id,
-      title: d.title,
-      completed: d.status === 'approved',
-      createdAt: (d.created_at ?? '').slice(0, 10),
-    }));
-
-    // Progreso general real derivado del estado de los capítulos o estado de la obra
-    let progress = 25;
-    if (chapters.length > 0) {
-      const weights: Record<string, number> = {
-        pendiente: 0,
-        cotizado: 20,
-        pagado: 40,
-        en_produccion: 75,
-        entregado: 100,
-      };
-      const sum = chapters.reduce((acc, c) => acc + (weights[c.status] ?? 0), 0);
-      progress = Math.round(sum / chapters.length);
-    } else {
-      const statusMap: Record<string, number> = {
-        planning: 25,
-        production: 60,
-        review: 85,
-        completed: 100,
-      };
-      progress = statusMap[dbStatus] ?? 25;
-    }
-
-    return {
-      id: project.id,
-      title: project.manuscripts?.title ?? 'Tu Obra de Audio',
-      status: dbStatus,
-      maxRevisions: 3,
-      revisionsUsed: 0,
-      progress,
-      chapters,
-      deliverables,
+  let progress = 25;
+  if (chapters.length > 0) {
+    const weights: Record<string, number> = {
+      pendiente: 0,
+      cotizado: 20,
+      pagado: 40,
+      en_produccion: 75,
+      entregado: 100,
     };
-  } catch (err) {
-    console.error('getAuthorProjectData unexpected error:', err);
-    return null;
+    const sum = chapters.reduce((acc, c) => acc + (weights[c.status] ?? 0), 0);
+    progress = Math.round(sum / chapters.length);
+  } else {
+    const statusMap: Record<string, number> = {
+      planning: 25,
+      production: 60,
+      review: 85,
+      completed: 100,
+    };
+    progress = statusMap[dbStatus] ?? 25;
   }
+
+  return {
+    id: project.id,
+    manuscriptId: project.manuscript_id ?? project.manuscripts?.id ?? null,
+    title: project.manuscripts?.title ?? 'Tu Obra de Audio',
+    status: dbStatus,
+    maxRevisions: 3,
+    revisionsUsed: 0,
+    progress,
+    chapters,
+    deliverables,
+    createdAt: project.created_at ?? null,
+    updatedAt: project.updated_at ?? null,
+  };
+}
+
+async function fetchAuthorProjectRows(authorId: string): Promise<AuthorProjectOverview[]> {
+  const { data: userManuscripts } = await supabaseClient
+    .from('manuscripts')
+    .select('id')
+    .eq('author_id', authorId);
+
+  const manuscriptIds = ((userManuscripts as unknown as ManuscriptIdRow[]) || []).map((m) => m.id);
+
+  let query = supabaseClient
+    .from('projects')
+    .select(`
+      id,
+      manuscript_id,
+      status,
+      created_at,
+      updated_at,
+      manuscripts ( id, title, word_count, author_id ),
+      chapters ( id, chapter_number, title, word_count, duration_minutes, pfh_rate_used, price, currency, tier, status ),
+      deliverables ( id, title, status, created_at )
+    `);
+
+  if (manuscriptIds.length > 0) {
+    query = query.or(`author_id.eq.${authorId},manuscript_id.in.(${manuscriptIds.join(',')})`);
+  } else {
+    query = query.eq('author_id', authorId);
+  }
+
+  const { data: projects, error } = await query.order('updated_at', { ascending: false });
+
+  if (error) {
+    console.error('fetchAuthorProjectRows query error:', error);
+    return [];
+  }
+
+  return ((projects as unknown as AuthorProjectQueryResult[]) ?? []).map(mapProjectRow);
+}
+
+export async function listAuthorProjectsData(authorId: string): Promise<AuthorProjectOverview[]> {
+  try {
+    return await fetchAuthorProjectRows(authorId);
+  } catch (err) {
+    console.error('listAuthorProjectsData unexpected error:', err);
+    return [];
+  }
+}
+
+export async function getAuthorProjectData(authorId: string): Promise<AuthorProjectData | null> {
+  const projects = await fetchAuthorProjectRows(authorId);
+  return projects[0] ?? null;
 }
