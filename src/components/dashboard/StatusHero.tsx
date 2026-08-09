@@ -4,7 +4,6 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Sparkles, BookOpen, Clock, UploadCloud, CheckCircle2, Headphones, ShieldCheck, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { RotatingTagline } from '@/components/ui/RotatingTagline';
 
 interface StatusHeroProps {
   state: 'none' | 'pending' | 'active';
@@ -43,7 +42,9 @@ export function StatusHero({
             <span className="uppercase tracking-[0.18em]">Centro del Autor · Studio Flamkit</span>
           </div>
 
-          <RotatingTagline className="font-serif text-3xl font-normal tracking-tight text-ink sm:text-4xl lg:text-5xl leading-[1.12]" />
+          <h1 className="font-serif text-3xl font-normal tracking-tight text-ink sm:text-4xl lg:text-5xl leading-[1.12]">
+            Transforma tu obra impresa en una experiencia sonora inolvidable.
+          </h1>
 
           <p className="mt-5 text-base leading-relaxed text-ink-muted/90 sm:text-lg font-light">
             Envía tu manuscrito a nuestra dirección editorial. Evaluamos el tono, la estructura y la atmósfera dramatúrgica de tu obra en menos de 48 horas.
