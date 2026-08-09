@@ -4,7 +4,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   ArrowDownToLine,
-  CalendarClock,
   CheckCircle2,
   ChevronRight,
   Clock3,
@@ -13,7 +12,6 @@ import {
   FileStack,
   FileText,
   FolderOpen,
-  Download,
   Layers3,
   Lock,
   UploadCloud,
