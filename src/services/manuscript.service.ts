@@ -5,6 +5,14 @@ export type ManuscriptRow = Database['public']['Tables']['manuscripts']['Row'];
 
 export type AuthorRequestState = 'none' | 'pending' | 'active';
 
+export interface AuthorManuscriptSummary {
+  id: string;
+  title: string;
+  createdAt: string | null;
+  requestId: string | null;
+  requestStatus: string | null;
+}
+
 export interface AuthorRequestContext {
   state: AuthorRequestState;
   requestId: string | null;
@@ -12,6 +20,8 @@ export interface AuthorRequestContext {
   projectId: string | null;
   title: string | null;
   createdAt: string | null;
+  manuscripts: AuthorManuscriptSummary[];
+  activeManuscriptId: string | null;
 }
 
 interface ManuscriptWithRequests {
@@ -28,14 +38,16 @@ interface ProjectRecord {
   manuscripts?: { title?: string | null } | null;
 }
 
-interface ProjectRequestRecord {
-  id: string;
-  status: string;
+function normalizeRequestList(
+  projectRequests: ManuscriptWithRequests['project_requests']
+): Array<{ id: string; status: string }> {
+  if (Array.isArray(projectRequests)) return projectRequests;
+  if (projectRequests) return [projectRequests];
+  return [];
 }
 
 export async function getAuthorRequestContext(authorId: string): Promise<AuthorRequestContext> {
   try {
-    // 1. Obtener todos los manuscritos del autor
     const { data: authorManuscriptsData } = await supabaseClient
       .from('manuscripts')
       .select('id, title, created_at, project_requests(id, status)')
@@ -45,7 +57,19 @@ export async function getAuthorRequestContext(authorId: string): Promise<AuthorR
     const authorManuscripts = (authorManuscriptsData as unknown as ManuscriptWithRequests[]) || [];
     const manuscriptIds = authorManuscripts.map((m) => m.id);
 
-    // 2. Verificar si existe algún proyecto activo vinculado al author_id o a sus manuscritos
+    const manuscripts: AuthorManuscriptSummary[] = authorManuscripts.map((m) => {
+      const reqList = normalizeRequestList(m.project_requests);
+      const latestReq = reqList[0] || null;
+
+      return {
+        id: m.id,
+        title: m.title,
+        createdAt: m.created_at || null,
+        requestId: latestReq?.id || null,
+        requestStatus: latestReq?.status || null,
+      };
+    });
+
     let activeProject: ProjectRecord | null = null;
 
     if (manuscriptIds.length > 0) {
@@ -73,37 +97,37 @@ export async function getAuthorRequestContext(authorId: string): Promise<AuthorR
     }
 
     if (activeProject) {
+      const selectedManuscript =
+        manuscripts.find((m) => m.id === activeProject?.manuscript_id) || manuscripts[0] || null;
+
       return {
         state: 'active',
         projectId: activeProject.id,
-        manuscriptId: activeProject.manuscript_id || null,
+        manuscriptId: activeProject.manuscript_id || selectedManuscript?.id || null,
         requestId: null,
-        title: activeProject.manuscripts?.title || 'Obra en producción',
-        createdAt: activeProject.created_at || null,
+        title: activeProject.manuscripts?.title || selectedManuscript?.title || 'Obra en producción',
+        createdAt: activeProject.created_at || selectedManuscript?.createdAt || null,
+        manuscripts,
+        activeManuscriptId: activeProject.manuscript_id || selectedManuscript?.id || null,
       };
     }
 
-    // 3. Si no hay proyecto activo, verificar si hay alguna solicitud en estado pendiente/evaluación
-    if (authorManuscripts && authorManuscripts.length > 0) {
-      for (const m of authorManuscripts) {
-        const reqList: ProjectRequestRecord[] = Array.isArray(m.project_requests)
-          ? m.project_requests
-          : m.project_requests
-          ? [m.project_requests]
-          : [];
-        const pendingReq = reqList.find((r) => r.status === 'pending' || r.status === 'evaluating');
+    const pendingManuscript =
+      manuscripts.find((m) => m.requestStatus === 'pending' || m.requestStatus === 'evaluating') ||
+      manuscripts[0] ||
+      null;
 
-        if (pendingReq || reqList.length === 0) {
-          return {
-            state: 'pending',
-            projectId: null,
-            manuscriptId: m.id,
-            requestId: pendingReq?.id || m.id,
-            title: m.title || 'Manuscrito enviado',
-            createdAt: m.created_at || null,
-          };
-        }
-      }
+    if (pendingManuscript) {
+      return {
+        state: 'pending',
+        projectId: null,
+        manuscriptId: pendingManuscript.id,
+        requestId: pendingManuscript.requestId || pendingManuscript.id,
+        title: pendingManuscript.title || 'Manuscrito enviado',
+        createdAt: pendingManuscript.createdAt || null,
+        manuscripts,
+        activeManuscriptId: pendingManuscript.id,
+      };
     }
 
     return {
@@ -113,6 +137,8 @@ export async function getAuthorRequestContext(authorId: string): Promise<AuthorR
       projectId: null,
       title: null,
       createdAt: null,
+      manuscripts,
+      activeManuscriptId: null,
     };
   } catch (err) {
     console.error('Error en getAuthorRequestContext:', err);
@@ -123,6 +149,8 @@ export async function getAuthorRequestContext(authorId: string): Promise<AuthorR
       projectId: null,
       title: null,
       createdAt: null,
+      manuscripts: [],
+      activeManuscriptId: null,
     };
   }
 }
@@ -141,7 +169,6 @@ export interface SubmitManuscriptInput {
 
 export async function submitManuscript({ authorId, title, wordCount, file }: SubmitManuscriptInput) {
   try {
-    // 1. Asegurar que exista la fila en la tabla authors para este authorId
     const { data: userData } = await supabaseClient.auth.getUser();
     if (userData?.user) {
       const u = userData.user;
@@ -155,21 +182,17 @@ export async function submitManuscript({ authorId, title, wordCount, file }: Sub
       );
     }
 
-    // 2. Generar un nombre de archivo puramente aleatorio o simple
     const extension = file.name.split('.').pop() || 'pdf';
     const path = `${authorId}/${Date.now()}.${extension}`;
 
-    // 3. Subir archivo a Supabase Storage
     const { error: uploadError } = await supabaseClient.storage
       .from('manuscripts')
       .upload(path, file, { cacheControl: '3600', upsert: false });
 
     if (uploadError) {
       console.warn('Advertencia al subir a Supabase Storage:', uploadError);
-      // Continuamos con el registro en BD aun si el bucket requiere configuración previa
     }
 
-    // 4. Crear la fila real en manuscripts
     const { data: manuscript, error: manuscriptError } = await supabaseClient
       .from('manuscripts')
       .insert({
@@ -186,10 +209,8 @@ export async function submitManuscript({ authorId, title, wordCount, file }: Sub
 
     const manuscriptRow = manuscript as ManuscriptRow;
 
-    // 5. Crear o recuperar la fila real en project_requests
     let requestRow: { id: string } | null = null;
 
-    // Verificar primero si un trigger de base de datos o inserción previa ya creó la solicitud
     const { data: existingReq } = await supabaseClient
       .from('project_requests')
       .select('*')
@@ -213,7 +234,6 @@ export async function submitManuscript({ authorId, title, wordCount, file }: Sub
         .maybeSingle();
 
       if (requestError) {
-        // Si hay error por concurrencia u otro motivo, reintentar la lectura
         const { data: fallbackReq } = await supabaseClient
           .from('project_requests')
           .select('*')
