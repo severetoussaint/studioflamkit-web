@@ -15,6 +15,7 @@ import {
   MessageCircle,
   Sparkles,
   UploadCloud,
+  X,
 } from 'lucide-react';
 import { getUser } from '@/services/auth.service';
 import {
@@ -23,7 +24,7 @@ import {
   type AuthorRequestContext,
   type AuthorRequestState,
 } from '@/services/manuscript.service';
-import { type ProjectRow } from '@/services/project.service';
+import { type ProjectRow, getAuthorProjectsList } from '@/services/project.service';
 import { getDashboardFileLibraryData, type DashboardFileLibraryData } from '@/services/file.service';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
@@ -85,7 +86,7 @@ function ManuscriptSwitcher({
   selectedManuscriptId: string | null;
   onSelect: (id: string) => void;
 }) {
-  if (!manuscripts.length) return null;
+  if (manuscripts.length <= 1) return null;
 
   return (
     <div className="rounded-3xl border border-edge/70 bg-surface-elevated/90 p-4 shadow-[0_8px_30px_rgba(0,0,0,0.03)] backdrop-blur-xs">
@@ -101,7 +102,7 @@ function ManuscriptSwitcher({
       </div>
 
       <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-        {manuscripts.map((manuscript, index) => {
+        {manuscripts.map((manuscript: { id: string; title: string; createdAt: string | null; requestStatus: string | null }, index: number) => {
           const isActive = manuscript.id === selectedManuscriptId;
           return (
             <button
@@ -191,7 +192,7 @@ function FilesLibraryModal({
                 className="flex h-10 w-10 items-center justify-center rounded-full border border-edge/60 bg-surface text-ink-muted transition hover:border-accent/30 hover:text-accent"
                 aria-label="Cerrar biblioteca de archivos"
               >
-                <Lock className="h-4 w-4" />
+                <X className="h-4 w-4" />
               </button>
             </div>
 
@@ -312,6 +313,15 @@ function Metric({ label, value, helper }: { label: string; value: string; helper
   );
 }
 
+interface AuthorProjectOverview {
+  id: string;
+  manuscriptId: string | null;
+  title: string | null;
+  status: string | null;
+  progress: number;
+  createdAt: string | null;
+}
+
 export default function AuthorDashboardShell() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
@@ -340,10 +350,12 @@ export default function AuthorDashboardShell() {
         setAuthorId(user.id);
 
         const context = await getAuthorRequestContext(user.id);
+        const projectsList = await getAuthorProjectsList(user.id);
 
         if (!mounted) return;
         setRequestContext(context);
         setRequestState(context.state);
+        setAuthorProjects(projectsList);
         setSelectedManuscriptId((current) => current ?? context.manuscriptId ?? null);
       } catch (error) {
         console.error('Error loading dashboard context:', error);
@@ -363,7 +375,7 @@ export default function AuthorDashboardShell() {
 
   const selectedManuscript = useMemo(() => {
     if (!manuscripts.length) return null;
-    return manuscripts.find((manuscript) => manuscript.id === selectedManuscriptId) ?? manuscripts[0] ?? null;
+    return manuscripts.find((manuscript: { id: string; title: string; createdAt: string | null; requestStatus: string | null }) => manuscript.id === selectedManuscriptId) ?? manuscripts[0] ?? null;
   }, [manuscripts, selectedManuscriptId]);
 
   const selectedProject = useMemo(() => {
@@ -545,7 +557,7 @@ export default function AuthorDashboardShell() {
                 onViewFilesClick={() => setIsLibraryOpen(true)}
               />
 
-              <ProgressTimeline currentState={timelineState} activeStepIndex={selectedStageIndex ?? undefined} />
+              <ProgressTimeline currentState={timelineState} />
 
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <KpiCard
@@ -584,20 +596,67 @@ export default function AuthorDashboardShell() {
                     <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-edge/40 pb-5">
                       <div>
                         <h2 className="font-serif text-xl font-normal text-ink">Documentación y Archivos</h2>
-                        <p className="mt-0.5 text-xs text-ink-muted/80">Selecciona un manuscrito para ver sus archivos asociados, montos y estado real.</p>
+                        <p className="mt-0.5 text-xs text-ink-muted/80">Muestra los expedientes, versiones de producción y entregables oficiales.</p>
                       </div>
                       <Button variant="secondary" className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.12em]" onClick={() => setIsLibraryOpen(true)}>
                         <FolderOpen className="h-4 w-4 text-accent" />
-                        <span>Ver archivo completo</span>
+                        <span>Ver todos los archivos</span>
                       </Button>
                     </div>
 
                     {libraryData ? (
-                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                        <Metric label="Archivos visibles" value={String(libraryData.allItems.length)} helper={`${libraryData.manuscripts.length} manuscritos · ${libraryData.projectFiles.length} archivos · ${libraryData.deliverables.length} entregables`} />
-                        <Metric label="Monto aprobado" value={formatMoney(libraryData.acceptedAmount)} helper="Importe validado por admin" />
-                        <Metric label="Monto pagado" value={formatMoney(libraryData.paidAmount)} helper="Pagos registrados" />
-                        <Metric label="Etapa actual" value={libraryData.currentStage || selectedStatusText} helper={libraryData.projectStatus || 'Sin proyecto activo'} />
+                      <div className="space-y-5">
+                        <div className="grid gap-3 sm:grid-cols-3">
+                          <Metric label="Total de archivos" value={String(libraryData.allItems.length)} helper={`${libraryData.manuscripts.length} manuscrito(s) · ${libraryData.projectFiles.length} archivo(s) · ${libraryData.deliverables.length} entregable(s)`} />
+                          <Metric label="Monto aprobado" value={formatMoney(libraryData.acceptedAmount)} helper="Importe total validado" />
+                          <Metric label="Etapa actual" value={libraryData.currentStage || selectedStatusText} helper={libraryData.projectStatus || 'En evaluación'} />
+                        </div>
+
+                        {libraryData.allItems.length > 0 ? (
+                          <div className="space-y-3 pt-2">
+                            <div className="flex items-center justify-between">
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-muted/80">Expediente de Archivos Recientes</p>
+                              <span className="text-[10px] text-accent/90 hover:underline cursor-pointer" onClick={() => setIsLibraryOpen(true)}>Explorar biblioteca completa</span>
+                            </div>
+                            <div className="space-y-2">
+                              {libraryData.allItems.slice(0, 3).map((item) => (
+                                <div key={item.id} className="flex items-center justify-between rounded-2xl border border-edge/50 bg-surface/40 p-3.5 transition-all duration-300 hover:bg-surface/70 hover:translate-x-0.5">
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent/8 text-accent">
+                                      <FileText className="h-4 w-4" />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="truncate font-serif text-sm font-normal text-ink">{item.name}</p>
+                                      <p className="text-[10px] font-light text-ink-muted/85 mt-0.5">
+                                        {item.kind === 'manuscript' ? 'Manuscrito' : item.kind === 'deliverable' ? 'Entregable' : 'Archivo de proyecto'} · {item.sizeLabel || 'Tamaño no especificado'} · {formatDate(item.createdAt)}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="rounded-full bg-surface-elevated px-2.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-ink-muted border border-edge/50">
+                                      {item.statusLabel}
+                                    </span>
+                                    {item.downloadUrl && (
+                                      <a
+                                        href={item.downloadUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="rounded-full p-1.5 text-ink-muted hover:bg-accent/10 hover:text-accent transition duration-200"
+                                        title="Abrir o descargar archivo"
+                                      >
+                                        <ArrowDownToLine className="h-4 w-4" />
+                                      </a>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="rounded-2xl border border-dashed border-edge/60 bg-surface/35 p-6 text-center text-xs text-ink-muted">
+                            No se encontraron archivos asociados a este manuscrito o proyecto.
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="rounded-2xl border border-dashed border-edge/60 bg-surface/30 p-8 text-center">

@@ -211,3 +211,75 @@ export async function getAuthorProjectData(authorId: string): Promise<AuthorProj
     return null;
   }
 }
+
+export async function getAuthorProjectsList(authorId: string): Promise<any[]> {
+  try {
+    const { data: userManuscripts } = await supabaseClient
+      .from('manuscripts')
+      .select('id')
+      .eq('author_id', authorId);
+
+    const manuscriptIds = (userManuscripts || []).map((m) => m.id);
+
+    let query = supabaseClient
+      .from('projects')
+      .select(`
+        id,
+        status,
+        created_at,
+        manuscript_id,
+        manuscripts ( id, title ),
+        chapters ( status )
+      `);
+
+    if (manuscriptIds.length > 0) {
+      query = query.or(`author_id.eq.${authorId},manuscript_id.in.(${manuscriptIds.join(',')})`);
+    } else {
+      query = query.eq('author_id', authorId);
+    }
+
+    const { data: projects, error } = await query.order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('getAuthorProjectsList query error:', error);
+      return [];
+    }
+
+    return (projects || []).map((project: any) => {
+      const chapters = project.chapters || [];
+      let progress = 25;
+      if (chapters.length > 0) {
+        const weights: Record<string, number> = {
+          pendiente: 0,
+          cotizado: 20,
+          pagado: 40,
+          en_produccion: 75,
+          entregado: 100,
+        };
+        const sum = chapters.reduce((acc: number, c: any) => acc + (weights[c.status] ?? 0), 0);
+        progress = Math.round(sum / chapters.length);
+      } else {
+        const statusMap: Record<string, number> = {
+          planning: 25,
+          production: 60,
+          review: 85,
+          completed: 100,
+        };
+        progress = statusMap[project.status ?? ''] ?? 25;
+      }
+
+      return {
+        id: project.id,
+        manuscriptId: project.manuscript_id || null,
+        title: project.manuscripts?.title ?? 'Tu Obra de Audio',
+        status: project.status ?? 'planning',
+        progress,
+        createdAt: project.created_at || null,
+      };
+    });
+  } catch (err) {
+    console.error('getAuthorProjectsList unexpected error:', err);
+    return [];
+  }
+}
+

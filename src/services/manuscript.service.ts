@@ -12,6 +12,12 @@ export interface AuthorRequestContext {
   projectId: string | null;
   title: string | null;
   createdAt: string | null;
+  manuscripts: Array<{
+    id: string;
+    title: string;
+    createdAt: string | null;
+    requestStatus: string | null;
+  }>;
 }
 
 interface ManuscriptWithRequests {
@@ -43,6 +49,19 @@ export async function getAuthorRequestContext(authorId: string): Promise<AuthorR
       .order('created_at', { ascending: false });
 
     const authorManuscripts = (authorManuscriptsData as unknown as ManuscriptWithRequests[]) || [];
+    const manuscriptsList = authorManuscripts.map((m) => {
+      const reqList: ProjectRequestRecord[] = Array.isArray(m.project_requests)
+        ? m.project_requests
+        : m.project_requests
+        ? [m.project_requests]
+        : [];
+      return {
+        id: m.id,
+        title: m.title || 'Sin título',
+        createdAt: m.created_at || null,
+        requestStatus: reqList[0]?.status || 'evaluating',
+      };
+    });
     const manuscriptIds = authorManuscripts.map((m) => m.id);
 
     // 2. Verificar si existe algún proyecto activo vinculado al author_id o a sus manuscritos
@@ -80,6 +99,7 @@ export async function getAuthorRequestContext(authorId: string): Promise<AuthorR
         requestId: null,
         title: activeProject.manuscripts?.title || 'Obra en producción',
         createdAt: activeProject.created_at || null,
+        manuscripts: manuscriptsList,
       };
     }
 
@@ -101,6 +121,7 @@ export async function getAuthorRequestContext(authorId: string): Promise<AuthorR
             requestId: pendingReq?.id || m.id,
             title: m.title || 'Manuscrito enviado',
             createdAt: m.created_at || null,
+            manuscripts: manuscriptsList,
           };
         }
       }
@@ -113,6 +134,7 @@ export async function getAuthorRequestContext(authorId: string): Promise<AuthorR
       projectId: null,
       title: null,
       createdAt: null,
+      manuscripts: manuscriptsList,
     };
   } catch (err) {
     console.error('Error en getAuthorRequestContext:', err);
@@ -123,6 +145,7 @@ export async function getAuthorRequestContext(authorId: string): Promise<AuthorR
       projectId: null,
       title: null,
       createdAt: null,
+      manuscripts: [],
     };
   }
 }
