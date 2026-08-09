@@ -47,6 +47,7 @@ import {
   type AudioDeliverableComment,
 } from '@/services/admin.service';
 import { getUser, getUserRole } from '@/services/auth.service';
+import { supabaseClient } from '@/lib/supabase/client';
 
 const statusLabels: Record<AdminProjectStatus, string> = {
   analisis: 'Análisis de Obra',
@@ -73,6 +74,9 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<'proyectos' | 'cotizaciones' | 'crear'>('proyectos');
   const [requests, setRequests] = useState<QuotationRequest[]>([]);
   const [projects, setProjects] = useState<AdminProject[]>([]);
+  const [requestsError, setRequestsError] = useState<string | null>(null);
+  const [projectsError, setProjectsError] = useState<string | null>(null);
+  const [isDataLoading, setIsDataLoading] = useState(false);
 
   // Selector states for multi-manuscript/project support per author
   const [selectedAuthor, setSelectedAuthor] = useState<string>('');
@@ -184,18 +188,36 @@ export default function AdminPage() {
 
   // Load data initially
   const loadAllData = async () => {
-    try {
-      const [reqs, projs] = await Promise.all([
-        adminService.listQuotationRequests(),
-        adminService.listAdminProjects()
-      ]);
-      setRequests(Array.isArray(reqs) ? reqs : []);
-      setProjects(Array.isArray(projs) ? projs : []);
-    } catch (error) {
-      console.error('Error loading admin data:', error);
-      setRequests([]);
-      setProjects([]);
+    setIsDataLoading(true);
+    setRequestsError(null);
+    setProjectsError(null);
+
+    const [requestsResult, projectsResult] = await Promise.allSettled([
+      adminService.listQuotationRequests(),
+      adminService.listAdminProjects(),
+    ]);
+
+    if (requestsResult.status === 'fulfilled') {
+      setRequests(Array.isArray(requestsResult.value) ? requestsResult.value : []);
+    } else {
+      const err = requestsResult.reason;
+      console.error('Error loading admin requests:', err);
+      const errorWithMsg = err as { message?: string; hint?: string } | null;
+      const errMsg = errorWithMsg?.message || errorWithMsg?.hint || (typeof err === 'object' && err !== null ? JSON.stringify(err) : String(err)) || 'Error desconocido';
+      setRequestsError(`Error al cargar cotizaciones: ${errMsg}`);
     }
+
+    if (projectsResult.status === 'fulfilled') {
+      setProjects(Array.isArray(projectsResult.value) ? projectsResult.value : []);
+    } else {
+      const err = projectsResult.reason;
+      console.error('Error loading admin projects:', err);
+      const errorWithMsg = err as { message?: string; hint?: string } | null;
+      const errMsg = errorWithMsg?.message || errorWithMsg?.hint || (typeof err === 'object' && err !== null ? JSON.stringify(err) : String(err)) || 'Error desconocido';
+      setProjectsError(`Error al cargar proyectos: ${errMsg}`);
+    }
+
+    setIsDataLoading(false);
   };
 
   useEffect(() => {
@@ -203,6 +225,38 @@ export default function AdminPage() {
 
     async function verifyAccess() {
       try {
+        // 1. Get current session details from Supabase auth
+        const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+        
+        if (sessionError) {
+          console.error('Session verification error:', sessionError);
+          setRequestsError(`Error de sesión: ${sessionError.message}`);
+          throw sessionError;
+        }
+
+        if (!session) {
+          console.warn('No active session found in admin page.');
+          if (isMounted) {
+            router.replace('/login');
+          }
+          return;
+        }
+
+        // 2. Validate session freshness & handle proactive sync if expiring or desynchronized
+        const expiresAt = session.expires_at;
+        const now = Math.floor(Date.now() / 1000);
+        // Force refresh if session is close to expiry (<60s) or proactively sync to avoid clock skew
+        if (!expiresAt || (expiresAt - now < 60)) {
+          console.log('Admin session needs refresh/sync. Refreshing session...');
+          const { error: refreshError } = await supabaseClient.auth.refreshSession();
+          if (refreshError) {
+            console.error('Failed to refresh admin session:', refreshError);
+            setRequestsError(`Error de refresco de sesión: ${refreshError.message}`);
+            throw refreshError;
+          }
+        }
+
+        // 3. Retrieve user and verify role
         const user = await getUser();
         const role = getUserRole(user);
 
@@ -212,9 +266,11 @@ export default function AdminPage() {
           setIsAuthorized(true);
           await loadAllData();
         } else {
+          console.warn('Unauthorized access attempt to admin page.', { email: user?.email, role });
           router.replace('/login');
         }
-      } catch {
+      } catch (err) {
+        console.error('Error during admin access verification:', err);
         if (isMounted) {
           router.replace('/login');
         }
@@ -602,6 +658,16 @@ export default function AdminPage() {
                 </p>
               </div>
             </div>
+
+            {projectsError && (
+              <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-red-600 dark:text-red-400 text-sm flex items-start gap-3 shadow-xs">
+                <AlertCircle className="h-5 w-5 shrink-0 mt-0.5 text-red-500" />
+                <div>
+                  <h4 className="font-semibold text-red-700 dark:text-red-300">Error al cargar proyectos de la base de datos</h4>
+                  <p className="text-xs mt-0.5 opacity-90">{projectsError}</p>
+                </div>
+              </div>
+            )}
 
             {projects.length === 0 ? (
               <div className="rounded-3xl border-dashed border-edge bg-surface-elevated/30 p-12 text-center">
@@ -1039,6 +1105,16 @@ export default function AdminPage() {
                 Aquí se reciben las peticiones de los autores de Studio Flamkit. Puedes evaluarlas, ajustar el presupuesto y activarlas como Proyectos con un solo clic.
               </p>
             </div>
+
+            {requestsError && (
+              <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-red-600 dark:text-red-400 text-sm flex items-start gap-3 shadow-xs">
+                <AlertCircle className="h-5 w-5 shrink-0 mt-0.5 text-red-500" />
+                <div>
+                  <h4 className="font-semibold text-red-700 dark:text-red-300">Error al cargar solicitudes de cotización</h4>
+                  <p className="text-xs mt-0.5 opacity-90">{requestsError}</p>
+                </div>
+              </div>
+            )}
 
             <div className="max-w-4xl mx-auto space-y-4">
               {/* Main Column: Received Requests */}

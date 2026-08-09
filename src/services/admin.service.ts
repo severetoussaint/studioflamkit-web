@@ -69,6 +69,90 @@ export interface AdminProject {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function formatSupabaseError(error: unknown) {
+  if (error && typeof error === 'object') {
+    const e = error as {
+      code?: string;
+      message?: string;
+      details?: string;
+      hint?: string;
+    };
+
+    return {
+      code: e.code ?? null,
+      message: e.message ?? null,
+      details: e.details ?? null,
+      hint: e.hint ?? null,
+    };
+  }
+
+  return {
+    code: null,
+    message: String(error),
+    details: null,
+    hint: null,
+  };
+}
+
+export class SupabaseError extends Error {
+  code: string;
+  details: string | null;
+  hint: string | null;
+  constructor(pgError: { message: string; code: string; details: string | null; hint: string | null }) {
+    super(pgError.message);
+    this.name = 'SupabaseError';
+    this.code = pgError.code;
+    this.details = pgError.details;
+    this.hint = pgError.hint;
+  }
+}
+
+export function handleSupabaseError(error: unknown, contextMessage: string): never {
+  const err = error as { code?: string; message?: string; details?: string | null; hint?: string | null } | null;
+  const pgError = {
+    code: err?.code || 'UNKNOWN',
+    message: err?.message || 'Error desconocido',
+    details: err?.details || null,
+    hint: err?.hint || null,
+  };
+  console.error(`${contextMessage}:`, pgError);
+  throw new SupabaseError(pgError);
+}
+
+export async function executeWithRetry<T>(queryFn: () => Promise<T>, retries = 3, delayMs = 1000): Promise<T> {
+  const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+  if (sessionError) {
+    console.error('getSession error inside retry wrapper:', sessionError);
+  } else if (session) {
+    const expiresAt = session.expires_at;
+    const now = Math.floor(Date.now() / 1000);
+    if (expiresAt && (expiresAt - now < 10)) {
+      console.log('Session is expired/about to expire inside retry wrapper. Refreshing session...');
+      const { error: refreshError } = await supabaseClient.auth.refreshSession();
+      if (refreshError) {
+        console.error('refreshSession error:', refreshError);
+      }
+    }
+  }
+
+  try {
+    return await queryFn();
+  } catch (error: unknown) {
+    const err = error as { code?: string; message?: string } | null;
+    const isClockSkew = 
+      err?.code === 'PGRST303' || 
+      err?.message?.includes('JWT issued at future') ||
+      (typeof error === 'object' && error !== null && JSON.stringify(error).includes('JWT issued at future'));
+
+    if (isClockSkew && retries > 0) {
+      console.warn(`PGRST303 detected: JWT issued at future. Retrying in ${delayMs}ms... (Retries left: ${retries})`);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      return executeWithRetry(queryFn, retries - 1, delayMs);
+    }
+    throw error;
+  }
+}
+
 function dbStatusToAdmin(dbStatus: string | null): AdminProjectStatus {
   const map: Record<string, AdminProjectStatus> = {
     planning: 'analisis',
@@ -180,29 +264,95 @@ interface ProjectRow {
 }
 
 export async function listQuotationRequests(): Promise<QuotationRequest[]> {
-  const { data, error } = await supabaseClient
-    .from('project_requests')
-    .select(`
-      id,
-      status,
-      created_at,
-      channel,
-      manuscripts (
+  return executeWithRetry(async () => {
+    const { data, error } = await supabaseClient
+      .from('project_requests')
+      .select(`
         id,
-        title,
-        word_count,
-        author_id,
-        authors ( full_name )
-      )
-    `)
-    .order('created_at', { ascending: false });
+        status,
+        created_at,
+        channel,
+        manuscripts (
+          id,
+          title,
+          word_count,
+          author_id,
+          authors ( full_name )
+        )
+      `)
+      .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error('listQuotationRequests error:', JSON.stringify(error));
-    throw error;
-  }
+    if (error) {
+      console.error('listQuotationRequests error:', error, formatSupabaseError(error));
+      throw error;
+    }
 
-  return ((data as unknown as QuotationRequestRow[]) ?? []).map((row) => {
+    return ((data as unknown as QuotationRequestRow[]) ?? []).map((row) => {
+      const wordCount = row.manuscripts?.word_count ?? 0;
+      const amount = wordCount > 0 ? calculateManuscriptPrice(wordCount) : 0;
+      const estimatedChapters = Math.max(1, Math.round(wordCount / 3000)) || 1;
+      const durationMinutes = Math.round(wordCount / 155);
+
+      return {
+        id: row.id,
+        client: row.manuscripts?.authors?.full_name ?? 'Autor desconocido',
+        title: row.manuscripts?.title ?? 'Sin título',
+        requestedAt: (row.created_at ?? '').slice(0, 10),
+        status: dbRequestStatusToAdmin(row.status),
+        chapters: estimatedChapters,
+        amount,
+        wordCount,
+        durationMinutes,
+        manuscript_id: row.manuscripts?.id,
+        author_id: row.manuscripts?.author_id,
+      };
+    });
+  });
+}
+
+export async function updateQuotationRequestStatus(
+  id: string,
+  status: QuotationRequestStatus
+): Promise<QuotationRequest | undefined> {
+  return executeWithRetry(async () => {
+    const dbStatus = adminRequestStatusToDb(status);
+    const { data, error } = await supabaseClient
+      .from('project_requests')
+      .update({ status: dbStatus })
+      .or(`id.eq.${id},manuscript_id.eq.${id}`)
+      .select(`
+        id, status, created_at,
+        manuscripts ( id, title, word_count, author_id, authors ( full_name ) )
+      `)
+      .maybeSingle();
+
+    if (error) {
+      handleSupabaseError(error, 'updateQuotationRequestStatus error');
+    }
+
+    let row = data as unknown as QuotationRequestRow | null;
+
+    if (!row) {
+      const { data: fallbackData, error: fallbackError } = await supabaseClient
+        .from('project_requests')
+        .select(`
+          id, status, created_at,
+          manuscripts ( id, title, word_count, author_id, authors ( full_name ) )
+        `)
+        .or(`id.eq.${id},manuscript_id.eq.${id}`)
+        .maybeSingle();
+
+      if (fallbackError) {
+        handleSupabaseError(fallbackError, 'updateQuotationRequestStatus fallback error');
+      }
+
+      if (!fallbackData) {
+        console.warn(`updateQuotationRequestStatus: No request found with id/manuscript_id ${id}`);
+        return undefined;
+      }
+      row = fallbackData as unknown as QuotationRequestRow;
+    }
+
     const wordCount = row.manuscripts?.word_count ?? 0;
     const amount = wordCount > 0 ? calculateManuscriptPrice(wordCount) : 0;
     const estimatedChapters = Math.max(1, Math.round(wordCount / 3000)) || 1;
@@ -213,7 +363,7 @@ export async function listQuotationRequests(): Promise<QuotationRequest[]> {
       client: row.manuscripts?.authors?.full_name ?? 'Autor desconocido',
       title: row.manuscripts?.title ?? 'Sin título',
       requestedAt: (row.created_at ?? '').slice(0, 10),
-      status: dbRequestStatusToAdmin(row.status),
+      status,
       chapters: estimatedChapters,
       amount,
       wordCount,
@@ -224,65 +374,6 @@ export async function listQuotationRequests(): Promise<QuotationRequest[]> {
   });
 }
 
-export async function updateQuotationRequestStatus(
-  id: string,
-  status: QuotationRequestStatus
-): Promise<QuotationRequest | undefined> {
-  const dbStatus = adminRequestStatusToDb(status);
-  const { data, error } = await supabaseClient
-    .from('project_requests')
-    .update({ status: dbStatus })
-    .or(`id.eq.${id},manuscript_id.eq.${id}`)
-    .select(`
-      id, status, created_at,
-      manuscripts ( id, title, word_count, author_id, authors ( full_name ) )
-    `)
-    .maybeSingle();
-
-  if (error) {
-    console.error('updateQuotationRequestStatus error:', JSON.stringify(error));
-    return undefined;
-  }
-
-  let row = data as unknown as QuotationRequestRow | null;
-
-  if (!row) {
-    const { data: fallbackData } = await supabaseClient
-      .from('project_requests')
-      .select(`
-        id, status, created_at,
-        manuscripts ( id, title, word_count, author_id, authors ( full_name ) )
-      `)
-      .or(`id.eq.${id},manuscript_id.eq.${id}`)
-      .maybeSingle();
-
-    if (!fallbackData) {
-      console.warn(`updateQuotationRequestStatus: No request found with id/manuscript_id ${id}`);
-      return undefined;
-    }
-    row = fallbackData as unknown as QuotationRequestRow;
-  }
-
-  const wordCount = row.manuscripts?.word_count ?? 0;
-  const amount = wordCount > 0 ? calculateManuscriptPrice(wordCount) : 0;
-  const estimatedChapters = Math.max(1, Math.round(wordCount / 3000)) || 1;
-  const durationMinutes = Math.round(wordCount / 155);
-
-  return {
-    id: row.id,
-    client: row.manuscripts?.authors?.full_name ?? 'Autor desconocido',
-    title: row.manuscripts?.title ?? 'Sin título',
-    requestedAt: (row.created_at ?? '').slice(0, 10),
-    status,
-    chapters: estimatedChapters,
-    amount,
-    wordCount,
-    durationMinutes,
-    manuscript_id: row.manuscripts?.id,
-    author_id: row.manuscripts?.author_id,
-  };
-}
-
 export async function addQuotationRequest(
   req: Omit<QuotationRequest, 'id' | 'requestedAt'>
 ): Promise<QuotationRequest> {
@@ -291,102 +382,104 @@ export async function addQuotationRequest(
 }
 
 export async function deleteQuotationRequest(id: string): Promise<boolean> {
-  const { error } = await supabaseClient
-    .from('project_requests')
-    .delete()
-    .eq('id', id);
-  if (error) {
-    console.error('deleteQuotationRequest error:', JSON.stringify(error));
-    return false;
-  }
-  return true;
+  return executeWithRetry(async () => {
+    const { error } = await supabaseClient
+      .from('project_requests')
+      .delete()
+      .eq('id', id);
+    if (error) {
+      handleSupabaseError(error, 'deleteQuotationRequest error');
+    }
+    return true;
+  });
 }
 
 // ─── PROYECTOS (projects + chapters + deliverables + reviews) ─────────────────
 
 export async function listAdminProjects(): Promise<AdminProject[]> {
-  const { data, error } = await supabaseClient
-    .from('projects')
-    .select(`
-      id,
-      status,
-      updated_at,
-      author_id,
-      manuscript_id,
-      authors ( full_name ),
-      manuscripts ( title, word_count ),
-      chapters ( id, chapter_number, title, word_count, duration_minutes, pfh_rate_used, price, currency, tier, status ),
-      deliverables ( id, title, status, created_at )
-    `)
-    .order('updated_at', { ascending: false });
+  return executeWithRetry(async () => {
+    const { data, error } = await supabaseClient
+      .from('projects')
+      .select(`
+        id,
+        status,
+        updated_at,
+        author_id,
+        manuscript_id,
+        authors ( full_name ),
+        manuscripts ( title, word_count ),
+        chapters ( id, chapter_number, title, word_count, duration_minutes, pfh_rate_used, price, currency, tier, status ),
+        deliverables ( id, title, status, created_at )
+      `)
+      .order('updated_at', { ascending: false });
 
-  if (error) {
-    console.error('listAdminProjects error:', JSON.stringify(error));
-    throw error;
-  }
-
-  console.log('listAdminProjects: Datos recibidos de Supabase:', data);
-
-  return ((data as unknown as ProjectRow[]) ?? []).map((row) => {
-    const adminStatus = dbStatusToAdmin(row.status);
-    const deliverables: AudioDeliverable[] = (Array.isArray(row.deliverables) ? row.deliverables : []).map((d: DeliverableItemRow) => ({
-      id: d.id,
-      title: d.title,
-      completed: d.status === 'approved',
-      updatedAt: (d.created_at ?? '').slice(0, 10),
-      comments: [],
-    }));
-
-    const rawChapters = (Array.isArray(row.chapters) ? row.chapters : []).sort((a: ChapterItemRow, b: ChapterItemRow) => a.chapter_number - b.chapter_number);
-    const chapterList: AdminChapter[] = rawChapters.map((c: ChapterItemRow) => ({
-      id: c.id,
-      project_id: row.id,
-      chapter_number: c.chapter_number,
-      title: c.title || `Capítulo ${c.chapter_number}`,
-      word_count: c.word_count || 0,
-      duration_minutes: c.duration_minutes || Math.round((c.word_count || 0) / 155),
-      pfh_rate_used: c.pfh_rate_used || 400,
-      price: c.price || 0,
-      currency: c.currency || 'USD',
-      tier: c.tier || 'entrada',
-      status: (c.status as AdminChapter['status']) || 'pendiente',
-    }));
-
-    const wordCount = row.manuscripts?.word_count ?? 0;
-    const chaptersCount = chapterList.length || (wordCount > 0 ? Math.max(1, Math.round(wordCount / 3000)) : 1);
-    const chapterPriceSum = chapterList.reduce((acc, c) => acc + (c.price || 0), 0);
-    const totalAmount = chapterPriceSum > 0 ? chapterPriceSum : (wordCount > 0 ? calculateManuscriptPrice(wordCount) : 0);
-
-    // Calcular avance real basado en el estado de cada capítulo si existen
-    let progress = getProgressByStatus(adminStatus);
-    if (chapterList.length > 0) {
-      const weights: Record<string, number> = {
-        pendiente: 0,
-        cotizado: 20,
-        pagado: 40,
-        en_produccion: 75,
-        entregado: 100,
-      };
-      const totalWeight = chapterList.reduce((acc, c) => acc + (weights[c.status] ?? 0), 0);
-      progress = Math.round(totalWeight / chapterList.length);
+    if (error) {
+      handleSupabaseError(error, 'listAdminProjects error');
     }
 
-    return {
-      id: row.id,
-      title: row.manuscripts?.title ?? 'Sin título',
-      client: row.authors?.full_name ?? 'Autor desconocido',
-      status: adminStatus,
-      progress,
-      revisionsUsed: 0,
-      maxRevisions: 3,
-      chapters: chaptersCount,
-      chapterList,
-      amount: totalAmount,
-      deliverables,
-      lastUpdate: (row.updated_at ?? '').slice(0, 10),
-      author_id: row.author_id,
-      manuscript_id: row.manuscript_id,
-    };
+    console.log('listAdminProjects: Datos recibidos de Supabase:', data);
+
+    return ((data as unknown as ProjectRow[]) ?? []).map((row) => {
+      const adminStatus = dbStatusToAdmin(row.status);
+      const deliverables: AudioDeliverable[] = (Array.isArray(row.deliverables) ? row.deliverables : []).map((d: DeliverableItemRow) => ({
+        id: d.id,
+        title: d.title,
+        completed: d.status === 'approved',
+        updatedAt: (d.created_at ?? '').slice(0, 10),
+        comments: [],
+      }));
+
+      const rawChapters = (Array.isArray(row.chapters) ? row.chapters : []).sort((a: ChapterItemRow, b: ChapterItemRow) => a.chapter_number - b.chapter_number);
+      const chapterList: AdminChapter[] = rawChapters.map((c: ChapterItemRow) => ({
+        id: c.id,
+        project_id: row.id,
+        chapter_number: c.chapter_number,
+        title: c.title || `Capítulo ${c.chapter_number}`,
+        word_count: c.word_count || 0,
+        duration_minutes: c.duration_minutes || Math.round((c.word_count || 0) / 155),
+        pfh_rate_used: c.pfh_rate_used || 400,
+        price: c.price || 0,
+        currency: c.currency || 'USD',
+        tier: c.tier || 'entrada',
+        status: (c.status as AdminChapter['status']) || 'pendiente',
+      }));
+
+      const wordCount = row.manuscripts?.word_count ?? 0;
+      const chaptersCount = chapterList.length || (wordCount > 0 ? Math.max(1, Math.round(wordCount / 3000)) : 1);
+      const chapterPriceSum = chapterList.reduce((acc, c) => acc + (c.price || 0), 0);
+      const totalAmount = chapterPriceSum > 0 ? chapterPriceSum : (wordCount > 0 ? calculateManuscriptPrice(wordCount) : 0);
+
+      // Calcular avance real basado en el estado de cada capítulo si existen
+      let progress = getProgressByStatus(adminStatus);
+      if (chapterList.length > 0) {
+        const weights: Record<string, number> = {
+          pendiente: 0,
+          cotizado: 20,
+          pagado: 40,
+          en_produccion: 75,
+          entregado: 100,
+        };
+        const totalWeight = chapterList.reduce((acc, c) => acc + (weights[c.status] ?? 0), 0);
+        progress = Math.round(totalWeight / chapterList.length);
+      }
+
+      return {
+        id: row.id,
+        title: row.manuscripts?.title ?? 'Sin título',
+        client: row.authors?.full_name ?? 'Autor desconocido',
+        status: adminStatus,
+        progress,
+        revisionsUsed: 0,
+        maxRevisions: 3,
+        chapters: chaptersCount,
+        chapterList,
+        amount: totalAmount,
+        deliverables,
+        lastUpdate: (row.updated_at ?? '').slice(0, 10),
+        author_id: row.author_id,
+        manuscript_id: row.manuscript_id,
+      };
+    });
   });
 }
 
@@ -394,18 +487,19 @@ export async function updateProjectStatus(
   id: string,
   status: AdminProjectStatus
 ): Promise<AdminProject | undefined> {
-  const { error } = await supabaseClient
-    .from('projects')
-    .update({ status: adminStatusToDb(status) })
-    .eq('id', id);
+  return executeWithRetry(async () => {
+    const { error } = await supabaseClient
+      .from('projects')
+      .update({ status: adminStatusToDb(status) })
+      .eq('id', id);
 
-  if (error) {
-    console.error('updateProjectStatus error:', JSON.stringify(error));
-    throw error;
-  }
+    if (error) {
+      handleSupabaseError(error, 'updateProjectStatus error');
+    }
 
-  const projects = await listAdminProjects();
-  return projects.find((p) => p.id === id);
+    const projects = await listAdminProjects();
+    return projects.find((p) => p.id === id);
+  });
 }
 
 export async function createAdminProject(
@@ -414,57 +508,70 @@ export async function createAdminProject(
     author_id?: string;
   }
 ): Promise<AdminProject> {
-  let createdProjectId: string | undefined;
-  let authorId = newProj.author_id;
-  const manuscriptId = newProj.manuscript_id;
+  return executeWithRetry(async () => {
+    let createdProjectId: string | undefined;
+    let authorId = newProj.author_id;
+    const manuscriptId = newProj.manuscript_id;
 
-  if (manuscriptId && !authorId) {
-    const { data: m } = await supabaseClient
-      .from('manuscripts')
-      .select('author_id')
-      .eq('id', manuscriptId)
-      .maybeSingle();
-    if (m?.author_id) {
-      authorId = m.author_id;
+    if (manuscriptId && !authorId) {
+      const { data: m, error: mError } = await supabaseClient
+        .from('manuscripts')
+        .select('author_id')
+        .eq('id', manuscriptId)
+        .maybeSingle();
+
+      if (mError) {
+        handleSupabaseError(mError, 'createAdminProject get manuscript author_id error');
+      }
+
+      if (m?.author_id) {
+        authorId = m.author_id;
+      }
     }
-  }
 
-  if (authorId && manuscriptId) {
-    const { data: projectRow, error: projectError } = await supabaseClient
-      .from('projects')
-      .insert({
-        author_id: authorId,
-        manuscript_id: manuscriptId,
-        status: adminStatusToDb(newProj.status),
-      } as never)
-      .select('id')
-      .maybeSingle();
+    if (authorId && manuscriptId) {
+      const { data: projectRow, error: projectError } = await supabaseClient
+        .from('projects')
+        .insert({
+          author_id: authorId,
+          manuscript_id: manuscriptId,
+          status: adminStatusToDb(newProj.status),
+        } as never)
+        .select('id')
+        .maybeSingle();
 
-    if (!projectError && projectRow) {
-      createdProjectId = (projectRow as { id: string }).id;
+      if (projectError) {
+        handleSupabaseError(projectError, 'createAdminProject insert projects error');
+      }
 
-      // Actualizar la solicitud en project_requests a 'accepted' para asegurar sincronización
-      await supabaseClient
-        .from('project_requests')
-        .update({ status: 'accepted' })
-        .eq('manuscript_id', manuscriptId);
-    } else if (projectError) {
-      console.error('Error al crear proyecto en DB:', projectError);
+      if (projectRow) {
+        createdProjectId = (projectRow as { id: string }).id;
+
+        // Actualizar la solicitud en project_requests a 'accepted' para asegurar sincronización
+        const { error: reqError } = await supabaseClient
+          .from('project_requests')
+          .update({ status: 'accepted' })
+          .eq('manuscript_id', manuscriptId);
+
+        if (reqError) {
+          handleSupabaseError(reqError, 'createAdminProject update project_requests status error');
+        }
+      }
     }
-  }
 
-  const projects = await listAdminProjects();
-  const created = projects.find((p) => p.id === createdProjectId);
-  if (created) return created;
+    const projects = await listAdminProjects();
+    const created = projects.find((p) => p.id === createdProjectId);
+    if (created) return created;
 
-  const stub: AdminProject = {
-    ...newProj,
-    id: createdProjectId ?? `proj-${Date.now()}`,
-    progress: getProgressByStatus(newProj.status),
-    deliverables: [],
-    lastUpdate: new Date().toISOString().slice(0, 10),
-  };
-  return stub;
+    const stub: AdminProject = {
+      ...newProj,
+      id: createdProjectId ?? `proj-${Date.now()}`,
+      progress: getProgressByStatus(newProj.status),
+      deliverables: [],
+      lastUpdate: new Date().toISOString().slice(0, 10),
+    };
+    return stub;
+  });
 }
 
 export async function deleteAdminProject(id: string): Promise<boolean> {
@@ -610,43 +717,45 @@ export interface CreateChapterInput {
 }
 
 export async function createAdminChapter(input: CreateChapterInput): Promise<AdminChapter> {
-  const calc = calculateChapterPrice({ wordCount: input.word_count });
-  const { data, error } = await supabaseClient
-    .from('chapters')
-    .insert({
-      project_id: input.project_id,
-      chapter_number: input.chapter_number,
-      title: input.title || `Capítulo ${input.chapter_number}`,
-      word_count: calc.wordCount,
-      duration_minutes: calc.durationMinutes,
-      pfh_rate_used: calc.pfhRate,
-      price: calc.price,
-      currency: calc.currency,
-      tier: calc.tier,
-      status: input.status || 'pendiente',
-    } as never)
-    .select()
-    .single();
+  return executeWithRetry(async () => {
+    const calc = calculateChapterPrice({ wordCount: input.word_count });
+    const { data, error } = await supabaseClient
+      .from('chapters')
+      .insert({
+        project_id: input.project_id,
+        chapter_number: input.chapter_number,
+        title: input.title || `Capítulo ${input.chapter_number}`,
+        word_count: calc.wordCount,
+        duration_minutes: calc.durationMinutes,
+        pfh_rate_used: calc.pfhRate,
+        price: calc.price,
+        currency: calc.currency,
+        tier: calc.tier,
+        status: input.status || 'pendiente',
+      } as never)
+      .select()
+      .single();
 
-  if (error) {
-    console.error('createAdminChapter error:', error);
-    throw error;
-  }
+    if (error) {
+      console.error('createAdminChapter error:', formatSupabaseError(error));
+      throw error;
+    }
 
-  const row = data as ChapterItemRow & { id: string; project_id: string };
-  return {
-    id: row.id,
-    project_id: row.project_id,
-    chapter_number: row.chapter_number,
-    title: row.title || `Capítulo ${row.chapter_number}`,
-    word_count: row.word_count || 0,
-    duration_minutes: row.duration_minutes || calc.durationMinutes,
-    pfh_rate_used: row.pfh_rate_used || calc.pfhRate,
-    price: row.price || calc.price,
-    currency: row.currency || 'USD',
-    tier: row.tier || calc.tier,
-    status: (row.status as AdminChapter['status']) || 'pendiente',
-  };
+    const row = data as ChapterItemRow & { id: string; project_id: string };
+    return {
+      id: row.id,
+      project_id: row.project_id,
+      chapter_number: row.chapter_number,
+      title: row.title || `Capítulo ${row.chapter_number}`,
+      word_count: row.word_count || 0,
+      duration_minutes: row.duration_minutes || calc.durationMinutes,
+      pfh_rate_used: row.pfh_rate_used || calc.pfhRate,
+      price: row.price || calc.price,
+      currency: row.currency || 'USD',
+      tier: row.tier || calc.tier,
+      status: (row.status as AdminChapter['status']) || 'pendiente',
+    };
+  });
 }
 
 export async function updateChapterStatus(
