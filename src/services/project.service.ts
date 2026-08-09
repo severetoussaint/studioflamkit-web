@@ -212,7 +212,25 @@ export async function getAuthorProjectData(authorId: string): Promise<AuthorProj
   }
 }
 
-export async function getAuthorProjectsList(authorId: string): Promise<any[]> {
+export interface AuthorProjectOverview {
+  id: string;
+  manuscriptId: string | null;
+  title: string | null;
+  status: string | null;
+  progress: number;
+  createdAt: string | null;
+}
+
+interface DBProjectRow {
+  id: string;
+  status: string | null;
+  created_at: string | null;
+  manuscript_id: string | null;
+  manuscripts: { id: string; title: string | null } | { id: string; title: string | null }[] | null;
+  chapters: { status: string }[] | null;
+}
+
+export async function getAuthorProjectsList(authorId: string): Promise<AuthorProjectOverview[]> {
   try {
     const { data: userManuscripts } = await supabaseClient
       .from('manuscripts')
@@ -245,7 +263,9 @@ export async function getAuthorProjectsList(authorId: string): Promise<any[]> {
       return [];
     }
 
-    return (projects || []).map((project: any) => {
+    const typedProjects = (projects as unknown as DBProjectRow[]) || [];
+
+    return typedProjects.map((project) => {
       const chapters = project.chapters || [];
       let progress = 25;
       if (chapters.length > 0) {
@@ -256,7 +276,7 @@ export async function getAuthorProjectsList(authorId: string): Promise<any[]> {
           en_produccion: 75,
           entregado: 100,
         };
-        const sum = chapters.reduce((acc: number, c: any) => acc + (weights[c.status] ?? 0), 0);
+        const sum = chapters.reduce((acc: number, c: { status: string }) => acc + (weights[c.status] ?? 0), 0);
         progress = Math.round(sum / chapters.length);
       } else {
         const statusMap: Record<string, number> = {
@@ -268,10 +288,14 @@ export async function getAuthorProjectsList(authorId: string): Promise<any[]> {
         progress = statusMap[project.status ?? ''] ?? 25;
       }
 
+      const manuscriptData = Array.isArray(project.manuscripts)
+        ? project.manuscripts[0]
+        : project.manuscripts;
+
       return {
         id: project.id,
         manuscriptId: project.manuscript_id || null,
-        title: project.manuscripts?.title ?? 'Tu Obra de Audio',
+        title: manuscriptData?.title ?? 'Tu Obra de Audio',
         status: project.status ?? 'planning',
         progress,
         createdAt: project.created_at || null,

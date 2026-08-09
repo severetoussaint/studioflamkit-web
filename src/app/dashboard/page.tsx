@@ -627,7 +627,7 @@ export default function DashboardPage() {
                                 name: d.title,
                                 size: 'Entregable de Producción',
                                 date: d.createdAt ? new Date(d.createdAt).toLocaleDateString() : 'Reciente',
-                                status: (d.completed ? 'aprobado' : 'en_revision') as any,
+                                status: d.completed ? 'aprobado' : 'en_revision' as 'aprobado' | 'en_revision',
                               })),
                             ]
                           : []

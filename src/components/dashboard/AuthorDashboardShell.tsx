@@ -378,14 +378,18 @@ export default function AuthorDashboardShell() {
     return manuscripts.find((manuscript: { id: string; title: string; createdAt: string | null; requestStatus: string | null }) => manuscript.id === selectedManuscriptId) ?? manuscripts[0] ?? null;
   }, [manuscripts, selectedManuscriptId]);
 
-  const selectedProject = useMemo(() => {
+  const reqProjectId = requestContext?.projectId ?? null;
+
+  const selectedProject = (() => {
     if (!selectedManuscript) return null;
     return (
       authorProjects.find((project) => project.manuscriptId === selectedManuscript.id) ??
-      authorProjects.find((project) => requestContext?.projectId && project.id === requestContext.projectId) ??
+      (reqProjectId ? authorProjects.find((project) => project.id === reqProjectId) : null) ??
       null
     );
-  }, [authorProjects, requestContext?.projectId, selectedManuscript]);
+  })();
+
+  const selectedProjectId = selectedProject?.id ?? null;
 
   useEffect(() => {
     let mounted = true;
@@ -393,7 +397,7 @@ export default function AuthorDashboardShell() {
     async function loadLibrary() {
       if (!authorId) return;
       try {
-        const data = await getDashboardFileLibraryData(authorId, selectedProject?.id ?? requestContext?.projectId ?? null);
+        const data = await getDashboardFileLibraryData(authorId, selectedProjectId ?? reqProjectId);
         if (mounted) setLibraryData(data);
       } catch (error) {
         console.error('Error loading library data:', error);
@@ -406,7 +410,7 @@ export default function AuthorDashboardShell() {
     return () => {
       mounted = false;
     };
-  }, [authorId, requestContext?.projectId, selectedProject?.id]);
+  }, [authorId, reqProjectId, selectedProjectId]);
 
   const selectedState: AuthorRequestState = selectedProject
     ? 'active'
