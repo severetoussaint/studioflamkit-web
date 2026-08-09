@@ -104,7 +104,8 @@ function createProjectFileTone(projectId: string | null): FileTone {
 
 export async function getDashboardFileLibraryData(
   authorId: string,
-  projectId: string | null
+  projectId: string | null,
+  selectedManuscriptId?: string | null
 ): Promise<DashboardFileLibraryData> {
   const { data: manuscriptRows, error: manuscriptError } = await supabaseClient
     .from('manuscripts')
@@ -118,7 +119,19 @@ export async function getDashboardFileLibraryData(
   let projectTitle: string | null = null;
   let projectStatus: string | null = null;
 
-  if (!resolvedProjectId) {
+  if (!resolvedProjectId && selectedManuscriptId) {
+    const { data: matchedProject } = await supabaseClient
+      .from('projects')
+      .select('id, status, manuscripts(title)')
+      .eq('manuscript_id', selectedManuscriptId)
+      .maybeSingle();
+
+    if (matchedProject) {
+      resolvedProjectId = matchedProject.id;
+      projectTitle = (matchedProject as { manuscripts?: { title?: string | null } | null } | null)?.manuscripts?.title || null;
+      projectStatus = matchedProject.status || null;
+    }
+  } else if (!resolvedProjectId) {
     const { data: latestProject } = await supabaseClient
       .from('projects')
       .select('id, status, manuscripts(title)')
@@ -140,6 +153,10 @@ export async function getDashboardFileLibraryData(
     projectTitle = (projectRow as { manuscripts?: { title?: string | null } | null } | null)?.manuscripts?.title || null;
     projectStatus = projectRow?.status || null;
   }
+
+  const filteredManuscripts = selectedManuscriptId
+    ? (manuscriptRows ?? []).filter((m) => m.id === selectedManuscriptId)
+    : (manuscriptRows ?? []);
 
   const { data: fileRows } = resolvedProjectId
     ? await supabaseClient
@@ -189,7 +206,7 @@ export async function getDashboardFileLibraryData(
   const paidAmountLabel = formatMoney(paidAmount);
   const currentStage = getStageLabel((stageRows ?? []) as ProductionStageRow[]);
 
-  const manuscriptItems: DashboardFileItem[] = (manuscriptRows ?? []).map((manuscript) => {
+  const manuscriptItems: DashboardFileItem[] = (filteredManuscripts ?? []).map((manuscript) => {
     const downloadUrl = buildPublicUrl('manuscripts', manuscript.original_file_path);
     const wordCountLabel = manuscript.word_count ? `${manuscript.word_count.toLocaleString()} palabras` : 'Sin conteo';
 

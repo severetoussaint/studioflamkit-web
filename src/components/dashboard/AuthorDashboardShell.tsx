@@ -371,23 +371,17 @@ export default function AuthorDashboardShell() {
     };
   }, [router]);
 
-  const manuscripts = requestContext?.manuscripts ?? [];
+  const manuscripts = useMemo(() => requestContext?.manuscripts ?? [], [requestContext]);
 
   const selectedManuscript = useMemo(() => {
     if (!manuscripts.length) return null;
     return manuscripts.find((manuscript: { id: string; title: string; createdAt: string | null; requestStatus: string | null }) => manuscript.id === selectedManuscriptId) ?? manuscripts[0] ?? null;
   }, [manuscripts, selectedManuscriptId]);
 
-  const reqProjectId = requestContext?.projectId ?? null;
-
-  const selectedProject = (() => {
+  const selectedProject = useMemo(() => {
     if (!selectedManuscript) return null;
-    return (
-      authorProjects.find((project) => project.manuscriptId === selectedManuscript.id) ??
-      (reqProjectId ? authorProjects.find((project) => project.id === reqProjectId) : null) ??
-      null
-    );
-  })();
+    return authorProjects.find((project) => project.manuscriptId === selectedManuscript.id) ?? null;
+  }, [selectedManuscript, authorProjects]);
 
   const selectedProjectId = selectedProject?.id ?? null;
 
@@ -397,7 +391,7 @@ export default function AuthorDashboardShell() {
     async function loadLibrary() {
       if (!authorId) return;
       try {
-        const data = await getDashboardFileLibraryData(authorId, selectedProjectId ?? reqProjectId);
+        const data = await getDashboardFileLibraryData(authorId, selectedProjectId, selectedManuscript?.id);
         if (mounted) setLibraryData(data);
       } catch (error) {
         console.error('Error loading library data:', error);
@@ -410,7 +404,7 @@ export default function AuthorDashboardShell() {
     return () => {
       mounted = false;
     };
-  }, [authorId, reqProjectId, selectedProjectId]);
+  }, [authorId, selectedProjectId, selectedManuscript?.id]);
 
   const selectedState: AuthorRequestState = selectedProject
     ? 'active'
@@ -424,6 +418,40 @@ export default function AuthorDashboardShell() {
   const selectedStatusText = statusLabel(selectedProject?.status ?? selectedManuscript?.requestStatus ?? selectedState);
   const selectedStageIndex = stageIndexFromStatus(selectedProject?.status ?? selectedManuscript?.requestStatus ?? selectedState, selectedState);
   const selectedStageLabel = selectedProject ? selectedStatusText : selectedState === 'pending' ? 'En evaluación editorial' : 'Sin manuscrito';
+
+  const customSteps = useMemo(() => {
+    const stepsConfig = [
+      { id: 'recibido', title: 'Recibido', description: 'Manuscrito resguardado' },
+      { id: 'analisis', title: 'En Análisis', description: 'Evaluación técnica de voz' },
+      { id: 'propuesta', title: 'Propuesta', description: 'Desglose y plan técnico' },
+      { id: 'produccion', title: 'Producción', description: 'Grabación y sonido' },
+      { id: 'revision', title: 'Revisión', description: 'Escucha de muestras' },
+      { id: 'entrega', title: 'Entrega Final', description: 'Máster de publicación' },
+    ];
+
+    const activeIdx = selectedStageIndex !== null ? selectedStageIndex : 0;
+
+    return stepsConfig.map((step, idx) => {
+      let status: 'completado' | 'activo' | 'pendiente' | 'bloqueado' = 'pendiente';
+
+      if (idx < activeIdx) {
+        status = 'completado';
+      } else if (idx === activeIdx) {
+        if (idx === 5 && selectedProject?.status === 'completed') {
+          status = 'completado';
+        } else {
+          status = 'activo';
+        }
+      } else {
+        status = 'pendiente';
+      }
+
+      return {
+        ...step,
+        status,
+      };
+    });
+  }, [selectedStageIndex, selectedProject?.status]);
 
   const manuscriptCount = manuscripts.length;
   const projectCount = authorProjects.length;
@@ -561,7 +589,7 @@ export default function AuthorDashboardShell() {
                 onViewFilesClick={() => setIsLibraryOpen(true)}
               />
 
-              <ProgressTimeline currentState={timelineState} />
+              <ProgressTimeline steps={customSteps} currentState={timelineState} />
 
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <KpiCard

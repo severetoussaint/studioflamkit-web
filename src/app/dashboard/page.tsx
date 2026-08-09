@@ -613,21 +613,21 @@ export default function DashboardPage() {
                       projectTitle={realProject?.title || requestContext?.title}
                       acceptedPaymentAmount={realProject?.chapters?.reduce((acc, c) => acc + (c.price || 0), 0) || 0}
                       files={
-                        requestContext?.title
+                        requestContext?.manuscripts && requestContext.manuscripts.length > 0
                           ? [
-                              {
-                                id: 'manuscript-file-1',
-                                name: `${requestContext.title}.docx`,
+                              ...requestContext.manuscripts.map((m) => ({
+                                id: `manuscript-${m.id}`,
+                                name: `${m.title}.docx`,
                                 size: 'Manuscrito Original',
-                                date: requestContext.createdAt ? new Date(requestContext.createdAt).toLocaleDateString() : 'Recientemente',
-                                status: requestState === 'pending' ? 'bloqueado' : 'aprobado',
-                              },
+                                date: m.createdAt ? new Date(m.createdAt).toLocaleDateString() : 'Recientemente',
+                                status: (m.requestStatus === 'pending' || m.requestStatus === 'evaluating') ? 'bloqueado' as const : 'aprobado' as const,
+                              })),
                               ...(realProject?.deliverables || []).map((d) => ({
                                 id: d.id,
                                 name: d.title,
                                 size: 'Entregable de Producción',
                                 date: d.createdAt ? new Date(d.createdAt).toLocaleDateString() : 'Reciente',
-                                status: d.completed ? 'aprobado' : 'en_revision' as 'aprobado' | 'en_revision',
+                                status: d.completed ? 'aprobado' as const : 'en_revision' as 'aprobado' | 'en_revision',
                               })),
                             ]
                           : []
