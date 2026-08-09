@@ -46,6 +46,27 @@ function normalizeRequestList(
   return [];
 }
 
+function summarizeManuscriptTitles(manuscripts: AuthorManuscriptSummary[]): string | null {
+  const titles = manuscripts
+    .map((m) => m.title?.trim())
+    .filter((title): title is string => Boolean(title));
+
+  if (titles.length === 0) return null;
+  if (titles.length === 1) return titles[0];
+  if (titles.length === 2) return `${titles[0]} · ${titles[1]}`;
+  return `${titles[0]} · ${titles[1]} · +${titles.length - 2} más`;
+}
+
+function buildContextTitle(
+  manuscripts: AuthorManuscriptSummary[],
+  baseTitle: string | null,
+  fallback: string
+): string {
+  const summary = summarizeManuscriptTitles(manuscripts);
+  if (summary) return summary;
+  return baseTitle || fallback;
+}
+
 export async function getAuthorRequestContext(authorId: string): Promise<AuthorRequestContext> {
   try {
     const { data: authorManuscriptsData } = await supabaseClient
@@ -100,12 +121,14 @@ export async function getAuthorRequestContext(authorId: string): Promise<AuthorR
       const selectedManuscript =
         manuscripts.find((m) => m.id === activeProject?.manuscript_id) || manuscripts[0] || null;
 
+      const baseTitle = activeProject.manuscripts?.title || selectedManuscript?.title || 'Obra en producción';
+
       return {
         state: 'active',
         projectId: activeProject.id,
         manuscriptId: activeProject.manuscript_id || selectedManuscript?.id || null,
         requestId: null,
-        title: activeProject.manuscripts?.title || selectedManuscript?.title || 'Obra en producción',
+        title: buildContextTitle(manuscripts, baseTitle, 'Obra en producción'),
         createdAt: activeProject.created_at || selectedManuscript?.createdAt || null,
         manuscripts,
         activeManuscriptId: activeProject.manuscript_id || selectedManuscript?.id || null,
@@ -123,7 +146,7 @@ export async function getAuthorRequestContext(authorId: string): Promise<AuthorR
         projectId: null,
         manuscriptId: pendingManuscript.id,
         requestId: pendingManuscript.requestId || pendingManuscript.id,
-        title: pendingManuscript.title || 'Manuscrito enviado',
+        title: buildContextTitle(manuscripts, pendingManuscript.title || 'Manuscrito enviado', 'Manuscrito enviado'),
         createdAt: pendingManuscript.createdAt || null,
         manuscripts,
         activeManuscriptId: pendingManuscript.id,
