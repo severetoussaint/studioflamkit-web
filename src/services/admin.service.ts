@@ -727,7 +727,6 @@ export async function createAdminChapter(input: CreateChapterInput): Promise<Adm
         title: input.title || `Capítulo ${input.chapter_number}`,
         word_count: calc.wordCount,
         pfh_rate_used: calc.pfhRate,
-        price: calc.price,
         currency: calc.currency,
         tier: calc.tier,
         status: input.status || 'pendiente',
