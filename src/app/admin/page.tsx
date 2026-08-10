@@ -102,39 +102,10 @@ export default function AdminPage() {
 
   const authorNames = useMemo(() => Object.keys(groupedAuthors).sort(), [groupedAuthors]);
 
-  // Derived selections (with safe default fallback calculation during render)
-  const currentAuthor = useMemo(() => {
-    if (selectedAuthor && groupedAuthors[selectedAuthor]) {
-      return selectedAuthor;
-    }
-    return authorNames[0] || '';
-  }, [selectedAuthor, authorNames, groupedAuthors]);
-
-  const activeProject = useMemo(() => {
-    const authorProjects = groupedAuthors[currentAuthor] || [];
-    const found = authorProjects.find((p) => p.id === selectedProjectId);
-    if (found) {
-      return found;
-    }
-    return authorProjects[0] || null;
-  }, [groupedAuthors, currentAuthor, selectedProjectId]);
-
-  // Sync fallback selections when projects load or authors change
-  useEffect(() => {
-    if (!selectedAuthor && authorNames.length > 0) {
-      setSelectedAuthor(authorNames[0]);
-    }
-  }, [authorNames, selectedAuthor]);
-
-  useEffect(() => {
-    const authorProjects = groupedAuthors[currentAuthor] || [];
-    if (authorProjects.length > 0) {
-      const stillExists = authorProjects.some((p) => p.id === selectedProjectId);
-      if (!stillExists) {
-        setSelectedProjectId(authorProjects[0].id);
-      }
-    }
-  }, [currentAuthor, groupedAuthors, selectedProjectId]);
+  const currentAuthor = selectedAuthor || authorNames[0] || '';
+  const currentAuthorProjects = groupedAuthors[currentAuthor] || [];
+  const currentProjectId = selectedProjectId || currentAuthorProjects[0]?.id || '';
+  const activeProject = currentAuthorProjects.find((p) => p.id === currentProjectId) || currentAuthorProjects[0] || null;
 
   // Deliverables add state
   const [newDeliverableTitles, setNewDeliverableTitles] = useState<Record<string, string>>({});
@@ -728,11 +699,11 @@ export default function AdminPage() {
                       <span className="text-xs font-semibold text-ink-muted uppercase tracking-wider">Obra Activa:</span>
                     </div>
                     <select
-                      value={selectedProjectId || activeProject?.id || ''}
+                      value={currentProjectId}
                       onChange={(e) => setSelectedProjectId(e.target.value)}
                       className="rounded-xl border border-edge bg-surface-elevated px-3 py-2 text-sm text-ink outline-none focus:border-accent transition font-medium min-w-[250px]"
                     >
-                      {(groupedAuthors[currentAuthor] || []).map((p) => (
+                      {currentAuthorProjects.map((p) => (
                         <option key={p.id} value={p.id}>
                           {p.title}
                         </option>
@@ -744,8 +715,8 @@ export default function AdminPage() {
                 {/* Quick switcher pills */}
                 <div className="flex flex-wrap gap-2 items-center px-1">
                   <span className="text-xs text-ink-muted font-medium">Obras de {currentAuthor}:</span>
-                  {(groupedAuthors[currentAuthor] || []).map((p) => {
-                    const isActive = p.id === selectedProjectId;
+                  {currentAuthorProjects.map((p) => {
+                    const isActive = p.id === currentProjectId;
                     return (
                       <button
                         key={p.id}
