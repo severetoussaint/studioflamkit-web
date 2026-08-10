@@ -119,6 +119,23 @@ export default function AdminPage() {
     return authorProjects[0] || null;
   }, [groupedAuthors, currentAuthor, selectedProjectId]);
 
+  // Sync fallback selections when projects load or authors change
+  useEffect(() => {
+    if (!selectedAuthor && authorNames.length > 0) {
+      setSelectedAuthor(authorNames[0]);
+    }
+  }, [authorNames, selectedAuthor]);
+
+  useEffect(() => {
+    const authorProjects = groupedAuthors[currentAuthor] || [];
+    if (authorProjects.length > 0) {
+      const stillExists = authorProjects.some((p) => p.id === selectedProjectId);
+      if (!stillExists) {
+        setSelectedProjectId(authorProjects[0].id);
+      }
+    }
+  }, [currentAuthor, groupedAuthors, selectedProjectId]);
+
   // Deliverables add state
   const [newDeliverableTitles, setNewDeliverableTitles] = useState<Record<string, string>>({});
   const [newDeliverableUrls, setNewDeliverableUrls] = useState<Record<string, string>>({});
@@ -687,12 +704,11 @@ export default function AdminPage() {
                       <span className="text-xs font-semibold text-ink-muted uppercase tracking-wider">Autor:</span>
                     </div>
                     <select
-                      value={selectedAuthor}
+                      value={currentAuthor}
                       onChange={(e) => {
                         const author = e.target.value;
                         setSelectedAuthor(author);
-                        const firstProj = groupedAuthors[author]?.[0]?.id || '';
-                        setSelectedProjectId(firstProj);
+                        setSelectedProjectId(groupedAuthors[author]?.[0]?.id || '');
                       }}
                       className="rounded-xl border border-edge bg-surface-elevated px-3 py-2 text-sm text-ink outline-none focus:border-accent transition font-medium min-w-[200px]"
                     >
@@ -712,11 +728,11 @@ export default function AdminPage() {
                       <span className="text-xs font-semibold text-ink-muted uppercase tracking-wider">Obra Activa:</span>
                     </div>
                     <select
-                      value={selectedProjectId}
+                      value={selectedProjectId || activeProject?.id || ''}
                       onChange={(e) => setSelectedProjectId(e.target.value)}
                       className="rounded-xl border border-edge bg-surface-elevated px-3 py-2 text-sm text-ink outline-none focus:border-accent transition font-medium min-w-[250px]"
                     >
-                      {(groupedAuthors[selectedAuthor] || []).map((p) => (
+                      {(groupedAuthors[currentAuthor] || []).map((p) => (
                         <option key={p.id} value={p.id}>
                           {p.title}
                         </option>
@@ -727,8 +743,8 @@ export default function AdminPage() {
 
                 {/* Quick switcher pills */}
                 <div className="flex flex-wrap gap-2 items-center px-1">
-                  <span className="text-xs text-ink-muted font-medium">Obras de {selectedAuthor}:</span>
-                  {(groupedAuthors[selectedAuthor] || []).map((p) => {
+                  <span className="text-xs text-ink-muted font-medium">Obras de {currentAuthor}:</span>
+                  {(groupedAuthors[currentAuthor] || []).map((p) => {
                     const isActive = p.id === selectedProjectId;
                     return (
                       <button
