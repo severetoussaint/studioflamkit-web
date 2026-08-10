@@ -31,7 +31,7 @@ Estado: COMPLETADA
 Estado: COMPLETADA
 
 * 1B2.6 — Diseño funcional de Notas internas
-Estado: PENDIENTE
+Estado: COMPLETADA
 
 * 1B2.7 — Arquitectura cruzada Dashboard/Admin
 Estado: PENDIENTE
