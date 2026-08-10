@@ -113,10 +113,6 @@ function clampProgress(progress: number) {
   return Math.max(0, Math.min(100, progress));
 }
 
-function normalize(value?: string | null) {
-  return (value ?? '').toLowerCase().trim();
-}
-
 function deriveStage(snapshot: EditorialSnapshot | null): EditorialStage {
   if (!snapshot || snapshot.state === 'none') return 'none';
 
@@ -191,29 +187,4 @@ export function snapshotFromDashboardProps(input: {
     projectTitle: input.projectTitle ?? null,
     submittedDate: input.submittedDate ?? null,
   };
-}
-
-export function stageLabelFromSnapshot(snapshot: EditorialSnapshot | null = editorialSnapshot) {
-  return resolveEditorialJourney(snapshot).label;
-}
-
-export function stageButtonLabelFromSnapshot(snapshot: EditorialSnapshot | null = editorialSnapshot) {
-  return resolveEditorialJourney(snapshot).buttonLabel;
-}
-
-export function stageDescriptionFromSnapshot(snapshot: EditorialSnapshot | null = editorialSnapshot) {
-  return resolveEditorialJourney(snapshot).nextActionDescription;
-}
-
-export function stageTitleFromSnapshot(snapshot: EditorialSnapshot | null = editorialSnapshot) {
-  return resolveEditorialJourney(snapshot).nextActionTitle;
-}
-
-export function stageIndexFromSnapshot(snapshot: EditorialSnapshot | null = editorialSnapshot) {
-  const stage = resolveEditorialJourney(snapshot).stage;
-  return stage === 'none' ? -1 : EDITORIAL_SEQUENCE.indexOf(stage as Exclude<EditorialStage, 'none'>);
-}
-
-export function safeStageFromValues(state: EditorialDashboardState, progress: number) {
-  return resolveEditorialJourney(snapshotFromDashboardProps({ state, progress })).stage;
 }
