@@ -25,10 +25,10 @@ Estado: COMPLETADA
 Estado: COMPLETADA
 
 * 1B2.4 — Diseño funcional de Actividad / Timeline
-Estado: PENDIENTE
+Estado: COMPLETADA
 
 * 1B2.5 — Diseño funcional de Propuestas
-Estado: PENDIENTE
+Estado: COMPLETADA
 
 * 1B2.6 — Diseño funcional de Notas internas
 Estado: PENDIENTE
