@@ -159,7 +159,7 @@ export function StatusHero({
           <div className="mb-4 flex flex-wrap items-center gap-3">
             <span className="inline-flex items-center gap-1.5 rounded-full border-emerald-500/25 bg-emerald-500/10 px-3.5 py-1 text-[11px] font-medium text-emerald-800 dark:text-emerald-300">
               <CheckCircle2 className="h-3.5 w-3.5" />
-              <span className="uppercase tracking-[0.15em]">{statusLabel || journey.label || 'En Producción Audiocinematográfica'}</span>
+              <span className="uppercase tracking-[0.15em]">{journey.label || statusLabel || 'En Producción Audiocinematográfica'}</span>
             </span>
             <span className="text-xs text-ink-muted/70 tracking-wide font-mono">Obra Activa</span>
           </div>
