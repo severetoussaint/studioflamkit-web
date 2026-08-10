@@ -1,3 +1,4 @@
+import './admin.service.patch';
 import { supabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/database.types';
 
