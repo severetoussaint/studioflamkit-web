@@ -3,6 +3,12 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Check, Clock, Disc, Lock, Sparkles } from 'lucide-react';
+import {
+  getEditorialSnapshot,
+  resolveEditorialJourney,
+  snapshotFromDashboardProps,
+  type EditorialTimelineStep,
+} from './editorialJourney';
 
 export interface TimelineStep {
   id: string;
@@ -16,74 +22,44 @@ interface ProgressTimelineProps {
   currentState?: 'none' | 'pending' | 'active';
 }
 
-const defaultSteps: TimelineStep[] = [
-  {
-    id: 'recibido',
-    title: 'Recibido',
-    description: 'Manuscrito resguardado',
-    status: 'completado',
-  },
-  {
-    id: 'analisis',
-    title: 'En Análisis',
-    description: 'Evaluación técnica de voz',
-    status: 'activo',
-  },
-  {
-    id: 'propuesta',
-    title: 'Propuesta',
-    description: 'Desglose y plan técnico',
-    status: 'pendiente',
-  },
-  {
-    id: 'produccion',
-    title: 'Producción',
-    description: 'Grabación y sonido',
-    status: 'pendiente',
-  },
-  {
-    id: 'revision',
-    title: 'Revisión',
-    description: 'Escucha de muestras',
-    status: 'pendiente',
-  },
-  {
-    id: 'entrega',
-    title: 'Entrega Final',
-    description: 'Máster de publicación',
-    status: 'pendiente',
-  },
-];
+function legacySnapshotFromState(currentState?: 'none' | 'pending' | 'active') {
+  if (!currentState) return null;
 
-export function ProgressTimeline({ steps = defaultSteps, currentState }: ProgressTimelineProps) {
+  const progressByState: Record<'none' | 'pending' | 'active', number> = {
+    none: 0,
+    pending: 20,
+    active: 60,
+  };
+
+  return snapshotFromDashboardProps({
+    state: currentState,
+    progress: progressByState[currentState],
+    statusLabel: null,
+    projectTitle: null,
+    submittedDate: null,
+  });
+}
+
+function mapTimelineStep(step: EditorialTimelineStep): TimelineStep {
+  return {
+    id: step.id,
+    title: step.title,
+    description: step.description,
+    status: step.status,
+  };
+}
+
+export function ProgressTimeline({ steps, currentState }: ProgressTimelineProps) {
+  const snapshot = getEditorialSnapshot() ?? legacySnapshotFromState(currentState);
+  const journey = React.useMemo(() => resolveEditorialJourney(snapshot), [snapshot]);
+
   const activeSteps = React.useMemo(() => {
-    if (steps !== defaultSteps) return steps;
-
-    if (currentState === 'none') {
-      return defaultSteps.map((s) => ({
-        ...s,
-        status: 'pendiente' as const,
-      }));
+    if (steps && steps.length > 0) {
+      return steps;
     }
 
-    if (currentState === 'pending') {
-      return defaultSteps.map((s, idx) => {
-        if (idx === 0) return { ...s, status: 'completado' as const };
-        if (idx === 1) return { ...s, status: 'activo' as const };
-        return { ...s, status: 'pendiente' as const };
-      });
-    }
-
-    if (currentState === 'active') {
-      return defaultSteps.map((s, idx) => {
-        if (idx < 3) return { ...s, status: 'completado' as const };
-        if (idx === 3) return { ...s, status: 'activo' as const };
-        return { ...s, status: 'pendiente' as const };
-      });
-    }
-
-    return steps;
-  }, [steps, currentState]);
+    return journey.steps.map(mapTimelineStep);
+  }, [steps, journey.steps]);
 
   return (
     <div className="relative overflow-hidden rounded-3xl border-edge/50 bg-surface-elevated/95 p-5 sm:p-6 shadow-[0_12px_36px_rgba(0,0,0,0.20)] backdrop-blur-xs">
@@ -100,7 +76,9 @@ export function ProgressTimeline({ steps = defaultSteps, currentState }: Progres
               Ruta Editorial de la Obra
             </h2>
             <p className="text-xs text-ink-muted/80 font-light">
-              Fase actual del manuscrito en el proceso de producción de audio
+              {journey.label === 'Sin manuscrito'
+                ? 'Aún no hay obra cargada para esta cuenta'
+                : 'Fase actual del manuscrito en el proceso de producción de audio'}
             </p>
           </div>
         </div>
@@ -112,7 +90,6 @@ export function ProgressTimeline({ steps = defaultSteps, currentState }: Progres
 
       {/* Horizontal Stepper Line Layout */}
       <div className="relative pt-2 pb-1">
-        {/* Progress Bar background connector line (hidden on small mobile, flex on desktop) */}
         <div className="hidden md:block absolute top-[22px] left-[3%] right-[3%] h-[2px] bg-edge/60 z-0" />
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 sm:gap-2 relative z-10">
@@ -135,7 +112,6 @@ export function ProgressTimeline({ steps = defaultSteps, currentState }: Progres
                     : 'border-edge/30 bg-surface/30 opacity-70'
                 }`}
               >
-                {/* Node Icon Circle */}
                 <div
                   className={`flex h-8 w-8 items-center justify-center rounded-full text-xs transition-all duration-300 z-10 ${
                     isDone
@@ -158,7 +134,6 @@ export function ProgressTimeline({ steps = defaultSteps, currentState }: Progres
                   )}
                 </div>
 
-                {/* Step labels - tightly constrained to avoid overflow */}
                 <div className="mt-2.5 w-full space-y-0.5">
                   <span className="block text-[9px] font-mono uppercase tracking-widest text-ink-muted/70">
                     Paso 0{index + 1}
@@ -173,7 +148,6 @@ export function ProgressTimeline({ steps = defaultSteps, currentState }: Progres
                   )}
                 </div>
 
-                {/* Status Badge */}
                 <div className="mt-2.5 pt-1.5 border-t border-edge/30 w-full flex justify-center">
                   {isDone ? (
                     <span className="inline-flex items-center text-[10px] font-semibold uppercase tracking-wider text-accent">
