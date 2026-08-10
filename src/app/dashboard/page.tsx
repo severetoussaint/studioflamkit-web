@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { getUser } from '@/services/auth.service';
 import { getAuthorRequestContext, submitManuscript, type AuthorRequestState, type AuthorRequestContext } from '@/services/manuscript.service';
 import { getAuthorProjectData, getAuthorProjectsList, type AuthorProjectData, type AuthorProjectOverview } from '@/services/project.service';
+import { getDashboardFileLibraryData, type DashboardFileLibraryData } from '@/services/file.service';
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
 import {
@@ -26,6 +27,7 @@ import {
   UploadCloud,
   FileUp,
   FileCheck,
+  FolderOpen,
   X,
   Check,
   CreditCard,
@@ -47,6 +49,8 @@ import { SupportPanel } from '@/components/dashboard/SupportPanel';
 import { FilePanel } from '@/components/dashboard/FilePanel';
 import { NextActionCard } from '@/components/dashboard/NextActionCard';
 import { AuthorCarousel } from '@/components/dashboard/AuthorCarousel';
+import { FilesLibraryModal } from '@/components/dashboard/FilesLibraryModal';
+import { ManuscriptSwitcher } from '@/components/dashboard/ManuscriptSwitcher';
 
 type SectionId = 'resumen' | 'capitulos' | 'entregables' | 'pagos' | 'perfil';
 
@@ -125,6 +129,10 @@ export default function DashboardPage() {
   const [selectedManuscriptId, setSelectedManuscriptId] = useState<string | null>(null);
   const [projectsOverview, setProjectsOverview] = useState<AuthorProjectOverview[]>([]);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+
+  // Estados de la biblioteca de archivos
+  const [libraryData, setLibraryData] = useState<DashboardFileLibraryData | null>(null);
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
 
   const getManuscriptSelectorInfo = (m: { id: string; title: string; requestStatus: string | null }) => {
     const project = projectsOverview.find((p) => p.manuscriptId === m.id);
@@ -321,6 +329,33 @@ export default function DashboardPage() {
       isMounted = false;
     };
   }, [authorId, selectedManuscriptId]);
+
+  // 3. Efecto para cargar datos completos de la biblioteca de archivos
+  useEffect(() => {
+    if (!authorId) return;
+    const currentAuthorId = authorId;
+    let isMounted = true;
+
+    async function loadLibrary() {
+      try {
+        const data = await getDashboardFileLibraryData(
+          currentAuthorId,
+          realProject?.id ?? null,
+          selectedManuscriptId ?? requestContext?.manuscriptId ?? null
+        );
+        if (isMounted) setLibraryData(data);
+      } catch (err) {
+        console.error('Error al cargar la biblioteca de archivos:', err);
+        if (isMounted) setLibraryData(null);
+      }
+    }
+
+    loadLibrary();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [authorId, realProject?.id, selectedManuscriptId, requestContext?.manuscriptId]);
 
   const togglePlay = () => {
     setIsPlaying(!isPlaying);
@@ -658,7 +693,16 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 shrink-0">
+              <div className="flex flex-wrap items-center gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsLibraryOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-edge/80 bg-surface-elevated px-4 py-2.5 text-xs font-medium text-ink transition hover:border-accent/40 hover:text-accent shadow-2xs cursor-pointer"
+                >
+                  <FolderOpen className="h-4 w-4 text-accent" />
+                  <span>Biblioteca de archivos</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={() => setUploaderModalOpen(true)}
@@ -671,6 +715,15 @@ export default function DashboardPage() {
             </div>
             {active === 'resumen' && (
               <div className="space-y-6">
+                {/* Switcher de obras si hay múltiples manuscritos */}
+                {requestContext?.manuscripts && requestContext.manuscripts.length > 1 && (
+                  <ManuscriptSwitcher
+                    manuscripts={requestContext.manuscripts}
+                    selectedManuscriptId={selectedManuscriptId}
+                    onSelect={(id) => setSelectedManuscriptId(id)}
+                  />
+                )}
+
                 {/* Carrusel interactivo post-envío opcional (3:2) */}
                 {(showPostSubmitCarousel || (requestState === 'pending' && showPostSubmitCarousel)) && (
                   <AuthorCarousel
@@ -718,7 +771,7 @@ export default function DashboardPage() {
                   progress={realProject?.progress || 0}
                   statusLabel={requestState === 'active' ? 'Producción Audiocinematográfica' : undefined}
                   onUploadClick={() => setUploaderModalOpen(true)}
-                  onViewFilesClick={() => setActive('entregables')}
+                  onViewFilesClick={() => setIsLibraryOpen(true)}
                   onToggleCarousel={() => setShowPostSubmitCarousel((prev) => !prev)}
                 />
 
@@ -1802,6 +1855,8 @@ export default function DashboardPage() {
           </div>
         )}
       </AnimatePresence>
+
+      <FilesLibraryModal open={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} data={libraryData} />
 
       <Footer />
     </main>
