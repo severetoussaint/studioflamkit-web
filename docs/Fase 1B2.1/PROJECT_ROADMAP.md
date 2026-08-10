@@ -16,13 +16,13 @@ Estado: APROBADA
 #### Subfases de 1B.2:
 
 * 1B2.1 — Diseño funcional de Notificaciones
-Estado: EN CURSO
+Estado: COMPLETADA
 
 * 1B2.2 — Diseño funcional de Comunicación
-Estado: PENDIENTE
+Estado: COMPLETADA
 
 * 1B2.3 — Diseño funcional de Feedback editorial
-Estado: PENDIENTE
+Estado: COMPLETADA
 
 * 1B2.4 — Diseño funcional de Actividad / Timeline
 Estado: PENDIENTE
