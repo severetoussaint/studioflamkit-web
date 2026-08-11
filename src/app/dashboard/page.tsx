@@ -544,7 +544,7 @@ export default function DashboardPage() {
       {/* Contenido principal con Sidebar */}
       <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-8 xl:px-10 py-6 sm:py-8 lg:py-10">
         <div className="grid gap-8 lg:grid-cols-[240px_1fr] xl:grid-cols-[260px_1fr]">
-          
+
           {/* Sidebar de Navegación */}
           <aside className="space-y-6 lg:sticky lg:top-20 self-start">
             <div className="rounded-3xl border-edge bg-surface-elevated p-3 shadow-xs">
@@ -656,7 +656,7 @@ export default function DashboardPage() {
                     <>
                       {/* Invisible backdrop to capture outside clicks and close the selector safely in iframes */}
                       <div className="fixed inset-0 z-40 cursor-default" onClick={() => setIsSelectorOpen(false)} />
-                      
+
                       <div className="absolute left-0 mt-2 w-72 sm:w-80 origin-top-left rounded-3xl border border-edge bg-surface-elevated/95 p-3 shadow-xl z-50 backdrop-blur-md">
                         <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-ink-muted/70 border-b border-edge/40 pb-2 mb-2">
                           Mis obras
@@ -786,7 +786,10 @@ export default function DashboardPage() {
                 />
 
                 {/* Stepper Compacto Horizontal de Trayecto Editorial */}
-                <ProgressTimeline currentState={requestState} />
+                <ProgressTimeline
+                  currentState={requestState}
+                  journey={editorialWorkspace.data?.journey ?? null}
+                />
 
                 {/* KPIs Compactos de la Obra (Métricas Reales) */}
                 {(hasActiveProject || requestState === 'pending') && (
@@ -940,7 +943,7 @@ export default function DashboardPage() {
 
                             <div className="flex flex-wrap items-center gap-2.5 self-end sm:self-auto">
                               <StatusPill status={chapter.status} />
-                              
+
                               <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium border ${
                                 chapter.paymentStatus === 'Pagado'
                                   ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
@@ -1103,7 +1106,7 @@ export default function DashboardPage() {
             {active === 'perfil' && (
               <Card title="Perfil de Autor & Configuración" description="Gestiona tu método de pago preferido y el formato de entregables finales para tu obra.">
                 <form onSubmit={handleSaveProfile} className="mt-6 space-y-8">
-                  
+
                   {/* Banner de perfil de autor */}
                   <div className="flex items-center gap-4 rounded-2xl border-edge/50 bg-surface p-4 shadow-sm">
                     <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-accent font-serif text-xl font-bold text-surface shadow-md">
