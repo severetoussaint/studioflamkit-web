@@ -6,6 +6,13 @@ import { mapReviewRowToDomain } from '@/domain/review/mapReview';
 type ReviewRow = Database['public']['Tables']['reviews']['Row'];
 type DeliverableRow = Pick<Database['public']['Tables']['deliverables']['Row'], 'id'>;
 
+export interface CreateReviewInput {
+  deliverableId: string;
+  chapterTitle?: string | null;
+  comment: string;
+  filePath?: string | null;
+}
+
 export async function getReview(reviewId: string): Promise<Review | null> {
   const { data, error } = await supabaseClient
     .from('reviews')
@@ -69,4 +76,52 @@ export async function hasOpenReviewsByProject(projectId: string): Promise<boolea
 
   if (error) throw error;
   return (data ?? []).length > 0;
+}
+
+export async function createReview(input: CreateReviewInput): Promise<Review> {
+  if (!input.deliverableId) throw new Error('deliverableId is required to create a review.');
+  if (!input.comment.trim()) throw new Error('Review comment is required.');
+
+  const { data, error } = await supabaseClient
+    .from('reviews')
+    .insert({
+      deliverable_id: input.deliverableId,
+      chapter_title: input.chapterTitle ?? null,
+      comment: input.comment,
+      file_path: input.filePath ?? null,
+      status: 'open',
+    })
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return mapReviewRowToDomain(data as ReviewRow);
+}
+
+async function updateReviewStatus(reviewId: string, status: ReviewRow['status']): Promise<Review> {
+  const review = await getReview(reviewId);
+  if (!review) throw new Error(`Review ${reviewId} not found.`);
+
+  if (review.status !== 'open') {
+    throw new Error(`Review ${reviewId} is already ${review.status}.`);
+  }
+
+  const { data, error } = await supabaseClient
+    .from('reviews')
+    .update({ status })
+    .eq('id', reviewId)
+    .eq('status', 'open')
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return mapReviewRowToDomain(data as ReviewRow);
+}
+
+export async function resolveReview(reviewId: string): Promise<Review> {
+  return updateReviewStatus(reviewId, 'resolved');
+}
+
+export async function discardReview(reviewId: string): Promise<Review> {
+  return updateReviewStatus(reviewId, 'discarded');
 }
