@@ -54,6 +54,18 @@ export type EditorialStepStatus =
   | 'pending'
   | 'blocked';
 
+export type TimelineEvent =
+  | 'project_created'
+  | 'project_stage_changed'
+  | 'project_completed'
+  | 'chapter_created'
+  | 'chapter_delivered'
+  | 'deliverable_created'
+  | 'deliverable_approved'
+  | 'review_created'
+  | 'review_resolved'
+  | 'review_discarded';
+
 export interface EditorialTimelineStep {
   id: EditorialPhase;
   status: EditorialStepStatus;
@@ -92,6 +104,14 @@ export interface ProductionStage {
   endDate: string | null;
   assignedTo: string | null;
   notes: string | null;
+  createdAt: string;
+}
+
+export interface TimelineEntry {
+  id: string;
+  projectId: string;
+  event: TimelineEvent;
+  details: string | null;
   createdAt: string;
 }
 
