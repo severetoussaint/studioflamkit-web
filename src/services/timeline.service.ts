@@ -1,27 +1,12 @@
 import { supabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/database.types';
 import type { TimelineEntry, TimelineEvent } from '@/types/domain.types';
+import { isTimelineEvent } from '@/domain/timeline/timelineEvent';
 
 type TimelineRow = Database['public']['Tables']['timeline']['Row'];
 
-const TIMELINE_EVENTS: ReadonlySet<string> = new Set([
-  'project_created',
-  'project_stage_changed',
-  'project_completed',
-  'chapter_created',
-  'chapter_delivered',
-  'deliverable_created',
-  'deliverable_approved',
-  'review_created',
-  'review_resolved',
-  'review_discarded',
-]);
-
 function mapTimelineEvent(value: string): TimelineEvent {
-  if (TIMELINE_EVENTS.has(value)) {
-    return value as TimelineEvent;
-  }
-  return 'project_stage_changed';
+  return isTimelineEvent(value) ? value : 'project_stage_changed';
 }
 
 function requireTimelineString(value: string | null, field: string): string {
@@ -87,7 +72,7 @@ export async function addTimelineEvent(
   details?: string | null,
 ): Promise<TimelineEntry> {
   if (!projectId) throw new Error('projectId is required to add a timeline event.');
-  if (!event) throw new Error('Timeline event is required.');
+  if (!isTimelineEvent(event)) throw new Error(`Invalid timeline event: ${event}`);
 
   const { data, error } = await supabaseClient
     .from('timeline')
