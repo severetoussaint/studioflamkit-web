@@ -23,3 +23,5 @@ ADR-010 — Las operaciones sensibles de Proposals (`accept`, `send`, `reject`, 
 ADR-011 — El progreso de un proyecto no se deriva de `ProjectStatus` ni de porcentajes sintéticos por estado/capítulo. La fuente autoritativa de `ProjectProgress` es `production_stages` mediante `production-stage.service.ts`; cuando un proyecto no tiene etapas almacenadas, su progreso de dominio es `0` hasta que existan datos reales de producción.
 
 ADR-012 — El Admin no ofrece una vía manual de alta de proyectos fuera del flujo de solicitud/propuesta. La creación de proyectos debe conservar la procedencia del flujo comercial; por ello, la experiencia visible de "Registrar Obra / Manuscrito" se retira del Admin mientras se preservan los servicios legacy necesarios para compatibilidad durante la migración.
+
+ADR-013 — ReviewStatus, NotificationStatus y TimelineEvent son contratos de dominio compartidos; sus mapeos no se duplican dentro de servicios individuales. Las operaciones de negocio siguen siendo responsables de generar Timeline/Notifications de forma consistente, pero no se inventan escrituras coordinadas sin una estrategia explícita de atomicidad.
