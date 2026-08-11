@@ -3,15 +3,15 @@ import type { Review, ReviewStatus } from '@/types/domain.types';
 
 type ReviewRow = Database['public']['Tables']['reviews']['Row'];
 
-const REVIEW_STATUSES: readonly ReviewStatus[] = ['open', 'resolved', 'discarded'];
+const REVIEW_STATUSES: ReadonlySet<string> = new Set(['open', 'resolved', 'discarded']);
 
 function mapReviewStatus(value: string | null): ReviewStatus {
-  return REVIEW_STATUSES.includes(value as ReviewStatus)
-    ? (value as ReviewStatus)
-    : 'open';
+  if (value !== null && REVIEW_STATUSES.has(value)) {
+    return value as ReviewStatus;
+  }
+  return 'open';
 }
 
-/** Maps the persisted review row into the shared domain model. */
 export function mapReviewRowToDomain(row: ReviewRow): Review {
   return {
     id: row.id,
