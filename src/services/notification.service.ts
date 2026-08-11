@@ -11,14 +11,22 @@ export interface CreateNotificationInput {
   status?: NotificationStatus;
 }
 
+const NOTIFICATION_STATUSES: readonly NotificationStatus[] = ['pending', 'sent', 'read'];
+
+function mapNotificationStatus(value: string | null): NotificationStatus {
+  return NOTIFICATION_STATUSES.includes(value as NotificationStatus)
+    ? (value as NotificationStatus)
+    : 'pending';
+}
+
 function mapNotificationRowToDomain(row: NotificationRow): Notification {
   return {
     id: row.id,
     authorId: row.author_id,
     title: row.title,
     message: row.message,
-    status: row.status,
-    createdAt: row.created_at,
+    status: mapNotificationStatus(row.status),
+    createdAt: row.created_at ?? '',
   };
 }
 
