@@ -3,11 +3,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Check, Clock, Disc, Lock, Sparkles } from 'lucide-react';
-import {
-  getEditorialSnapshot,
-  resolveEditorialJourney,
-  snapshotFromDashboardProps,
-} from './editorialJourney';
 import type { EditorialJourney, EditorialPhase, EditorialStepStatus } from '@/types/domain.types';
 
 export interface TimelineStep {
@@ -23,25 +18,7 @@ interface ProgressTimelineProps {
   journey?: EditorialJourney | null;
 }
 
-function legacySnapshotFromState(currentState?: 'none' | 'pending' | 'active') {
-  if (!currentState) return null;
-
-  const progressByState: Record<'none' | 'pending' | 'active', number> = {
-    none: 0,
-    pending: 20,
-    active: 60,
-  };
-
-  return snapshotFromDashboardProps({
-    state: currentState,
-    progress: progressByState[currentState],
-    statusLabel: null,
-    projectTitle: null,
-    submittedDate: null,
-  });
-}
-
-const PRESENTATION_META: Record<EditorialPhase, { title: string; description: string }> = {
+const PHASE_PRESENTATION: Record<EditorialPhase, { title: string; description: string }> = {
   received: {
     title: 'Recibido',
     description: 'El manuscrito ya está resguardado en el sistema.',
@@ -85,33 +62,30 @@ function mapDomainStatus(status: EditorialStepStatus): TimelineStep['status'] {
 function mapDomainJourney(journey: EditorialJourney): TimelineStep[] {
   return journey.steps.map((step) => ({
     id: step.id,
-    title: PRESENTATION_META[step.id].title,
-    description: PRESENTATION_META[step.id].description,
+    title: PHASE_PRESENTATION[step.id].title,
+    description: PHASE_PRESENTATION[step.id].description,
     status: mapDomainStatus(step.status),
   }));
 }
 
-export function ProgressTimeline({ steps, currentState, journey: domainJourney = null }: ProgressTimelineProps) {
-  const snapshot = getEditorialSnapshot() ?? legacySnapshotFromState(currentState);
-  const legacyJourney = React.useMemo(() => resolveEditorialJourney(snapshot), [snapshot]);
-
+export function ProgressTimeline({ steps, journey = null }: ProgressTimelineProps) {
   const activeSteps = React.useMemo(() => {
     if (steps && steps.length > 0) {
       return steps;
     }
 
-    if (domainJourney) {
-      return mapDomainJourney(domainJourney);
+    if (journey) {
+      return mapDomainJourney(journey);
     }
 
-    return legacyJourney.steps;
-  }, [steps, domainJourney, legacyJourney.steps]);
+    // Fallback seguro cuando journey es null: pasos vacíos/pending
+    // No reconstruye el motor legacy, solo mantiene una presentación mínima compatible
+    return [];
+  }, [steps, journey]);
 
-  const subtitle = domainJourney
+  const subtitle = journey
     ? 'Fase actual del manuscrito en el proceso de producción de audio'
-    : legacyJourney.label === 'Sin manuscrito'
-      ? 'Aún no hay obra cargada para esta cuenta'
-      : 'Fase actual del manuscrito en el proceso de producción de audio';
+    : 'Aún no hay información disponible de la ruta editorial';
 
   const activeIndex = activeSteps.findIndex((s) => s.status === 'activo');
 
