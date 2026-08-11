@@ -3,29 +3,33 @@ import type { Project, ProjectStatus } from '@/types/domain.types';
 
 type ProjectRow = Database['public']['Tables']['projects']['Row'];
 
-const PROJECT_STATUSES: readonly ProjectStatus[] = [
+const PROJECT_STATUSES: ReadonlySet<string> = new Set([
   'planning',
   'production',
   'review',
   'completed',
   'archived',
-];
+]);
 
 function mapProjectStatus(value: string | null): ProjectStatus {
-  return PROJECT_STATUSES.includes(value as ProjectStatus)
-    ? (value as ProjectStatus)
-    : 'planning';
+  if (value !== null && PROJECT_STATUSES.has(value)) {
+    return value as ProjectStatus;
+  }
+  return 'planning';
 }
 
-/**
- * Maps the persisted Supabase project row into the shared domain model.
- * This is the schema/domain boundary: nullable persisted values are normalized here.
- */
+function requireProjectString(value: string | null, field: string): string {
+  if (value === null) {
+    throw new Error(`Invalid projects row: ${field} is null.`);
+  }
+  return value;
+}
+
 export function mapProjectRowToDomain(row: ProjectRow): Project {
   return {
     id: row.id,
-    authorId: row.author_id,
-    manuscriptId: row.manuscript_id,
+    authorId: requireProjectString(row.author_id, 'author_id'),
+    manuscriptId: requireProjectString(row.manuscript_id, 'manuscript_id'),
     proposalId: row.proposal_id,
     status: mapProjectStatus(row.status),
     createdAt: row.created_at ?? '',
