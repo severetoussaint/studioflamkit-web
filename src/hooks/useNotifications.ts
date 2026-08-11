@@ -43,6 +43,8 @@ export function useNotifications(userId: string | null): UseNotificationsState {
   }, [userId]);
 
   useEffect(() => {
+    // Async workspace synchronization intentionally updates local state after the fetch resolves.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void reload();
   }, [reload]);
 
