@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AuthorProjectViewModel } from '@/domain/view-models/authorProjectViewModel';
 import { getDashboardWorkspaceData } from '@/services/dashboard-workspace.service';
+import { getUser } from '@/services/auth.service';
 
 export interface EditorialWorkspaceState {
   data: AuthorProjectViewModel | null;
@@ -26,10 +27,12 @@ export function useEditorialWorkspace(manuscriptId: string | null): EditorialWor
     setError(null);
 
     try {
-      // The Dashboard already consumes this hook, so routing it through the
-      // transitional workspace loader lets us migrate orchestration without
-      // replacing the page or changing its visual contract.
-      const workspace = await getDashboardWorkspaceData(null, manuscriptId);
+      const user = await getUser();
+      if (!user) throw new Error('Authentication required.');
+
+      // The dashboard workspace loader is now the orchestration boundary.
+      // The hook exposes only the stable domain ViewModel to presentation.
+      const workspace = await getDashboardWorkspaceData(user.id, manuscriptId);
       setData(workspace.editorialWorkspace);
     } catch (cause) {
       const nextError = cause instanceof Error ? cause : new Error(String(cause));
