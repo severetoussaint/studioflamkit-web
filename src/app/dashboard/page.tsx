@@ -138,13 +138,10 @@ export default function DashboardPage() {
   const projectTitle = workspaceData?.projectTitle ?? null;
   const projectStatus = workspaceData?.projectStatus ?? null;
   const editorialProgress = workspaceData?.editorialWorkspace?.progress?.percentage ?? null;
+  const activeProject = workspaceData?.editorialWorkspace?.project ?? null;
 
   // Integración de Workspace Editorial (Fase 1B3.6.A)
   const editorialWorkspace = useEditorialWorkspace(selectedManuscriptId);
-  const activeWorkspaceProject = editorialWorkspace.data?.project;
-
-  // Estado del proyecto desde el Workspace Editorial con fallback a la carga legacy
-  const activeProjectStatus = activeWorkspaceProject?.status ?? realProject?.status;
 
   // Estados de la biblioteca de archivos
   const [libraryData, setLibraryData] = useState<DashboardFileLibraryData | null>(null);
@@ -156,7 +153,7 @@ export default function DashboardPage() {
     if (project) {
       let label = 'Producción';
       let dotColor = 'bg-emerald-500';
-      const statusToUse = (m.id === selectedManuscriptId && activeProjectStatus) ? activeProjectStatus : project.status;
+      const statusToUse = project.status;
       if (statusToUse === 'planning') {
         label = project.progress <= 30 ? 'En análisis' : 'Propuesta';
         dotColor = 'bg-amber-500';
@@ -225,7 +222,7 @@ export default function DashboardPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [showPostSubmitCarousel, setShowPostSubmitCarousel] = useState(false);
 
-  const hasActiveProject = requestState === 'active' || Boolean(realProject);
+  const hasActiveProject = requestState === 'active';
 
   // 1. Efecto para verificar autenticación y obtener el id del autor
   useEffect(() => {
@@ -345,7 +342,7 @@ export default function DashboardPage() {
       try {
         const data = await getDashboardFileLibraryData(
           currentAuthorId,
-          realProject?.id ?? null,
+          workspaceData?.projectId ?? null,
           selectedManuscriptId ?? requestContext?.manuscriptId ?? null
         );
         if (isMounted) setLibraryData(data);
@@ -360,7 +357,7 @@ export default function DashboardPage() {
     return () => {
       isMounted = false;
     };
-  }, [authorId, realProject?.id, selectedManuscriptId, requestContext?.manuscriptId]);
+  }, [authorId, workspaceData?.projectId, selectedManuscriptId, requestContext?.manuscriptId]);
 
   // Sincronización de estado para migración 1B3.6:
   // Cuando selectedManuscriptId es null y workspaceData?.manuscriptId existe,
@@ -643,7 +640,7 @@ export default function DashboardPage() {
                   >
                     <span className="truncate">
                       {requestState === 'active'
-                        ? (realProject?.title || requestContext?.title || 'Tu Obra en Grabación')
+                        ? (projectTitle || requestContext?.title || 'Tu Obra en Grabación')
                         : requestState === 'pending'
                         ? (requestContext?.title || 'Manuscrito en Evaluación Editorial')
                         : 'Bienvenido a Studio Flamkit'}
@@ -1115,7 +1112,7 @@ export default function DashboardPage() {
                       <h3 className="text-base font-semibold text-ink">Cuenta de Autor Verificada</h3>
                       <p className="text-xs text-ink-muted">
                         {hasActiveProject
-                          ? `Proyecto Activo: ${realProject?.title || requestContext?.title || 'Obra en producción'}`
+                          ? `Proyecto Activo: ${projectTitle || requestContext?.title || 'Obra en producción'}`
                           : 'Sin obras en producción activa'}
                       </p>
                     </div>
