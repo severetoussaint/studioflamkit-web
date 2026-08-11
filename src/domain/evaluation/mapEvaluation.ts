@@ -3,19 +3,19 @@ import type { Evaluation, EvaluationResult } from '@/types/domain.types';
 
 type EvaluationRow = Database['public']['Tables']['evaluations']['Row'];
 
-const EVALUATION_RESULTS: readonly EvaluationResult[] = [
+const EVALUATION_RESULTS: ReadonlySet<string> = new Set([
   'approved',
   'approved_with_notes',
   'rejected',
-];
+]);
 
 function mapEvaluationResult(value: string | null): EvaluationResult {
-  return EVALUATION_RESULTS.includes(value as EvaluationResult)
-    ? (value as EvaluationResult)
-    : 'approved';
+  if (value !== null && EVALUATION_RESULTS.has(value)) {
+    return value as EvaluationResult;
+  }
+  return 'approved';
 }
 
-/** Maps the persisted evaluation row into the shared domain model. */
 export function mapEvaluationRowToDomain(row: EvaluationRow): Evaluation {
   return {
     id: row.id,
