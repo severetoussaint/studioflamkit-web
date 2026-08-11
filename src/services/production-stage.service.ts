@@ -1,8 +1,20 @@
 import { supabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/database.types';
-import type { ProductionStage, ProjectProgress } from '@/types/domain.types';
+import type { ProductionStage, ProductionStageStatus, ProjectProgress } from '@/types/domain.types';
 
 export type ProductionStageRow = Database['public']['Tables']['production_stages']['Row'];
+
+const PRODUCTION_STAGE_STATUSES: readonly ProductionStageStatus[] = [
+  'pending',
+  'in_progress',
+  'completed',
+];
+
+function mapProductionStageStatus(value: string | null): ProductionStageStatus {
+  return PRODUCTION_STAGE_STATUSES.includes(value as ProductionStageStatus)
+    ? (value as ProductionStageStatus)
+    : 'pending';
+}
 
 function mapProductionStage(row: ProductionStageRow): ProductionStage {
   return {
@@ -11,12 +23,12 @@ function mapProductionStage(row: ProductionStageRow): ProductionStage {
     name: row.name,
     orderIndex: row.order_index,
     progressPercentage: row.progress_percentage ?? 0,
-    status: row.status,
+    status: mapProductionStageStatus(row.status),
     startDate: row.start_date,
     endDate: row.end_date,
     assignedTo: row.assigned_to,
     notes: row.notes,
-    createdAt: row.created_at,
+    createdAt: row.created_at ?? '',
   };
 }
 
