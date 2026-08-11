@@ -1,7 +1,7 @@
 import { supabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/database.types';
 import type { ProjectStatus } from '@/types/domain.types';
-import { getProjectProgress } from '@/services/production-stage.service';
+import { getProjectProgress, getProjectsProgress } from '@/services/production-stage.service';
 
 export type ProjectRow = Database['public']['Tables']['projects']['Row'];
 export type ProjectInsert = Database['public']['Tables']['projects']['Insert'];
@@ -257,26 +257,22 @@ export async function getAuthorProjectsList(authorId: string): Promise<AuthorPro
     }
 
     const typedProjects = (projects as unknown as DBProjectRow[]) || [];
+    const projectProgress = await getProjectsProgress(typedProjects.map((project) => project.id));
 
-    const overviews = await Promise.all(
-      typedProjects.map(async (project) => {
-        const projectProgress = await getProjectProgress(project.id);
-        const manuscriptData = Array.isArray(project.manuscripts)
-          ? project.manuscripts[0]
-          : project.manuscripts;
+    return typedProjects.map((project) => {
+      const manuscriptData = Array.isArray(project.manuscripts)
+        ? project.manuscripts[0]
+        : project.manuscripts;
 
-        return {
-          id: project.id,
-          manuscriptId: project.manuscript_id || null,
-          title: manuscriptData?.title ?? 'Tu Obra de Audio',
-          status: project.status ?? 'planning',
-          progress: projectProgress.percentage,
-          createdAt: project.created_at || null,
-        };
-      })
-    );
-
-    return overviews;
+      return {
+        id: project.id,
+        manuscriptId: project.manuscript_id || null,
+        title: manuscriptData?.title ?? 'Tu Obra de Audio',
+        status: project.status ?? 'planning',
+        progress: projectProgress[project.id]?.percentage ?? 0,
+        createdAt: project.created_at || null,
+      };
+    });
   } catch (err) {
     console.error('getAuthorProjectsList unexpected error:', err);
     return [];
