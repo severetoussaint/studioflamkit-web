@@ -47,6 +47,14 @@ export type ReviewStatus =
   | 'discarded';
 
 /**
+ * Resultados reales de una evaluación en `evaluations.result`.
+ */
+export type EvaluationResult =
+  | 'approved'
+  | 'approved_with_notes'
+  | 'rejected';
+
+/**
  * Las seis fases de producto del itinerario editorial (Editorial Journey).
  */
 export type EditorialPhase =
