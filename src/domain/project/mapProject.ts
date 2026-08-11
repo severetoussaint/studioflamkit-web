@@ -1,5 +1,7 @@
-import type { ProjectRow } from '@/services/project.service';
+import type { Database } from '@/types/database.types';
 import type { Project } from '@/types/domain.types';
+
+type ProjectRow = Database['public']['Tables']['projects']['Row'];
 
 /**
  * Maps the persisted Supabase project row into the shared domain model.
