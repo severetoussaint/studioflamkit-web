@@ -1,5 +1,5 @@
 import { supabaseClient } from '@/lib/supabase/client';
-import type { Database } from '@/types/database.types';
+import type { Database, Json } from '@/types/database.types';
 import type { Proposal, ProposalStatus } from '@/types/domain.types';
 import { mapProposalRowToDomain } from '@/domain/proposal/mapProposal';
 
@@ -16,7 +16,7 @@ export interface CreateProposalInput {
   requestId: string;
   amount: number;
   currency?: string | null;
-  services?: unknown | null;
+  services?: Json | null;
   revisionsIncluded?: number | null;
   deadline?: string | null;
   expiresAt?: string | null;
