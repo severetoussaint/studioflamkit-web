@@ -1,4 +1,4 @@
-import type { EvaluationResult, Project, ProjectProgress, Proposal } from '@/types/domain.types';
+import type { Project, ProjectProgress, Proposal } from '@/types/domain.types';
 import { buildEditorialJourneyContext } from '@/domain/editorial/buildEditorialJourneyContext';
 import { deriveEditorialJourney } from '@/domain/editorial/deriveEditorialJourney';
 import { listProposals } from '@/services/proposal.service';
@@ -10,13 +10,13 @@ import { hasOpenReviewsByProject } from '@/services/review.service';
 import { getProjectProgress } from '@/services/production-stage.service';
 import type { AuthorProjectViewModel } from '@/domain/view-models/authorProjectViewModel';
 
-export type EditorialWorkspaceData = AuthorProjectViewModel & {
-  evaluationResult: EvaluationResult | null;
-};
+export type EditorialWorkspaceData = AuthorProjectViewModel;
 
 /**
  * Loads the shared author workspace domain data for one manuscript.
  * Presentation-specific labels, colors and layout state remain outside this service.
+ * Evaluation data is consumed only to derive the editorial journey and is not
+ * exposed through the author-facing workspace contract.
  */
 export async function getEditorialWorkspaceByManuscript(
   manuscriptId: string,
@@ -54,7 +54,6 @@ export async function getEditorialWorkspaceByManuscript(
 
   return {
     request,
-    evaluationResult: evaluation?.result ?? null,
     proposal,
     project,
     progress,
