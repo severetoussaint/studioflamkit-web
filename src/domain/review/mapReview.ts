@@ -1,15 +1,11 @@
 import type { Database } from '@/types/database.types';
-import type { Review, ReviewStatus } from '@/types/domain.types';
+import type { Review } from '@/types/domain.types';
+import { isReviewStatus } from '@/domain/review/reviewStatus';
 
 type ReviewRow = Database['public']['Tables']['reviews']['Row'];
 
-const REVIEW_STATUSES: ReadonlySet<string> = new Set(['open', 'resolved', 'discarded']);
-
-function mapReviewStatus(value: string | null): ReviewStatus {
-  if (value !== null && REVIEW_STATUSES.has(value)) {
-    return value as ReviewStatus;
-  }
-  return 'open';
+function mapReviewStatus(value: string | null) {
+  return isReviewStatus(value) ? value : 'open';
 }
 
 export function mapReviewRowToDomain(row: ReviewRow): Review {
