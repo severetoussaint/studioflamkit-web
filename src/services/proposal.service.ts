@@ -21,9 +21,13 @@ function assertPendingStatus(proposal: Proposal) {
   }
 }
 
-function assertNotExpired(proposal: Proposal) {
-  if (proposal.expiresAt && new Date(proposal.expiresAt).getTime() < Date.now()) {
-    throw new Error(`Proposal ${proposal.id} has expired.`);
+function assertExpired(proposal: Proposal) {
+  if (!proposal.expiresAt) {
+    throw new Error(`Proposal ${proposal.id} has no expiration date.`);
+  }
+
+  if (new Date(proposal.expiresAt).getTime() >= Date.now()) {
+    throw new Error(`Proposal ${proposal.id} has not expired yet.`);
   }
 }
 
@@ -101,7 +105,7 @@ export async function expireProposal(proposalId: string): Promise<Proposal> {
   if (!proposal) throw new Error(`Proposal ${proposalId} not found.`);
 
   assertPendingStatus(proposal);
-  assertNotExpired(proposal);
+  assertExpired(proposal);
 
   const { data, error } = await supabaseClient
     .from('proposals')
