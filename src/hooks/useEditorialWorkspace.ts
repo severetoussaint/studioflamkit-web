@@ -44,6 +44,10 @@ export function useEditorialWorkspace(manuscriptId: string | null): EditorialWor
   }, [manuscriptId]);
 
   useEffect(() => {
+    // The hook intentionally synchronizes async external data into local state.
+    // React's set-state-in-effect rule flags the invocation site even though the
+    // actual state updates occur after the awaited service call.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
 
