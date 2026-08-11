@@ -1,10 +1,12 @@
 import { supabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/database.types';
-import type { Review } from '@/types/domain.types';
+import type { Review, ReviewStatus } from '@/types/domain.types';
 import { mapReviewRowToDomain } from '@/domain/review/mapReview';
+import { isReviewStatus } from '@/domain/review/reviewStatus';
 
 type ReviewRow = Database['public']['Tables']['reviews']['Row'];
 type DeliverableRow = Pick<Database['public']['Tables']['deliverables']['Row'], 'id'>;
+type ReviewTransitionStatus = Exclude<ReviewStatus, 'open'>;
 
 export interface CreateReviewInput {
   deliverableId: string;
@@ -98,7 +100,11 @@ export async function createReview(input: CreateReviewInput): Promise<Review> {
   return mapReviewRowToDomain(data as ReviewRow);
 }
 
-async function updateReviewStatus(reviewId: string, status: ReviewRow['status']): Promise<Review> {
+async function updateReviewStatus(reviewId: string, status: ReviewTransitionStatus): Promise<Review> {
+  if (!isReviewStatus(status) || status === 'open') {
+    throw new Error(`Invalid review transition status: ${status}`);
+  }
+
   const review = await getReview(reviewId);
   if (!review) throw new Error(`Review ${reviewId} not found.`);
 
