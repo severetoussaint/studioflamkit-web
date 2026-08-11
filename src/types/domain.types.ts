@@ -1,17 +1,10 @@
 /**
  * Tipos de Dominio Compartidos — Studio Flamkit & Art
  *
- * Este archivo define los tipos de dominio centralizados compartidos entre
- * el Dashboard (Autor) y la consola de Administración (Admin).
- *
- * Contrato de Dominio Mínimo Ajustado (1B3.1.A):
- * - Refleja los valores reales almacenados en la base de datos Supabase.
- * - Separa los conceptos puros de dominio de los ViewModels / Presentación.
+ * Contratos de negocio compartidos entre Dashboard (Autor) y Admin.
+ * Los tipos de Supabase permanecen en database.types.ts.
  */
 
-/**
- * Estados reales de un proyecto en la tabla `projects.status`.
- */
 export type ProjectStatus =
   | 'planning'
   | 'production'
@@ -19,9 +12,6 @@ export type ProjectStatus =
   | 'completed'
   | 'archived';
 
-/**
- * Estados reales de una solicitud de proyecto en `project_requests.status`.
- */
 export type RequestStatus =
   | 'pending'
   | 'evaluating'
@@ -29,34 +19,22 @@ export type RequestStatus =
   | 'rejected'
   | 'canceled';
 
-/**
- * Estados reales de una propuesta comercial/técnica en `proposals.status`.
- */
 export type ProposalStatus =
   | 'pending'
   | 'accepted'
   | 'rejected'
   | 'expired';
 
-/**
- * Estados reales de las revisiones de entregables en `reviews.status`.
- */
 export type ReviewStatus =
   | 'open'
   | 'resolved'
   | 'discarded';
 
-/**
- * Resultados reales de una evaluación en `evaluations.result`.
- */
 export type EvaluationResult =
   | 'approved'
   | 'approved_with_notes'
   | 'rejected';
 
-/**
- * Las seis fases de producto del itinerario editorial (Editorial Journey).
- */
 export type EditorialPhase =
   | 'received'
   | 'analysis'
@@ -65,36 +43,22 @@ export type EditorialPhase =
   | 'review'
   | 'completed';
 
-/**
- * Estado individual de un paso en el itinerario editorial.
- */
 export type EditorialStepStatus =
   | 'completed'
   | 'active'
   | 'pending'
   | 'blocked';
 
-/**
- * Paso individual del itinerario editorial de dominio.
- */
 export interface EditorialTimelineStep {
   id: EditorialPhase;
   status: EditorialStepStatus;
 }
 
-/**
- * Modelo de dominio del itinerario editorial (Editorial Journey).
- * Modela la fase actual y los pasos sin acoplarse a etiquetas o controles de UI.
- */
 export interface EditorialJourney {
   currentPhase: EditorialPhase;
   steps: EditorialTimelineStep[];
 }
 
-/**
- * Modelo de dominio de Proyecto.
- * Representa el concepto de negocio sin campos de presentación.
- */
 export interface Project {
   id: string;
   authorId: string;
@@ -103,4 +67,25 @@ export interface Project {
   status: ProjectStatus;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ProjectRequest {
+  id: string;
+  manuscriptId: string;
+  channel: string | null;
+  status: RequestStatus;
+  createdAt: string;
+}
+
+export interface Proposal {
+  id: string;
+  requestId: string;
+  amount: number;
+  currency: string | null;
+  services: unknown | null;
+  revisionsIncluded: number | null;
+  deadline: string | null;
+  status: ProposalStatus;
+  expiresAt: string | null;
+  createdAt: string;
 }
