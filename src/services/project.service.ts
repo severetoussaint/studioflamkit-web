@@ -122,7 +122,7 @@ interface AuthorProjectQueryResult {
   deliverables?: AuthorProjectDeliverableRow[];
 }
 
-function legacyProjectProgress(status: ProjectStatus, chapters: AuthorChapterData[]): number {
+function legacyProjectProgress(status: ProjectStatus, chapters: Array<Pick<AuthorChapterData, 'status'>>): number {
   if (chapters.length > 0) {
     const weights: Record<AuthorChapterData['status'], number> = {
       pendiente: 0,
@@ -247,6 +247,7 @@ interface DBProjectRow {
   created_at: string | null;
   manuscript_id: string | null;
   manuscripts: { id: string; title: string | null } | { id: string; title: string | null }[] | null;
+  chapters: { status: string }[] | null;
 }
 
 export async function getAuthorProjectsList(authorId: string): Promise<AuthorProjectOverview[]> {
@@ -265,7 +266,8 @@ export async function getAuthorProjectsList(authorId: string): Promise<AuthorPro
         status,
         created_at,
         manuscript_id,
-        manuscripts ( id, title )
+        manuscripts ( id, title ),
+        chapters ( status )
       `);
 
     if (manuscriptIds.length > 0) {
@@ -290,6 +292,15 @@ export async function getAuthorProjectsList(authorId: string): Promise<AuthorPro
         : project.manuscripts;
       const status = project.status ?? 'planning';
       const realProgress = projectProgress[project.id];
+      const chapterStatuses = (project.chapters ?? [])
+        .map((chapter) => chapter.status)
+        .filter((chapterStatus): chapterStatus is AuthorChapterData['status'] => (
+          chapterStatus === 'pendiente'
+          || chapterStatus === 'cotizado'
+          || chapterStatus === 'pagado'
+          || chapterStatus === 'en_produccion'
+          || chapterStatus === 'entregado'
+        ));
 
       return {
         id: project.id,
@@ -298,7 +309,7 @@ export async function getAuthorProjectsList(authorId: string): Promise<AuthorPro
         status,
         progress: realProgress && realProgress.totalStages > 0
           ? realProgress.percentage
-          : legacyProjectProgress(status, []),
+          : legacyProjectProgress(status, chapterStatuses.map((status) => ({ status }))),
         createdAt: project.created_at || null,
       };
     });
