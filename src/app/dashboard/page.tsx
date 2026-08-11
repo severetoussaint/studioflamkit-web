@@ -357,6 +357,15 @@ export default function DashboardPage() {
     };
   }, [authorId, realProject?.id, selectedManuscriptId, requestContext?.manuscriptId]);
 
+  // Sincronización de estado para migración 1B3.6:
+  // Cuando selectedManuscriptId es null y workspaceData?.manuscriptId existe,
+  // se establece como manuscrito seleccionado. No sobrescribe si ya hay selección manual.
+  useEffect(() => {
+    if (selectedManuscriptId === null && workspaceData?.manuscriptId) {
+      setSelectedManuscriptId(workspaceData.manuscriptId);
+    }
+  }, [selectedManuscriptId, workspaceData?.manuscriptId]);
+
   const togglePlay = () => {
     setIsPlaying(!isPlaying);
   };
