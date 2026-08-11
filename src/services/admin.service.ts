@@ -280,6 +280,7 @@ export async function listQuotationRequests(): Promise<QuotationRequest[]> {
           authors ( full_name )
         )
       `)
+      .in('status', ['pending', 'evaluating'])
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -706,7 +707,7 @@ export async function addDeliverableComment(
   return projects.find((p) => p.id === _projectId);
 }
 
-// ─── CAPÍTULOS REALEZ (chapters en Supabase) ───────────────────────────────
+// ─── CAPÍTULOS REALEZ (chapters en Supabase) ────────────────────────────────
 
 export interface CreateChapterInput {
   project_id: string;
