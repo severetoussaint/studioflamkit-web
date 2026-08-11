@@ -45,6 +45,14 @@ const PHASE_PRESENTATION: Record<EditorialPhase, { title: string; description: s
   },
 };
 
+const FALLBACK_PHASE_BY_STATE: Record<'none' | 'pending' | 'active', EditorialPhase | null> = {
+  none: null,
+  pending: 'analysis',
+  active: 'production',
+};
+
+const PHASES: EditorialPhase[] = ['received', 'analysis', 'proposal', 'production', 'review', 'completed'];
+
 function mapDomainStatus(status: EditorialStepStatus): TimelineStep['status'] {
   switch (status) {
     case 'completed':
@@ -68,7 +76,19 @@ function mapDomainJourney(journey: EditorialJourney): TimelineStep[] {
   }));
 }
 
-export function ProgressTimeline({ steps, journey = null }: ProgressTimelineProps) {
+function buildFallbackSteps(currentState?: 'none' | 'pending' | 'active'): TimelineStep[] {
+  const fallbackPhase = currentState ? FALLBACK_PHASE_BY_STATE[currentState] : null;
+  const activeIndex = fallbackPhase ? PHASES.indexOf(fallbackPhase) : -1;
+
+  return PHASES.map((phase, index) => ({
+    id: phase,
+    title: PHASE_PRESENTATION[phase].title,
+    description: PHASE_PRESENTATION[phase].description,
+    status: index < activeIndex ? 'completado' : index === activeIndex ? 'activo' : 'pendiente',
+  }));
+}
+
+export function ProgressTimeline({ steps, currentState, journey = null }: ProgressTimelineProps) {
   const activeSteps = React.useMemo(() => {
     if (steps && steps.length > 0) {
       return steps;
@@ -78,14 +98,14 @@ export function ProgressTimeline({ steps, journey = null }: ProgressTimelineProp
       return mapDomainJourney(journey);
     }
 
-    // Fallback seguro cuando journey es null: pasos vacíos/pending
-    // No reconstruye el motor legacy, solo mantiene una presentación mínima compatible
-    return [];
-  }, [steps, journey]);
+    return buildFallbackSteps(currentState);
+  }, [steps, currentState, journey]);
 
   const subtitle = journey
     ? 'Fase actual del manuscrito en el proceso de producción de audio'
-    : 'Aún no hay información disponible de la ruta editorial';
+    : currentState === 'none'
+      ? 'Aún no hay obra cargada para esta cuenta'
+      : 'Fase actual del manuscrito en el proceso de producción de audio';
 
   const activeIndex = activeSteps.findIndex((s) => s.status === 'activo');
 
