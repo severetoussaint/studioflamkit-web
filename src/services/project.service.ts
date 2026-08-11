@@ -1,5 +1,6 @@
 import { supabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/database.types';
+import type { ProjectStatus } from '@/types/domain.types';
 
 export type ProjectRow = Database['public']['Tables']['projects']['Row'];
 export type ProjectInsert = Database['public']['Tables']['projects']['Insert'];
@@ -64,7 +65,7 @@ export interface AuthorChapterData {
 export interface AuthorProjectData {
   id: string;
   title: string;
-  status: string;
+  status: ProjectStatus;
   maxRevisions: number;
   revisionsUsed: number;
   progress: number;
@@ -102,7 +103,7 @@ interface AuthorProjectDeliverableRow {
 
 interface AuthorProjectQueryResult {
   id: string;
-  status?: string;
+  status?: ProjectStatus;
   updated_at?: string;
   manuscripts?: { id?: string; title?: string; word_count?: number; author_id?: string } | null;
   chapters?: AuthorProjectChapterRow[];
@@ -155,7 +156,7 @@ export async function getAuthorProjectData(authorId: string, manuscriptId?: stri
     }
 
     const project = projects[0] as unknown as AuthorProjectQueryResult;
-    const dbStatus = project.status ?? 'planning';
+    const dbStatus: ProjectStatus = project.status ?? 'planning';
 
     const dbChapters = (project.chapters ?? []).sort((a, b) => a.chapter_number - b.chapter_number);
 
@@ -191,13 +192,14 @@ export async function getAuthorProjectData(authorId: string, manuscriptId?: stri
       const sum = chapters.reduce((acc, c) => acc + (weights[c.status] ?? 0), 0);
       progress = Math.round(sum / chapters.length);
     } else {
-      const statusMap: Record<string, number> = {
+      const statusMap: Record<ProjectStatus, number> = {
         planning: 25,
         production: 60,
         review: 85,
         completed: 100,
+        archived: 100,
       };
-      progress = statusMap[dbStatus] ?? 25;
+      progress = statusMap[dbStatus];
     }
 
     return {
@@ -220,14 +222,14 @@ export interface AuthorProjectOverview {
   id: string;
   manuscriptId: string | null;
   title: string | null;
-  status: string | null;
+  status: ProjectStatus | null;
   progress: number;
   createdAt: string | null;
 }
 
 interface DBProjectRow {
   id: string;
-  status: string | null;
+  status: ProjectStatus | null;
   created_at: string | null;
   manuscript_id: string | null;
   manuscripts: { id: string; title: string | null } | { id: string; title: string | null }[] | null;
@@ -283,13 +285,14 @@ export async function getAuthorProjectsList(authorId: string): Promise<AuthorPro
         const sum = chapters.reduce((acc: number, c: { status: string }) => acc + (weights[c.status] ?? 0), 0);
         progress = Math.round(sum / chapters.length);
       } else {
-        const statusMap: Record<string, number> = {
+        const statusMap: Record<ProjectStatus, number> = {
           planning: 25,
           production: 60,
           review: 85,
           completed: 100,
+          archived: 100,
         };
-        progress = statusMap[project.status ?? ''] ?? 25;
+        progress = statusMap[project.status ?? 'planning'];
       }
 
       const manuscriptData = Array.isArray(project.manuscripts)
@@ -310,4 +313,3 @@ export async function getAuthorProjectsList(authorId: string): Promise<AuthorPro
     return [];
   }
 }
-
