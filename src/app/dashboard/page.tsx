@@ -253,11 +253,14 @@ export default function DashboardPage() {
       return;
     }
 
+    const currentAuthorId = authorId;
+    const currentManuscriptId = selectedManuscriptId;
+
     let isMounted = true;
 
     async function loadProjectData() {
       try {
-        const projectData = await getAuthorProjectData(authorId, selectedManuscriptId);
+        const projectData = await getAuthorProjectData(currentAuthorId, currentManuscriptId);
         if (!isMounted) return;
 
         if (projectData) {
@@ -308,6 +311,7 @@ export default function DashboardPage() {
             });
             setChaptersState(mappedChapters);
           } else {
+            setRealProject(null);
             setChaptersState([]);
           }
         } else {
@@ -331,14 +335,16 @@ export default function DashboardPage() {
   // 3. Efecto para cargar datos completos de la biblioteca de archivos
   useEffect(() => {
     if (!authorId || !selectedManuscriptId) return;
+    const currentAuthorId = authorId;
+    const currentManuscriptId = selectedManuscriptId;
     let isMounted = true;
 
     async function loadLibrary() {
       try {
         const data = await getDashboardFileLibraryData(
-          authorId,
+          currentAuthorId,
           workspaceData?.projectId ?? null,
-          selectedManuscriptId
+          currentManuscriptId
         );
         if (isMounted) setLibraryData(data);
       } catch (err) {
