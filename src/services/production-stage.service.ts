@@ -58,3 +58,32 @@ export async function getProjectProgress(projectId: string): Promise<ProjectProg
   const stages = await listProductionStages(projectId);
   return deriveProjectProgress(stages);
 }
+
+export async function getProjectsProgress(projectIds: string[]): Promise<Record<string, ProjectProgress>> {
+  if (projectIds.length === 0) return {};
+
+  const { data, error } = await supabaseClient
+    .from('production_stages')
+    .select('*')
+    .in('project_id', projectIds)
+    .order('project_id', { ascending: true })
+    .order('order_index', { ascending: true });
+
+  if (error) throw error;
+
+  const stagesByProject = new Map<string, ProductionStage[]>();
+
+  for (const row of data ?? []) {
+    const stage = mapProductionStage(row);
+    const stages = stagesByProject.get(stage.projectId) ?? [];
+    stages.push(stage);
+    stagesByProject.set(stage.projectId, stages);
+  }
+
+  return Object.fromEntries(
+    projectIds.map((projectId) => [
+      projectId,
+      deriveProjectProgress(stagesByProject.get(projectId) ?? []),
+    ])
+  );
+}
