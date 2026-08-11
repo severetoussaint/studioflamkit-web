@@ -11,28 +11,33 @@ export interface CreateNotificationInput {
   status?: NotificationStatus;
 }
 
-const NOTIFICATION_STATUSES: readonly NotificationStatus[] = ['pending', 'sent', 'read'];
+const NOTIFICATION_STATUSES: ReadonlySet<string> = new Set(['pending', 'sent', 'read']);
 
 function mapNotificationStatus(value: string | null): NotificationStatus {
-  return NOTIFICATION_STATUSES.includes(value as NotificationStatus)
-    ? (value as NotificationStatus)
-    : 'pending';
+  if (value !== null && NOTIFICATION_STATUSES.has(value)) {
+    return value as NotificationStatus;
+  }
+  return 'pending';
+}
+
+function requireNotificationString(value: string | null, field: string): string {
+  if (value === null) {
+    throw new Error(`Invalid notifications row: ${field} is null.`);
+  }
+  return value;
 }
 
 function mapNotificationRowToDomain(row: NotificationRow): Notification {
   return {
     id: row.id,
-    authorId: row.author_id,
-    title: row.title,
-    message: row.message,
+    authorId: requireNotificationString(row.author_id, 'author_id'),
+    title: requireNotificationString(row.title, 'title'),
+    message: requireNotificationString(row.message, 'message'),
     status: mapNotificationStatus(row.status),
     createdAt: row.created_at ?? '',
   };
 }
 
-/**
- * Fetch real notifications for a given user (Author or Admin)
- */
 export async function getUserNotifications(userId: string): Promise<Notification[]> {
   if (!userId) return [];
   try {
@@ -48,7 +53,7 @@ export async function getUserNotifications(userId: string): Promise<Notification
       return [];
     }
 
-    return ((data ?? []) as NotificationRow[]).map(mapNotificationRowToDomain);
+    return (data ?? []).map(mapNotificationRowToDomain);
   } catch (err) {
     console.error('Unexpected error in getUserNotifications:', err);
     return [];
@@ -72,12 +77,9 @@ export async function createNotification(input: CreateNotificationInput): Promis
     .single();
 
   if (error) throw error;
-  return mapNotificationRowToDomain(data as NotificationRow);
+  return mapNotificationRowToDomain(data);
 }
 
-/**
- * Mark a single notification as read in Supabase
- */
 export async function markNotificationAsRead(id: string): Promise<boolean> {
   if (!id) return false;
   try {
@@ -97,10 +99,6 @@ export async function markNotificationAsRead(id: string): Promise<boolean> {
   }
 }
 
-/**
- * Mark all unread notifications for a user as read.
- * The current schema represents unread states as pending or sent.
- */
 export async function markAllNotificationsAsRead(userId: string): Promise<boolean> {
   if (!userId) return false;
   try {
