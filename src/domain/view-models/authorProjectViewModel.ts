@@ -4,6 +4,8 @@ import type {
   ProjectProgress,
   ProjectRequest,
   Proposal,
+  Review,
+  TimelineEntry,
 } from '@/types/domain.types';
 
 /**
@@ -18,5 +20,7 @@ export interface AuthorProjectViewModel {
   proposal: Proposal | null;
   journey: EditorialJourney | null;
   progress: ProjectProgress | null;
+  reviews: Review[];
+  timeline: TimelineEntry[];
   hasOpenReviews: boolean;
 }
