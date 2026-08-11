@@ -134,6 +134,11 @@ export default function DashboardPage() {
   const projectsOverview = workspaceData?.projectsOverview ?? [];
   const requestState = workspaceData?.requestState ?? 'none';
 
+  // Datos migrados desde workspaceData (Fase 1B3.6)
+  const projectTitle = workspaceData?.projectTitle ?? null;
+  const projectStatus = workspaceData?.projectStatus ?? null;
+  const editorialProgress = workspaceData?.editorialWorkspace?.progress?.percentage ?? null;
+
   // Integración de Workspace Editorial (Fase 1B3.6.A)
   const editorialWorkspace = useEditorialWorkspace(selectedManuscriptId);
   const activeWorkspaceProject = editorialWorkspace.data?.project;
@@ -769,9 +774,9 @@ export default function DashboardPage() {
                 {/* Hero / Estado de Obra */}
                 <StatusHero
                   state={requestState}
-                  projectTitle={realProject?.title || requestContext?.title}
+                  projectTitle={projectTitle || requestContext?.title}
                   submittedDate={requestContext?.createdAt ? new Date(requestContext.createdAt).toLocaleDateString() : undefined}
-                  progress={realProject?.progress || 0}
+                  progress={editorialProgress ?? 0}
                   statusLabel={requestState === 'active' ? 'Producción Audiocinematográfica' : undefined}
                   journey={editorialWorkspace.data?.journey ?? null}
                   onUploadClick={() => setUploaderModalOpen(true)}
@@ -798,7 +803,7 @@ export default function DashboardPage() {
                     <KpiCard
                       icon={Clock}
                       label="Estado de Producción"
-                      value={requestState === 'active' ? `${realProject?.progress || 0}%` : 'En Lectura'}
+                      value={requestState === 'active' ? `${editorialProgress ?? 0}%` : 'En Lectura'}
                       subtext="Seguimiento por capítulos"
                       statusBadge={{ text: requestState === 'active' ? 'En Curso' : 'SLA < 48h', type: 'neutral' }}
                     />
@@ -816,7 +821,7 @@ export default function DashboardPage() {
                 <div className="grid gap-6 lg:grid-cols-12">
                   <div className="lg:col-span-8">
                     <FilePanel
-                      projectTitle={realProject?.title || requestContext?.title}
+                      projectTitle={projectTitle || requestContext?.title}
                       acceptedPaymentAmount={realProject?.chapters?.reduce((acc, c) => acc + (c.price || 0), 0) || 0}
                       files={
                         requestContext?.manuscripts && requestContext.manuscripts.length > 0
