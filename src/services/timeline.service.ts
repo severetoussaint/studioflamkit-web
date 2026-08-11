@@ -4,7 +4,7 @@ import type { TimelineEntry, TimelineEvent } from '@/types/domain.types';
 
 type TimelineRow = Database['public']['Tables']['timeline']['Row'];
 
-const TIMELINE_EVENTS: readonly TimelineEvent[] = [
+const TIMELINE_EVENTS: ReadonlySet<string> = new Set([
   'project_created',
   'project_stage_changed',
   'project_completed',
@@ -15,18 +15,26 @@ const TIMELINE_EVENTS: readonly TimelineEvent[] = [
   'review_created',
   'review_resolved',
   'review_discarded',
-];
+]);
 
 function mapTimelineEvent(value: string): TimelineEvent {
-  return TIMELINE_EVENTS.includes(value as TimelineEvent)
-    ? (value as TimelineEvent)
-    : 'project_stage_changed';
+  if (TIMELINE_EVENTS.has(value)) {
+    return value as TimelineEvent;
+  }
+  return 'project_stage_changed';
+}
+
+function requireTimelineString(value: string | null, field: string): string {
+  if (value === null) {
+    throw new Error(`Invalid timeline row: ${field} is null.`);
+  }
+  return value;
 }
 
 function mapTimelineRowToDomain(row: TimelineRow): TimelineEntry {
   return {
-    id: row.id,
-    projectId: row.project_id,
+    id: requireTimelineString(row.id, 'id'),
+    projectId: requireTimelineString(row.project_id, 'project_id'),
     event: mapTimelineEvent(row.event),
     details: row.details,
     createdAt: row.created_at ?? '',
@@ -43,7 +51,7 @@ export async function listProjectTimeline(projectId: string): Promise<TimelineEn
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return ((data ?? []) as TimelineRow[]).map(mapTimelineRowToDomain);
+  return (data ?? []).map(mapTimelineRowToDomain);
 }
 
 export async function hasTimelineEvent(
@@ -92,5 +100,5 @@ export async function addTimelineEvent(
     .single();
 
   if (error) throw error;
-  return mapTimelineRowToDomain(data as TimelineRow);
+  return mapTimelineRowToDomain(data);
 }
