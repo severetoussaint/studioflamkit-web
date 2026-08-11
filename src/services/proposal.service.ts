@@ -51,6 +51,19 @@ export async function listProposals(requestId?: string): Promise<Proposal[]> {
   return (data ?? []).map(mapProposalRowToDomain);
 }
 
+/**
+ * Resolves the proposal that should represent the current commercial state of a request.
+ * Pending and accepted proposals take precedence over rejected/expired history.
+ */
+export async function getCurrentProposalForRequest(requestId: string): Promise<Proposal | null> {
+  const proposals = await listProposals(requestId);
+
+  return proposals.find((proposal) => proposal.status === 'pending')
+    ?? proposals.find((proposal) => proposal.status === 'accepted')
+    ?? proposals[0]
+    ?? null;
+}
+
 export async function getProposal(proposalId: string): Promise<Proposal | null> {
   const { data, error } = await supabaseClient
     .from('proposals')
