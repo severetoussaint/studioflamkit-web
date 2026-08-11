@@ -113,7 +113,7 @@ export type Database = {
           id?: string
           pfh_rate_used?: number
           price?: number | null
-          project_id: string
+          project_id?: string
           status?: string
           tier?: string | null
           title?: string | null
@@ -158,10 +158,10 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
-          project_id: string
+          project_id?: string
           status?: string | null
-          storage_path: string
-          title: string
+          storage_path?: string
+          title?: string
           version?: string | null
         }
         Update: {
@@ -447,7 +447,7 @@ export type Database = {
           created_at?: string | null
           due_date?: string | null
           id?: string
-          installment_number: number
+          installment_number?: number
           percentage: number
           project_id: string
           status?: string | null
@@ -779,7 +779,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      accept_proposal: { Args: { p_proposal_id: string }; Returns: string }
+      expire_proposal: { Args: { p_proposal_id: string }; Returns: string }
+      is_admin: { Args: never; Returns: boolean }
+      reject_proposal: { Args: { p_proposal_id: string }; Returns: string }
+      send_proposal: { Args: { p_proposal_id: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never
