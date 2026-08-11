@@ -59,6 +59,8 @@ export function useProposal({ proposalId = null, requestId = null }: UseProposal
   }, [proposalId, requestId]);
 
   useEffect(() => {
+    // Async proposal synchronization intentionally updates local state after the fetch resolves.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void reload();
   }, [reload]);
 
