@@ -1,6 +1,7 @@
 import { supabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/database.types';
 import type { Notification, NotificationStatus } from '@/types/domain.types';
+import { isNotificationStatus } from '@/domain/notification/notificationStatus';
 
 export type NotificationRow = Database['public']['Tables']['notifications']['Row'];
 
@@ -11,13 +12,8 @@ export interface CreateNotificationInput {
   status?: NotificationStatus;
 }
 
-const NOTIFICATION_STATUSES: ReadonlySet<string> = new Set(['pending', 'sent', 'read']);
-
-function mapNotificationStatus(value: string | null): NotificationStatus {
-  if (value !== null && NOTIFICATION_STATUSES.has(value)) {
-    return value as NotificationStatus;
-  }
-  return 'pending';
+function mapNotificationStatus(value: string | null) {
+  return isNotificationStatus(value) ? value : 'pending';
 }
 
 function requireNotificationString(value: string | null, field: string): string {
