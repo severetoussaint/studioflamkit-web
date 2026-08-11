@@ -45,6 +45,8 @@ export function useReviews(projectId: string | null): UseReviewsState {
   }, [projectId]);
 
   useEffect(() => {
+    // Async review synchronization intentionally updates local state after the fetch resolves.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void reload();
   }, [reload]);
 
