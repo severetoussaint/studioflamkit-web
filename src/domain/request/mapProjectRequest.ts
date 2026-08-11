@@ -3,21 +3,21 @@ import type { ProjectRequest, RequestStatus } from '@/types/domain.types';
 
 type ProjectRequestRow = Database['public']['Tables']['project_requests']['Row'];
 
-const REQUEST_STATUSES: readonly RequestStatus[] = [
+const REQUEST_STATUSES: ReadonlySet<string> = new Set([
   'pending',
   'evaluating',
   'accepted',
   'rejected',
   'canceled',
-];
+]);
 
 function mapRequestStatus(value: string | null): RequestStatus {
-  return REQUEST_STATUSES.includes(value as RequestStatus)
-    ? (value as RequestStatus)
-    : 'pending';
+  if (value !== null && REQUEST_STATUSES.has(value)) {
+    return value as RequestStatus;
+  }
+  return 'pending';
 }
 
-/** Maps the persisted request row into the shared domain model. */
 export function mapProjectRequestRowToDomain(row: ProjectRequestRow): ProjectRequest {
   return {
     id: row.id,
