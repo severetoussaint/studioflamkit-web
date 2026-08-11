@@ -17,6 +17,17 @@ export async function listProjects() {
   return (data ?? []) as ProjectRow[];
 }
 
+export async function getProject(id: string): Promise<ProjectRow | null> {
+  const { data, error } = await supabaseClient
+    .from('projects')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data as ProjectRow | null;
+}
+
 export async function createProject(input: ProjectInsert) {
   const { data, error } = await supabaseClient.from('projects').insert(input as never).select().single();
   if (error) throw error;
