@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  getAdminProjectWorkspace,
-} from '@/services/admin-project-workspace.service';
+import { getAdminProjectWorkspace } from '@/services/admin-project-workspace.service';
 import type { AdminProjectViewModel } from '@/domain/view-models/adminProjectViewModel';
 
 interface UseAdminProjectWorkspaceResult {
@@ -44,9 +42,8 @@ export function useAdminProjectWorkspace(projectId: string | null): UseAdminProj
   }, [projectId]);
 
   useEffect(() => {
-    void load();
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    // The effect intentionally starts async synchronization of external service data.
+    void load();
   }, [load, reloadToken]);
 
   return { data, loading, error, reload };
