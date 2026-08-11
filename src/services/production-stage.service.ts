@@ -4,24 +4,39 @@ import type { ProductionStage, ProductionStageStatus, ProjectProgress } from '@/
 
 export type ProductionStageRow = Database['public']['Tables']['production_stages']['Row'];
 
-const PRODUCTION_STAGE_STATUSES: readonly ProductionStageStatus[] = [
+const PRODUCTION_STAGE_STATUSES: ReadonlySet<string> = new Set([
   'pending',
   'in_progress',
   'completed',
-];
+]);
 
 function mapProductionStageStatus(value: string | null): ProductionStageStatus {
-  return PRODUCTION_STAGE_STATUSES.includes(value as ProductionStageStatus)
-    ? (value as ProductionStageStatus)
-    : 'pending';
+  if (value !== null && PRODUCTION_STAGE_STATUSES.has(value)) {
+    return value as ProductionStageStatus;
+  }
+  return 'pending';
+}
+
+function requireStageString(value: string | null, field: string): string {
+  if (value === null) {
+    throw new Error(`Invalid production_stages row: ${field} is null.`);
+  }
+  return value;
+}
+
+function requireStageNumber(value: number | null, field: string): number {
+  if (value === null) {
+    throw new Error(`Invalid production_stages row: ${field} is null.`);
+  }
+  return value;
 }
 
 function mapProductionStage(row: ProductionStageRow): ProductionStage {
   return {
-    id: row.id,
-    projectId: row.project_id,
-    name: row.name,
-    orderIndex: row.order_index,
+    id: requireStageString(row.id, 'id'),
+    projectId: requireStageString(row.project_id, 'project_id'),
+    name: requireStageString(row.name, 'name'),
+    orderIndex: requireStageNumber(row.order_index, 'order_index'),
     progressPercentage: row.progress_percentage ?? 0,
     status: mapProductionStageStatus(row.status),
     startDate: row.start_date,
