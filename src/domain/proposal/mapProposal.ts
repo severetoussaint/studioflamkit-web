@@ -1,23 +1,12 @@
 import type { Database } from '@/types/database.types';
 import type { Proposal, ProposalStatus } from '@/types/domain.types';
+import { isProposalStatus } from '@/domain/proposal/proposalStatus';
 
 type ProposalRow = Database['public']['Tables']['proposals']['Row'];
 
-const PROPOSAL_STATUSES: ReadonlySet<string> = new Set([
-  'pending',
-  'accepted',
-  'rejected',
-  'expired',
-]);
-
-function mapProposalStatus(value: string | null): ProposalStatus {
-  if (value !== null && PROPOSAL_STATUSES.has(value)) {
-    return value as ProposalStatus;
-  }
-  return 'pending';
-}
-
 export function mapProposalRowToDomain(row: ProposalRow): Proposal {
+  const status: ProposalStatus = isProposalStatus(row.status) ? row.status : 'pending';
+
   return {
     id: row.id,
     requestId: row.request_id,
@@ -26,7 +15,7 @@ export function mapProposalRowToDomain(row: ProposalRow): Proposal {
     services: row.services,
     revisionsIncluded: row.revisions_included,
     deadline: row.deadline,
-    status: mapProposalStatus(row.status),
+    status,
     expiresAt: row.expires_at,
     createdAt: row.created_at ?? '',
   };
