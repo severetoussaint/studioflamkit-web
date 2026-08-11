@@ -1,6 +1,6 @@
 import { supabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/database.types';
-import type { ProjectRequest } from '@/types/domain.types';
+import type { ProjectRequest, RequestStatus } from '@/types/domain.types';
 import { mapProjectRequestRowToDomain } from '@/domain/request/mapProjectRequest';
 
 type ProjectRequestRow = Database['public']['Tables']['project_requests']['Row'];
@@ -35,4 +35,19 @@ export async function getProjectRequestByManuscript(manuscriptId: string): Promi
 
   if (error) throw error;
   return data ? mapProjectRequestRowToDomain(data as ProjectRequestRow) : null;
+}
+
+export async function updateProjectRequestStatus(
+  requestId: string,
+  status: RequestStatus,
+): Promise<ProjectRequest> {
+  const { data, error } = await supabaseClient
+    .from('project_requests')
+    .update({ status })
+    .eq('id', requestId)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return mapProjectRequestRowToDomain(data as ProjectRequestRow);
 }
