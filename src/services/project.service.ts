@@ -3,11 +3,13 @@ import type { Database } from '@/types/database.types';
 import type { ProjectStatus } from '@/types/domain.types';
 import { getProjectProgress, getProjectsProgress } from '@/services/production-stage.service';
 
-export type ProjectRow = Database['public']['Tables']['projects']['Row'];
+type ProjectRow = Database['public']['Tables']['projects']['Row'];
+export type ProjectRow = ProjectRow;
 export type ProjectInsert = Database['public']['Tables']['projects']['Insert'];
 export type ProjectUpdate = Database['public']['Tables']['projects']['Update'];
 
-export type ManuscriptRow = Database['public']['Tables']['manuscripts']['Row'];
+type ManuscriptRow = Database['public']['Tables']['manuscripts']['Row'];
+export type ManuscriptRow = ManuscriptRow;
 export type ManuscriptInsert = Database['public']['Tables']['manuscripts']['Insert'];
 export type ManuscriptUpdate = Database['public']['Tables']['manuscripts']['Update'];
 
@@ -133,28 +135,6 @@ interface AuthorProjectQueryResult {
   deliverables?: AuthorProjectDeliverableRow[];
 }
 
-function legacyProjectProgress(status: ProjectStatus, chapters: Array<Pick<AuthorChapterData, 'status'>>): number {
-  if (chapters.length > 0) {
-    const weights: Record<AuthorChapterData['status'], number> = {
-      pendiente: 0,
-      cotizado: 20,
-      pagado: 40,
-      en_produccion: 75,
-      entregado: 100,
-    };
-    const totalWeight = chapters.reduce((sum, chapter) => sum + weights[chapter.status], 0);
-    return Math.round(totalWeight / chapters.length);
-  }
-
-  const statusMap: Partial<Record<ProjectStatus, number>> = {
-    planning: 25,
-    production: 60,
-    review: 85,
-    completed: 100,
-  };
-  return statusMap[status] ?? 25;
-}
-
 export async function getAuthorProjectData(authorId: string, manuscriptId?: string | null): Promise<AuthorProjectData | null> {
   try {
     let query = supabaseClient
@@ -223,9 +203,6 @@ export async function getAuthorProjectData(authorId: string, manuscriptId?: stri
     }));
 
     const projectProgress = await getProjectProgress(project.id);
-    const progress = projectProgress.totalStages > 0
-      ? projectProgress.percentage
-      : legacyProjectProgress(dbStatus, chapters);
 
     return {
       id: project.id,
@@ -233,7 +210,7 @@ export async function getAuthorProjectData(authorId: string, manuscriptId?: stri
       status: dbStatus,
       maxRevisions: 3,
       revisionsUsed: 0,
-      progress,
+      progress: projectProgress.percentage,
       chapters,
       deliverables,
     };
@@ -303,24 +280,13 @@ export async function getAuthorProjectsList(authorId: string): Promise<AuthorPro
         : project.manuscripts;
       const status = project.status ?? 'planning';
       const realProgress = projectProgress[project.id];
-      const chapterStatuses = (project.chapters ?? [])
-        .map((chapter) => chapter.status)
-        .filter((chapterStatus): chapterStatus is AuthorChapterData['status'] => (
-          chapterStatus === 'pendiente'
-          || chapterStatus === 'cotizado'
-          || chapterStatus === 'pagado'
-          || chapterStatus === 'en_produccion'
-          || chapterStatus === 'entregado'
-        ));
 
       return {
         id: project.id,
         manuscriptId: project.manuscript_id || null,
         title: manuscriptData?.title ?? 'Tu Obra de Audio',
         status,
-        progress: realProgress && realProgress.totalStages > 0
-          ? realProgress.percentage
-          : legacyProjectProgress(status, chapterStatuses.map((status) => ({ status }))),
+        progress: realProgress?.percentage ?? 0,
         createdAt: project.created_at || null,
       };
     });
