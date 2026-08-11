@@ -4,6 +4,7 @@ import type { ProjectRequest, RequestStatus } from '@/types/domain.types';
 import { mapProjectRequestRowToDomain } from '@/domain/request/mapProjectRequest';
 
 type ProjectRequestRow = Database['public']['Tables']['project_requests']['Row'];
+type ReviewableRequestStatus = Extract<RequestStatus, 'pending' | 'evaluating' | 'rejected' | 'canceled'>;
 
 export async function listProjectRequests(): Promise<ProjectRequest[]> {
   const { data, error } = await supabaseClient
@@ -12,7 +13,7 @@ export async function listProjectRequests(): Promise<ProjectRequest[]> {
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return ((data ?? []) as ProjectRequestRow[]).map(mapProjectRequestRowToDomain);
+  return (data ?? []).map(mapProjectRequestRowToDomain);
 }
 
 export async function getProjectRequest(requestId: string): Promise<ProjectRequest | null> {
@@ -23,7 +24,7 @@ export async function getProjectRequest(requestId: string): Promise<ProjectReque
     .maybeSingle();
 
   if (error) throw error;
-  return data ? mapProjectRequestRowToDomain(data as ProjectRequestRow) : null;
+  return data ? mapProjectRequestRowToDomain(data) : null;
 }
 
 export async function getProjectRequestByManuscript(manuscriptId: string): Promise<ProjectRequest | null> {
@@ -34,12 +35,17 @@ export async function getProjectRequestByManuscript(manuscriptId: string): Promi
     .maybeSingle();
 
   if (error) throw error;
-  return data ? mapProjectRequestRowToDomain(data as ProjectRequestRow) : null;
+  return data ? mapProjectRequestRowToDomain(data) : null;
 }
 
-export async function updateProjectRequestStatus(
+/**
+ * Updates only the request states that belong to request/review workflow.
+ * Acceptance/rejection of a formal proposal must go through proposal.service.ts
+ * and its transactional Supabase RPCs so Proposal remains the commercial authority.
+ */
+export async function updateProjectRequestReviewStatus(
   requestId: string,
-  status: RequestStatus,
+  status: ReviewableRequestStatus,
 ): Promise<ProjectRequest> {
   const { data, error } = await supabaseClient
     .from('project_requests')
@@ -49,5 +55,5 @@ export async function updateProjectRequestStatus(
     .single();
 
   if (error) throw error;
-  return mapProjectRequestRowToDomain(data as ProjectRequestRow);
+  return mapProjectRequestRowToDomain(data);
 }
