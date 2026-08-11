@@ -13,13 +13,32 @@ export interface DashboardWorkspaceData {
 /**
  * Coordinates dashboard data for the currently selected manuscript.
  * This is intentionally a transitional loader: legacy request/project reads remain
- * available to preserve existing UI behavior while the dashboard migrates toward
- * the shared EditorialWorkspace ViewModel.
+ * available when an author id is provided, while callers that already have a
+ * manuscript id can consume the shared EditorialWorkspace without a duplicate
+ * author lookup.
  */
 export async function getDashboardWorkspaceData(
-  authorId: string,
+  authorId: string | null,
   selectedManuscriptId?: string | null,
 ): Promise<DashboardWorkspaceData> {
+  if (!authorId && selectedManuscriptId) {
+    return {
+      manuscriptId: selectedManuscriptId,
+      requestContext: null,
+      projectsOverview: [],
+      editorialWorkspace: await getEditorialWorkspaceByManuscript(selectedManuscriptId),
+    };
+  }
+
+  if (!authorId) {
+    return {
+      manuscriptId: null,
+      requestContext: null,
+      projectsOverview: [],
+      editorialWorkspace: null,
+    };
+  }
+
   const [projectsOverview, requestContext] = await Promise.all([
     getAuthorProjectsList(authorId),
     getAuthorRequestContext(authorId, selectedManuscriptId ?? null),
