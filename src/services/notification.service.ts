@@ -3,6 +3,13 @@ import type { Database } from '@/types/database.types';
 
 export type NotificationRow = Database['public']['Tables']['notifications']['Row'];
 
+export interface CreateNotificationInput {
+  authorId: string;
+  title: string;
+  message: string;
+  status?: NotificationRow['status'];
+}
+
 /**
  * Fetch real notifications for a given user (Author or Admin)
  */
@@ -28,6 +35,26 @@ export async function getUserNotifications(userId: string): Promise<Notification
   }
 }
 
+export async function createNotification(input: CreateNotificationInput): Promise<NotificationRow> {
+  if (!input.authorId) throw new Error('authorId is required to create a notification.');
+  if (!input.title.trim()) throw new Error('Notification title is required.');
+  if (!input.message.trim()) throw new Error('Notification message is required.');
+
+  const { data, error } = await supabaseClient
+    .from('notifications')
+    .insert({
+      author_id: input.authorId,
+      title: input.title,
+      message: input.message,
+      status: input.status ?? 'pending',
+    })
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data as NotificationRow;
+}
+
 /**
  * Mark a single notification as read in Supabase
  */
@@ -51,7 +78,8 @@ export async function markNotificationAsRead(id: string): Promise<boolean> {
 }
 
 /**
- * Mark all unread notifications for a user as read
+ * Mark all unread notifications for a user as read.
+ * The current schema represents unread states as pending or sent.
  */
 export async function markAllNotificationsAsRead(userId: string): Promise<boolean> {
   if (!userId) return false;
@@ -60,7 +88,7 @@ export async function markAllNotificationsAsRead(userId: string): Promise<boolea
       .from('notifications')
       .update({ status: 'read' })
       .eq('author_id', userId)
-      .eq('status', 'unread');
+      .in('status', ['pending', 'sent']);
 
     if (error) {
       console.warn('Error marking all notifications as read in Supabase:', error);
