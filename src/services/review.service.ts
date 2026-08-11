@@ -7,7 +7,7 @@ import { isReviewStatus } from '@/domain/review/reviewStatus';
 type ReviewRow = Database['public']['Tables']['reviews']['Row'];
 type DeliverableRow = Pick<Database['public']['Tables']['deliverables']['Row'], 'id'>;
 type ReviewTransitionStatus = Exclude<ReviewStatus, 'open'>;
-type CreateReviewRpcResult = {
+type ReviewRpcResult = {
   data: string | null;
   error: { message: string } | null;
 };
@@ -15,7 +15,7 @@ type CreateReviewRpcResult = {
 type RpcClient = (
   functionName: string,
   args: Record<string, unknown>,
-) => Promise<CreateReviewRpcResult>;
+) => Promise<ReviewRpcResult>;
 
 const rpcClient = supabaseClient.rpc as unknown as RpcClient;
 
@@ -115,23 +115,17 @@ async function updateReviewStatus(reviewId: string, status: ReviewTransitionStat
     throw new Error(`Invalid review transition status: ${status}`);
   }
 
-  const review = await getReview(reviewId);
-  if (!review) throw new Error(`Review ${reviewId} not found.`);
+  const rpcName = status === 'resolved' ? 'resolve_review' : 'discard_review';
+  const { data: persistedReviewId, error } = await rpcClient(rpcName, {
+    p_review_id: reviewId,
+  });
 
-  if (review.status !== 'open') {
-    throw new Error(`Review ${reviewId} is already ${review.status}.`);
-  }
+  if (error) throw new Error(error.message);
+  if (!persistedReviewId) throw new Error(`Review ${reviewId} did not return an id after transition.`);
 
-  const { data, error } = await supabaseClient
-    .from('reviews')
-    .update({ status })
-    .eq('id', reviewId)
-    .eq('status', 'open')
-    .select('*')
-    .single();
-
-  if (error) throw error;
-  return mapReviewRowToDomain(data as ReviewRow);
+  const review = await getReview(persistedReviewId);
+  if (!review) throw new Error(`Review ${persistedReviewId} not found after transition.`);
+  return review;
 }
 
 export async function resolveReview(reviewId: string): Promise<Review> {
