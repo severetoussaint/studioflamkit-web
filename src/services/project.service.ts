@@ -32,6 +32,17 @@ export async function updateProjectStatus(id: string, status: ProjectStatus) {
   return updateProject(id, { status, updated_at: new Date().toISOString() });
 }
 
+export async function getProjectByManuscript(manuscriptId: string): Promise<ProjectRow | null> {
+  const { data, error } = await supabaseClient
+    .from('projects')
+    .select('*')
+    .eq('manuscript_id', manuscriptId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data as ProjectRow | null;
+}
+
 export async function listManuscriptsByAuthor(authorId: string) {
   const { data, error } = await supabaseClient.from('manuscripts').select('*').eq('author_id', authorId).order('created_at', { ascending: false });
   if (error) throw error;
@@ -112,7 +123,6 @@ interface AuthorProjectQueryResult {
 
 export async function getAuthorProjectData(authorId: string, manuscriptId?: string | null): Promise<AuthorProjectData | null> {
   try {
-    // 2. Filtrar proyectos por author_id o manuscript_id (ambas columnas directas de projects)
     let query = supabaseClient
       .from('projects')
       .select(`
@@ -127,7 +137,6 @@ export async function getAuthorProjectData(authorId: string, manuscriptId?: stri
     if (manuscriptId) {
       query = query.eq('manuscript_id', manuscriptId);
     } else {
-      // 1. Obtener manuscritos vinculados al autor
       const { data: userManuscripts } = await supabaseClient
         .from('manuscripts')
         .select('id')
@@ -179,7 +188,6 @@ export async function getAuthorProjectData(authorId: string, manuscriptId?: stri
       createdAt: (d.created_at ?? '').slice(0, 10),
     }));
 
-    // Progreso general real derivado del estado de los capítulos o estado de la obra
     let progress = 25;
     if (chapters.length > 0) {
       const weights: Record<string, number> = {
