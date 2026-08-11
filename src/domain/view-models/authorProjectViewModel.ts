@@ -18,7 +18,3 @@ export interface AuthorProjectViewModel {
   journey: EditorialJourney | null;
   hasOpenReviews: boolean;
 }
-
-export function buildAuthorProjectViewModel(input: AuthorProjectViewModel): AuthorProjectViewModel {
-  return input;
-}
