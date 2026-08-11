@@ -36,6 +36,8 @@ export function useTimeline(projectId: string | null): UseTimelineState {
   }, [projectId]);
 
   useEffect(() => {
+    // Async timeline synchronization intentionally updates local state after the fetch resolves.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void reload();
   }, [reload]);
 
