@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AuthorProjectViewModel } from '@/domain/view-models/authorProjectViewModel';
-import { getEditorialWorkspaceByManuscript } from '@/services/editorial-workspace.service';
+import { getDashboardWorkspaceData } from '@/services/dashboard-workspace.service';
 
 export interface EditorialWorkspaceState {
   data: AuthorProjectViewModel | null;
@@ -26,8 +26,11 @@ export function useEditorialWorkspace(manuscriptId: string | null): EditorialWor
     setError(null);
 
     try {
-      const workspace = await getEditorialWorkspaceByManuscript(manuscriptId);
-      setData(workspace);
+      // DashboardWorkspace is now the orchestration boundary for the shared
+      // workspace. It still preserves legacy context/overview reads during the
+      // migration, but the hook exposes only the stable domain ViewModel.
+      const workspace = await getDashboardWorkspaceData('', manuscriptId);
+      setData(workspace.editorialWorkspace);
     } catch (cause) {
       const nextError = cause instanceof Error ? cause : new Error(String(cause));
       setError(nextError);
