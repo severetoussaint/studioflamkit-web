@@ -4,13 +4,32 @@ import type { TimelineEntry, TimelineEvent } from '@/types/domain.types';
 
 type TimelineRow = Database['public']['Tables']['timeline']['Row'];
 
+const TIMELINE_EVENTS: readonly TimelineEvent[] = [
+  'project_created',
+  'project_stage_changed',
+  'project_completed',
+  'chapter_created',
+  'chapter_delivered',
+  'deliverable_created',
+  'deliverable_approved',
+  'review_created',
+  'review_resolved',
+  'review_discarded',
+];
+
+function mapTimelineEvent(value: string): TimelineEvent {
+  return TIMELINE_EVENTS.includes(value as TimelineEvent)
+    ? (value as TimelineEvent)
+    : 'project_stage_changed';
+}
+
 function mapTimelineRowToDomain(row: TimelineRow): TimelineEntry {
   return {
     id: row.id,
     projectId: row.project_id,
-    event: row.event as TimelineEvent,
+    event: mapTimelineEvent(row.event),
     details: row.details,
-    createdAt: row.created_at,
+    createdAt: row.created_at ?? '',
   };
 }
 
