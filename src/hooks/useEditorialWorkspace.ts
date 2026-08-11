@@ -27,13 +27,7 @@ export function useEditorialWorkspace(manuscriptId: string | null): EditorialWor
 
     try {
       const workspace = await getEditorialWorkspaceByManuscript(manuscriptId);
-      setData({
-        project: workspace.project,
-        request: workspace.request,
-        proposal: workspace.proposal,
-        journey: workspace.journey,
-        hasOpenReviews: workspace.hasOpenReviews,
-      });
+      setData(workspace);
     } catch (cause) {
       const nextError = cause instanceof Error ? cause : new Error(String(cause));
       setError(nextError);
