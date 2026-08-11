@@ -122,6 +122,28 @@ interface AuthorProjectQueryResult {
   deliverables?: AuthorProjectDeliverableRow[];
 }
 
+function legacyProjectProgress(status: ProjectStatus, chapters: AuthorChapterData[]): number {
+  if (chapters.length > 0) {
+    const weights: Record<AuthorChapterData['status'], number> = {
+      pendiente: 0,
+      cotizado: 20,
+      pagado: 40,
+      en_produccion: 75,
+      entregado: 100,
+    };
+    const totalWeight = chapters.reduce((sum, chapter) => sum + weights[chapter.status], 0);
+    return Math.round(totalWeight / chapters.length);
+  }
+
+  const statusMap: Partial<Record<ProjectStatus, number>> = {
+    planning: 25,
+    production: 60,
+    review: 85,
+    completed: 100,
+  };
+  return statusMap[status] ?? 25;
+}
+
 export async function getAuthorProjectData(authorId: string, manuscriptId?: string | null): Promise<AuthorProjectData | null> {
   try {
     let query = supabaseClient
@@ -190,6 +212,9 @@ export async function getAuthorProjectData(authorId: string, manuscriptId?: stri
     }));
 
     const projectProgress = await getProjectProgress(project.id);
+    const progress = projectProgress.totalStages > 0
+      ? projectProgress.percentage
+      : legacyProjectProgress(dbStatus, chapters);
 
     return {
       id: project.id,
@@ -197,7 +222,7 @@ export async function getAuthorProjectData(authorId: string, manuscriptId?: stri
       status: dbStatus,
       maxRevisions: 3,
       revisionsUsed: 0,
-      progress: projectProgress.percentage,
+      progress,
       chapters,
       deliverables,
     };
@@ -263,13 +288,17 @@ export async function getAuthorProjectsList(authorId: string): Promise<AuthorPro
       const manuscriptData = Array.isArray(project.manuscripts)
         ? project.manuscripts[0]
         : project.manuscripts;
+      const status = project.status ?? 'planning';
+      const realProgress = projectProgress[project.id];
 
       return {
         id: project.id,
         manuscriptId: project.manuscript_id || null,
         title: manuscriptData?.title ?? 'Tu Obra de Audio',
-        status: project.status ?? 'planning',
-        progress: projectProgress[project.id]?.percentage ?? 0,
+        status,
+        progress: realProgress && realProgress.totalStages > 0
+          ? realProgress.percentage
+          : legacyProjectProgress(status, []),
         createdAt: project.created_at || null,
       };
     });
