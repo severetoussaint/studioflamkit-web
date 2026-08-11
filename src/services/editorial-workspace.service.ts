@@ -7,6 +7,7 @@ import { getProjectRequestByManuscript } from '@/services/request.service';
 import { getProjectByManuscript } from '@/services/project.service';
 import { mapProjectRowToDomain } from '@/domain/project/mapProject';
 import { hasOpenReviewsByProject } from '@/services/review.service';
+import { getProjectProgress } from '@/services/production-stage.service';
 import type { AuthorProjectViewModel } from '@/domain/view-models/authorProjectViewModel';
 
 export type EditorialWorkspaceData = AuthorProjectViewModel & {
@@ -26,6 +27,7 @@ export async function getEditorialWorkspaceByManuscript(
   const proposal = proposals[0] ?? null;
   const projectRow = await getProjectByManuscript(manuscriptId);
   const project: Project | null = projectRow ? mapProjectRowToDomain(projectRow) : null;
+  const progress = project ? await getProjectProgress(project.id) : null;
   const hasOpenReviews = project ? await hasOpenReviewsByProject(project.id) : false;
 
   const context = buildEditorialJourneyContext({
@@ -42,6 +44,7 @@ export async function getEditorialWorkspaceByManuscript(
     evaluationResult: evaluation?.result ?? null,
     proposal,
     project,
+    progress,
     hasOpenReviews,
     journey: deriveEditorialJourney(context),
   };
