@@ -3,26 +3,26 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'motion/react';
-import {
-  Plus,
-  Minus,
-  Trash2,
-  MessageSquare,
-  Check,
-  CheckCircle2,
-  Music,
-  Clock,
-  Coins,
-  User,
-  Sparkles,
-  BookOpen,
-  ArrowRight,
-  ShieldCheck,
-  Layers,
-  Send,
-  X,
-  Sliders,
-  DollarSign,
+import { 
+  Plus, 
+  Minus, 
+  Trash2, 
+  MessageSquare, 
+  Check, 
+  CheckCircle2, 
+  Music, 
+  Clock, 
+  Coins, 
+  User, 
+  Sparkles, 
+  BookOpen, 
+  ArrowRight, 
+  ShieldCheck, 
+  Layers, 
+  Send, 
+  X, 
+  Sliders, 
+  DollarSign, 
   AlertCircle,
   FolderPlus,
   RefreshCw,
@@ -46,9 +46,9 @@ import {
   type AudioDeliverable,
   type AudioDeliverableComment,
 } from '@/services/admin.service';
-import { useAdminProjectWorkspace } from '@/hooks/useAdminProjectWorkspace';
 import { getUser, getUserRole } from '@/services/auth.service';
 import { supabaseClient } from '@/lib/supabase/client';
+import { useAdminProjectWorkspace } from '@/hooks/useAdminProjectWorkspace';
 
 const statusLabels: Record<AdminProjectStatus, string> = {
   analisis: 'Análisis de Obra',
@@ -82,7 +82,7 @@ export default function AdminPage() {
   // Selector states for multi-manuscript/project support per author
   const [selectedAuthor, setSelectedAuthor] = useState<string>('');
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
-
+  
   // Authorization states
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
@@ -106,13 +106,10 @@ export default function AdminPage() {
   const currentAuthor = selectedAuthor || authorNames[0] || '';
   const currentAuthorProjects = groupedAuthors[currentAuthor] || [];
   const currentProjectId = selectedProjectId || currentAuthorProjects[0]?.id || '';
+  const activeProject = currentAuthorProjects.find((p) => p.id === currentProjectId) || currentAuthorProjects[0] || null;
 
-  // AdminProjectWorkspace hook for the currently selected project
   const adminWorkspace = useAdminProjectWorkspace(currentProjectId || null);
   const adminWorkspaceData = adminWorkspace.data;
-
-  // activeProject remains as fallback for legacy data (chapters, deliverables, feedback)
-  const activeProject = currentAuthorProjects.find((p) => p.id === currentProjectId) || currentAuthorProjects[0] || null;
 
   // Deliverables add state
   const [newDeliverableTitles, setNewDeliverableTitles] = useState<Record<string, string>>({});
@@ -222,7 +219,7 @@ export default function AdminPage() {
       try {
         // 1. Get current session details from Supabase auth
         const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
-
+        
         if (sessionError) {
           console.error('Session verification error:', sessionError);
           setRequestsError(`Error de sesión: ${sessionError.message}`);
@@ -330,16 +327,16 @@ export default function AdminPage() {
         manuscript_id: request.manuscript_id,
         author_id: request.author_id,
       });
-
+      
       // Mark quote as approved
       await adminService.updateQuotationRequestStatus(request.id, 'aprobada');
       await loadAllData();
-
+      
       if (created) {
         setSelectedAuthor(created.client || request.client);
         setSelectedProjectId(created.id);
       }
-
+      
       setActiveTab('proyectos');
     } catch (error) {
       console.error(error);
@@ -458,9 +455,9 @@ export default function AdminPage() {
 
     try {
       const updated = await adminService.addDeliverableComment(
-        selectedProject.id,
-        selectedDeliverable.id,
-        'admin',
+        selectedProject.id, 
+        selectedDeliverable.id, 
+        'admin', 
         replyText.trim()
       );
 
@@ -505,12 +502,12 @@ export default function AdminPage() {
       });
 
       await loadAllData();
-
+      
       if (created) {
         setSelectedAuthor(created.client || newProjClient.trim());
         setSelectedProjectId(created.id);
       }
-
+      
       setNewProjTitle('');
       setNewProjClient('');
       setCreationSuccess(true);
@@ -537,7 +534,7 @@ export default function AdminPage() {
       <div className="relative border-b border-edge bg-surface-elevated py-14 overflow-hidden">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--color-accent)_0%,_transparent_45%)] opacity-10" />
         <div className="pointer-events-none absolute -bottom-16 left-12 h-64 w-64 rounded-full bg-accent/5 blur-3xl" />
-
+        
         <div className="mx-auto max-w-6xl px-6 lg:px-8 relative">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             <div>
@@ -552,7 +549,7 @@ export default function AdminPage() {
                 Supervisa y gestiona la conversión de manuscritos a obras cinemáticas. Configura límites de revisiones, sube archivos de sonido y responde en tiempo real al feedback de tus autores.
               </p>
             </div>
-
+            
             <div className="flex items-center gap-3">
               <button
                 onClick={loadAllData}
@@ -616,7 +613,7 @@ export default function AdminPage() {
             )}
             Proyectos en Curso ({projects.length})
           </button>
-
+          
           <button
             onClick={() => setActiveTab('cotizaciones')}
             className={`pb-4 text-sm font-semibold tracking-wide transition relative whitespace-nowrap cursor-pointer ${
@@ -753,8 +750,8 @@ export default function AdminPage() {
                       <div className="rounded-3xl border border-edge bg-surface p-6 shadow-xs relative overflow-hidden">
                         <div className="flex items-start justify-between gap-3 mb-4">
                           <div>
-                            <span className="text-[10px] font-semibold uppercase tracking-wider text-accent">Estado de la Obra</span>
-                            <h3 className="font-serif text-lg font-semibold text-ink leading-tight mt-0.5">{activeProject.title}</h3>
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-accent">{adminWorkspaceData?.currentPhaseLabel ?? statusLabels[activeProject.status]}</span>
+                            <h3 className="font-serif text-lg font-semibold text-ink leading-tight mt-0.5">{adminWorkspaceData?.project?.title ?? activeProject.title}</h3>
                             <p className="text-ink-muted text-xs mt-1">Autor: <span className="text-ink font-semibold">{activeProject.client}</span></p>
                           </div>
                           <button
@@ -770,14 +767,12 @@ export default function AdminPage() {
                         <div className="mb-6">
                           <div className="flex justify-between text-xs font-medium text-ink-muted mb-1.5">
                             <span>Progreso General</span>
-                            <span className="text-accent font-bold">
-                              {adminWorkspaceData?.progress?.percentage ?? activeProject.progress}%
-                            </span>
+                            <span className="text-accent font-bold">{adminWorkspaceData?.progressPercentage ?? activeProject.progress}%</span>
                           </div>
                           <div className="h-2 w-full bg-surface-elevated rounded-full overflow-hidden border border-edge">
-                            <div
-                              className="h-full bg-accent transition-all duration-500 rounded-full"
-                              style={{ width: `${adminWorkspaceData?.progress?.percentage ?? activeProject.progress}%` }}
+                            <div 
+                              className="h-full bg-accent transition-all duration-500 rounded-full" 
+                              style={{ width: `${adminWorkspaceData?.progressPercentage ?? activeProject.progress}%` }}
                             />
                           </div>
                         </div>
@@ -790,7 +785,7 @@ export default function AdminPage() {
                           </div>
                           <div>
                             <p className="text-[10px] text-ink-muted uppercase tracking-wide">Presupuesto</p>
-                            <button
+                            <button 
                               onClick={() => handleUpdateBudget(activeProject.id, activeProject.amount || 0)}
                               className="text-xs font-semibold text-accent hover:underline flex items-center gap-1 mt-0.5 cursor-pointer bg-transparent border-none p-0"
                               title="Editar presupuesto"
@@ -881,7 +876,7 @@ export default function AdminPage() {
                             </span>
                             {activeProject.chapterList && activeProject.chapterList.length > 0 && (
                               <span className="text-[10px] font-medium text-accent bg-accent/10 px-2 py-0.5 rounded-full">
-                                Avance Real: {adminWorkspaceData?.progress?.percentage ?? activeProject.progress}%
+                                Avance Real: {activeProject.progress}%
                               </span>
                             )}
                           </div>
@@ -989,8 +984,8 @@ export default function AdminPage() {
                           ) : (
                             <ul className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
                               {activeProject.deliverables.map((del) => (
-                                <li
-                                  key={del.id}
+                                <li 
+                                  key={del.id} 
                                   className="flex items-center justify-between rounded-xl bg-surface-elevated/50 border border-edge p-2.5 hover:border-accent transition cursor-pointer"
                                 >
                                   <div className="flex items-center gap-2 max-w-[65%]">
@@ -1041,8 +1036,8 @@ export default function AdminPage() {
                               onChange={(e) => setNewDeliverableTitles(prev => ({ ...prev, [activeProject.id]: e.target.value }))}
                               className="flex-1 rounded-xl border border-edge bg-surface px-3 py-1.5 text-xs text-ink outline-none focus:border-accent transition"
                             />
-                            <Button
-                              variant="primary"
+                            <Button 
+                              variant="primary" 
                               onClick={() => handleAddDeliverable(activeProject.id)}
                               className="px-3 text-xs py-1.5 cursor-pointer"
                             >
@@ -1054,8 +1049,8 @@ export default function AdminPage() {
                             <label className="flex w-full items-center gap-1.5 text-[10px] text-ink bg-surface border border-edge px-3 py-1.5 rounded-xl cursor-pointer hover:border-accent transition">
                               <UploadCloud className="h-3.5 w-3.5 text-accent shrink-0" />
                               <span className="truncate">
-                                {newDeliverableFiles[activeProject.id]
-                                  ? newDeliverableFiles[activeProject.id]?.name
+                                {newDeliverableFiles[activeProject.id] 
+                                  ? newDeliverableFiles[activeProject.id]?.name 
                                   : 'Sube un archivo de audio'}
                               </span>
                               <input
@@ -1073,7 +1068,7 @@ export default function AdminPage() {
                                 }}
                               />
                             </label>
-
+                            
                             <input
                               type="text"
                               placeholder="o pega URL de audio"
@@ -1128,9 +1123,9 @@ export default function AdminPage() {
                 ) : (
                   <div className="space-y-4">
                     {requests.map((request) => (
-                      <motion.div
+                      <motion.div 
                         layout
-                        key={request.id}
+                        key={request.id} 
                         className="rounded-2xl border-edge bg-surface-elevated p-5 relative"
                       >
                         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1241,7 +1236,7 @@ export default function AdminPage() {
                   <span>¡Obra registrada exitosamente! Se ha añadido a la pestaña &quot;Proyectos en Curso&quot; con persistencia local.</span>
                 </motion.div>
               )}
-
+              
               <form onSubmit={handleCreateProjectManually} className="space-y-5">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Input
@@ -1260,9 +1255,9 @@ export default function AdminPage() {
                     required
                   />
                 </div>
-
-
-
+                
+            
+                
                 <div className="pt-2">
                   <Button
                     variant="primary"
@@ -1284,7 +1279,7 @@ export default function AdminPage() {
         {selectedProject && selectedDeliverable && (
           <div className="fixed inset-0 z-50 overflow-hidden flex items-center justify-end">
             {/* Backdrop */}
-            <motion.div
+            <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.6 }}
               exit={{ opacity: 0 }}
@@ -1293,7 +1288,7 @@ export default function AdminPage() {
             />
 
             {/* Slide-over Content */}
-            <motion.div
+            <motion.div 
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
@@ -1336,8 +1331,8 @@ export default function AdminPage() {
                   </div>
                 ) : (
                   selectedDeliverable.comments.map((comm) => (
-                    <div
-                      key={comm.id}
+                    <div 
+                      key={comm.id} 
                       className={`flex flex-col ${
                         comm.sender === 'admin' ? 'items-end' : 'items-start'
                       }`}
@@ -1347,10 +1342,10 @@ export default function AdminPage() {
                         <span>•</span>
                         <span>{comm.timestamp}</span>
                       </div>
-                      <div
+                      <div 
                         className={`rounded-2xl px-4 py-2.5 max-w-[85%] text-xs font-medium ${
-                          comm.sender === 'admin'
-                            ? 'bg-accent text-surface rounded-tr-none'
+                          comm.sender === 'admin' 
+                            ? 'bg-accent text-surface rounded-tr-none' 
                             : 'bg-surface text-ink rounded-tl-none border-edge'
                         }`}
                       >
