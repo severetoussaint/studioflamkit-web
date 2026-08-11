@@ -1,4 +1,4 @@
-import type { EvaluationResult, Project, ProjectRequest, Proposal } from '@/types/domain.types';
+import type { EvaluationResult, Project, Proposal } from '@/types/domain.types';
 import { buildEditorialJourneyContext } from '@/domain/editorial/buildEditorialJourneyContext';
 import { deriveEditorialJourney } from '@/domain/editorial/deriveEditorialJourney';
 import { listProposals } from '@/services/proposal.service';
@@ -22,13 +22,23 @@ export async function getEditorialWorkspaceByManuscript(
   manuscriptId: string,
 ): Promise<EditorialWorkspaceData> {
   const request = await getProjectRequestByManuscript(manuscriptId);
-  const evaluation = request ? await getEvaluationByRequest(request.id) : null;
-  const proposals = request ? await listProposals(request.id) : [];
-  const proposal = proposals[0] ?? null;
-  const projectRow = await getProjectByManuscript(manuscriptId);
+  const projectRowPromise = getProjectByManuscript(manuscriptId);
+
+  const [evaluation, proposals, projectRow] = await Promise.all([
+    request ? getEvaluationByRequest(request.id) : Promise.resolve(null),
+    request ? listProposals(request.id) : Promise.resolve([]),
+    projectRowPromise,
+  ]);
+
+  const proposal: Proposal | null = proposals[0] ?? null;
   const project: Project | null = projectRow ? mapProjectRowToDomain(projectRow) : null;
-  const progress = project ? await getProjectProgress(project.id) : null;
-  const hasOpenReviews = project ? await hasOpenReviewsByProject(project.id) : false;
+
+  const [progress, hasOpenReviews] = project
+    ? await Promise.all([
+        getProjectProgress(project.id),
+        hasOpenReviewsByProject(project.id),
+      ])
+    : [null, false];
 
   const context = buildEditorialJourneyContext({
     hasManuscript: true,
