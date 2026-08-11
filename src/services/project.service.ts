@@ -1,6 +1,7 @@
 import { supabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/database.types';
 import type { ProjectStatus } from '@/types/domain.types';
+import { getProjectProgress } from '@/services/production-stage.service';
 
 export type ProjectRow = Database['public']['Tables']['projects']['Row'];
 export type ProjectInsert = Database['public']['Tables']['projects']['Insert'];
@@ -188,26 +189,7 @@ export async function getAuthorProjectData(authorId: string, manuscriptId?: stri
       createdAt: (d.created_at ?? '').slice(0, 10),
     }));
 
-    let progress = 25;
-    if (chapters.length > 0) {
-      const weights: Record<string, number> = {
-        pendiente: 0,
-        cotizado: 20,
-        pagado: 40,
-        en_produccion: 75,
-        entregado: 100,
-      };
-      const sum = chapters.reduce((acc, c) => acc + (weights[c.status] ?? 0), 0);
-      progress = Math.round(sum / chapters.length);
-    } else {
-      const statusMap: Partial<Record<ProjectStatus, number>> = {
-        planning: 25,
-        production: 60,
-        review: 85,
-        completed: 100,
-      };
-      progress = statusMap[dbStatus] ?? 25;
-    }
+    const projectProgress = await getProjectProgress(project.id);
 
     return {
       id: project.id,
@@ -215,7 +197,7 @@ export async function getAuthorProjectData(authorId: string, manuscriptId?: stri
       status: dbStatus,
       maxRevisions: 3,
       revisionsUsed: 0,
-      progress,
+      progress: projectProgress.percentage,
       chapters,
       deliverables,
     };
@@ -240,7 +222,6 @@ interface DBProjectRow {
   created_at: string | null;
   manuscript_id: string | null;
   manuscripts: { id: string; title: string | null } | { id: string; title: string | null }[] | null;
-  chapters: { status: string }[] | null;
 }
 
 export async function getAuthorProjectsList(authorId: string): Promise<AuthorProjectOverview[]> {
@@ -259,8 +240,7 @@ export async function getAuthorProjectsList(authorId: string): Promise<AuthorPro
         status,
         created_at,
         manuscript_id,
-        manuscripts ( id, title ),
-        chapters ( status )
+        manuscripts ( id, title )
       `);
 
     if (manuscriptIds.length > 0) {
@@ -278,42 +258,25 @@ export async function getAuthorProjectsList(authorId: string): Promise<AuthorPro
 
     const typedProjects = (projects as unknown as DBProjectRow[]) || [];
 
-    return typedProjects.map((project) => {
-      const chapters = project.chapters || [];
-      let progress = 25;
-      if (chapters.length > 0) {
-        const weights: Record<string, number> = {
-          pendiente: 0,
-          cotizado: 20,
-          pagado: 40,
-          en_produccion: 75,
-          entregado: 100,
-        };
-        const sum = chapters.reduce((acc: number, c: { status: string }) => acc + (weights[c.status] ?? 0), 0);
-        progress = Math.round(sum / chapters.length);
-      } else {
-        const statusMap: Partial<Record<ProjectStatus, number>> = {
-          planning: 25,
-          production: 60,
-          review: 85,
-          completed: 100,
-        };
-        progress = statusMap[project.status ?? 'planning'] ?? 25;
-      }
+    const overviews = await Promise.all(
+      typedProjects.map(async (project) => {
+        const projectProgress = await getProjectProgress(project.id);
+        const manuscriptData = Array.isArray(project.manuscripts)
+          ? project.manuscripts[0]
+          : project.manuscripts;
 
-      const manuscriptData = Array.isArray(project.manuscripts)
-        ? project.manuscripts[0]
-        : project.manuscripts;
+        return {
+          id: project.id,
+          manuscriptId: project.manuscript_id || null,
+          title: manuscriptData?.title ?? 'Tu Obra de Audio',
+          status: project.status ?? 'planning',
+          progress: projectProgress.percentage,
+          createdAt: project.created_at || null,
+        };
+      })
+    );
 
-      return {
-        id: project.id,
-        manuscriptId: project.manuscript_id || null,
-        title: manuscriptData?.title ?? 'Tu Obra de Audio',
-        status: project.status ?? 'planning',
-        progress,
-        createdAt: project.created_at || null,
-      };
-    });
+    return overviews;
   } catch (err) {
     console.error('getAuthorProjectsList unexpected error:', err);
     return [];
