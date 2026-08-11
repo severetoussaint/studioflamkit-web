@@ -3,10 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUser } from '@/services/auth.service';
-import { getAuthorRequestContext, submitManuscript, type AuthorRequestState, type AuthorRequestContext } from '@/services/manuscript.service';
-import { getAuthorProjectData, getAuthorProjectsList, type AuthorProjectData, type AuthorProjectOverview } from '@/services/project.service';
+import { submitManuscript, type AuthorRequestContext } from '@/services/manuscript.service';
+import { getAuthorProjectData, type AuthorProjectData } from '@/services/project.service';
 import { getDashboardFileLibraryData, type DashboardFileLibraryData } from '@/services/file.service';
 import { useEditorialWorkspace } from '@/hooks/useEditorialWorkspace';
+import { useDashboardWorkspace } from '@/hooks/useDashboardWorkspace';
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
 import {
@@ -122,14 +123,16 @@ export default function DashboardPage() {
   const router = useRouter();
   const [isChecking, setIsChecking] = useState(true);
   const [authorId, setAuthorId] = useState<string | null>(null);
-  const [requestState, setRequestState] = useState<AuthorRequestState>('none');
-  const [requestContext, setRequestContext] = useState<AuthorRequestContext | null>(null);
-  const [realProject, setRealProject] = useState<AuthorProjectData | null>(null);
-
-  // Estados de multiproyecto
   const [selectedManuscriptId, setSelectedManuscriptId] = useState<string | null>(null);
-  const [projectsOverview, setProjectsOverview] = useState<AuthorProjectOverview[]>([]);
+  const [realProject, setRealProject] = useState<AuthorProjectData | null>(null);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+
+  // Integración de useDashboardWorkspace (Fase 1B3.6)
+  const dashboardWorkspace = useDashboardWorkspace(authorId, selectedManuscriptId);
+  const {  workspaceData } = dashboardWorkspace;
+  const requestContext = workspaceData?.requestContext ?? null;
+  const projectsOverview = workspaceData?.projectsOverview ?? [];
+  const requestState = workspaceData?.requestState ?? 'none';
 
   // Integración de Workspace Editorial (Fase 1B3.6.A)
   const editorialWorkspace = useEditorialWorkspace(selectedManuscriptId);
@@ -237,88 +240,76 @@ export default function DashboardPage() {
     };
   }, [router]);
 
-  // 2. Efecto para cargar datos del proyecto/contexto basados en authorId y selectedManuscriptId
+  // 2. Efecto para cargar realProject (capítulos y datos legacy) cuando el estado es 'active'
   useEffect(() => {
-    if (!authorId) return;
+    if (!authorId || requestState !== 'active') {
+      setRealProject(null);
+      setChaptersState([]);
+      return;
+    }
     const currentAuthorId = authorId;
+    const manuscriptIdToLoad = selectedManuscriptId ?? requestContext?.manuscriptId;
+    if (!manuscriptIdToLoad) {
+      setRealProject(null);
+      setChaptersState([]);
+      return;
+    }
+
     let isMounted = true;
 
-    async function loadData() {
+    async function loadProjectData() {
       try {
-        // Cargar el listado de proyectos resumido del autor
-        const projs = await getAuthorProjectsList(currentAuthorId);
-        if (!isMounted) return;
-        setProjectsOverview(projs);
-
-        // Cargar el contexto del manuscrito seleccionado (o el primero activo por defecto)
-        const ctx = await getAuthorRequestContext(currentAuthorId, selectedManuscriptId);
+        const projectData = await getAuthorProjectData(currentAuthorId, manuscriptIdToLoad);
         if (!isMounted) return;
 
-        setRequestContext(ctx);
-        setRequestState(ctx.state);
+        if (projectData) {
+          setRealProject(projectData);
 
-        // Si no hay manuscriptId seleccionado localmente, inicializarlo con el del contexto resuelto
-        if (!selectedManuscriptId && ctx.manuscriptId) {
-          setSelectedManuscriptId(ctx.manuscriptId);
-        }
+          if (projectData.chapters && projectData.chapters.length > 0) {
+            const mappedChapters: ChapterItem[] = projectData.chapters.map((c) => {
+              let progress = 0;
+              let statusLabel: ChapterItem['status'] = 'Pendiente';
+              let payStatus: ChapterItem['paymentStatus'] = 'Pendiente';
 
-        // Si es un proyecto activo, cargar sus datos correspondientes
-        if (ctx.state === 'active' && ctx.manuscriptId) {
-          const projectData = await getAuthorProjectData(currentAuthorId, ctx.manuscriptId);
-          if (!isMounted) return;
+              if (c.status === 'pendiente') {
+                progress = 0;
+                statusLabel = 'Pendiente';
+                payStatus = 'Pendiente';
+              } else if (c.status === 'cotizado') {
+                progress = 20;
+                statusLabel = 'Cotizado';
+                payStatus = 'Pendiente';
+              } else if (c.status === 'pagado') {
+                progress = 40;
+                statusLabel = 'Pagado';
+                payStatus = 'Pagado';
+              } else if (c.status === 'en_produccion') {
+                progress = 75;
+                statusLabel = 'En Grabación';
+                payStatus = 'Pagado';
+              } else if (c.status === 'entregado') {
+                progress = 100;
+                statusLabel = 'Entregado';
+                payStatus = 'Pagado';
+              }
 
-          if (projectData) {
-            setRealProject(projectData);
-
-            if (projectData.chapters && projectData.chapters.length > 0) {
-              const mappedChapters: ChapterItem[] = projectData.chapters.map((c) => {
-                let progress = 0;
-                let statusLabel: ChapterItem['status'] = 'Pendiente';
-                let payStatus: ChapterItem['paymentStatus'] = 'Pendiente';
-
-                if (c.status === 'pendiente') {
-                  progress = 0;
-                  statusLabel = 'Pendiente';
-                  payStatus = 'Pendiente';
-                } else if (c.status === 'cotizado') {
-                  progress = 20;
-                  statusLabel = 'Cotizado';
-                  payStatus = 'Pendiente';
-                } else if (c.status === 'pagado') {
-                  progress = 40;
-                  statusLabel = 'Pagado';
-                  payStatus = 'Pagado';
-                } else if (c.status === 'en_produccion') {
-                  progress = 75;
-                  statusLabel = 'En Grabación';
-                  payStatus = 'Pagado';
-                } else if (c.status === 'entregado') {
-                  progress = 100;
-                  statusLabel = 'Entregado';
-                  payStatus = 'Pagado';
-                }
-
-                return {
-                  id: c.id,
-                  number: c.chapter_number,
-                  title: c.title,
-                  progress,
-                  revisions: 0,
-                  maxRevisions: projectData.maxRevisions || 3,
-                  status: statusLabel,
-                  rawStatus: c.status,
-                  paymentStatus: payStatus,
-                  price: c.price,
-                  words: `${c.word_count.toLocaleString()} palabras`,
-                  duration: `~${c.duration_minutes} min`,
-                };
-              });
-              setChaptersState(mappedChapters);
-            } else {
-              setChaptersState([]);
-            }
+              return {
+                id: c.id,
+                number: c.chapter_number,
+                title: c.title,
+                progress,
+                revisions: 0,
+                maxRevisions: projectData.maxRevisions || 3,
+                status: statusLabel,
+                rawStatus: c.status,
+                paymentStatus: payStatus,
+                price: c.price,
+                words: `${c.word_count.toLocaleString()} palabras`,
+                duration: `~${c.duration_minutes} min`,
+              };
+            });
+            setChaptersState(mappedChapters);
           } else {
-            setRealProject(null);
             setChaptersState([]);
           }
         } else {
@@ -326,18 +317,18 @@ export default function DashboardPage() {
           setChaptersState([]);
         }
       } catch (err) {
-        console.error('Error al cargar datos del proyecto/autor:', err);
+        console.error('Error al cargar datos del proyecto:', err);
       } finally {
         if (isMounted) setIsChecking(false);
       }
     }
 
-    loadData();
+    loadProjectData();
 
     return () => {
       isMounted = false;
     };
-  }, [authorId, selectedManuscriptId]);
+  }, [authorId, selectedManuscriptId, requestState, requestContext?.manuscriptId]);
 
   // 3. Efecto para cargar datos completos de la biblioteca de archivos
   useEffect(() => {
@@ -421,18 +412,12 @@ export default function DashboardPage() {
         setManuscriptTitle('');
         setManuscriptWordCount('');
         if (authorId && res && res.id) {
-          try {
-            const freshCtx = await getAuthorRequestContext(authorId, res.id);
-            setRequestContext(freshCtx);
-            setRequestState(freshCtx.state);
-            setSelectedManuscriptId(res.id);
-          } catch {
-            setRequestState('pending');
-          }
+          setSelectedManuscriptId(res.id);
+          await dashboardWorkspace.reload();
+          setShowPostSubmitCarousel(true);
         } else {
-          setRequestState('pending');
+          setShowPostSubmitCarousel(true);
         }
-        setShowPostSubmitCarousel(true);
       }, 1500);
     } catch (err) {
       console.error('Error al enviar el manuscrito:', JSON.stringify(err, null, 2));
