@@ -3,8 +3,9 @@ import { buildEditorialJourneyContext } from '@/domain/editorial/buildEditorialJ
 import { deriveEditorialJourney } from '@/domain/editorial/deriveEditorialJourney';
 import { getEvaluationByRequest } from '@/services/evaluation.service';
 import { getProjectRequestByManuscript } from '@/services/request.service';
-import { getProposal } from '@/services/proposal.service';
+import { listProposals } from '@/services/proposal.service';
 import { getProjectByManuscript } from '@/services/project.service';
+import { mapProjectRowToDomain } from '@/domain/project/mapProject';
 import { hasOpenReviewsByProject } from '@/services/review.service';
 
 export interface EditorialWorkspaceData {
@@ -26,8 +27,10 @@ export async function getEditorialWorkspaceByManuscript(
 ): Promise<EditorialWorkspaceData> {
   const request = await getProjectRequestByManuscript(manuscriptId);
   const evaluation = request ? await getEvaluationByRequest(request.id) : null;
-  const proposal = request ? await getLatestProposalByRequest(request.id) : null;
-  const project = await getProjectByManuscript(manuscriptId);
+  const proposals = request ? await listProposals(request.id) : [];
+  const proposal = proposals[0] ?? null;
+  const projectRow = await getProjectByManuscript(manuscriptId);
+  const project = projectRow ? mapProjectRowToDomain(projectRow) : null;
   const hasOpenReviews = project ? await hasOpenReviewsByProject(project.id) : false;
 
   const context = buildEditorialJourneyContext({
@@ -47,9 +50,4 @@ export async function getEditorialWorkspaceByManuscript(
     hasOpenReviews,
     journey: deriveEditorialJourney(context),
   };
-}
-
-async function getLatestProposalByRequest(requestId: string): Promise<Proposal | null> {
-  const proposals = await import('@/services/proposal.service').then(({ listProposals }) => listProposals(requestId));
-  return proposals[0] ?? null;
 }
