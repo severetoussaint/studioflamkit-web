@@ -192,14 +192,13 @@ export async function getAuthorProjectData(authorId: string, manuscriptId?: stri
       const sum = chapters.reduce((acc, c) => acc + (weights[c.status] ?? 0), 0);
       progress = Math.round(sum / chapters.length);
     } else {
-      const statusMap: Record<ProjectStatus, number> = {
+      const statusMap: Partial<Record<ProjectStatus, number>> = {
         planning: 25,
         production: 60,
         review: 85,
         completed: 100,
-        archived: 100,
       };
-      progress = statusMap[dbStatus];
+      progress = statusMap[dbStatus] ?? 25;
     }
 
     return {
@@ -285,14 +284,13 @@ export async function getAuthorProjectsList(authorId: string): Promise<AuthorPro
         const sum = chapters.reduce((acc: number, c: { status: string }) => acc + (weights[c.status] ?? 0), 0);
         progress = Math.round(sum / chapters.length);
       } else {
-        const statusMap: Record<ProjectStatus, number> = {
+        const statusMap: Partial<Record<ProjectStatus, number>> = {
           planning: 25,
           production: 60,
           review: 85,
           completed: 100,
-          archived: 100,
         };
-        progress = statusMap[project.status ?? 'planning'];
+        progress = statusMap[project.status ?? 'planning'] ?? 25;
       }
 
       const manuscriptData = Array.isArray(project.manuscripts)
