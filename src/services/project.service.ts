@@ -3,13 +3,11 @@ import type { Database } from '@/types/database.types';
 import type { ProjectStatus } from '@/types/domain.types';
 import { getProjectProgress, getProjectsProgress } from '@/services/production-stage.service';
 
-type ProjectRow = Database['public']['Tables']['projects']['Row'];
-export type ProjectRow = ProjectRow;
+export type ProjectRow = Database['public']['Tables']['projects']['Row'];
 export type ProjectInsert = Database['public']['Tables']['projects']['Insert'];
 export type ProjectUpdate = Database['public']['Tables']['projects']['Update'];
 
-type ManuscriptRow = Database['public']['Tables']['manuscripts']['Row'];
-export type ManuscriptRow = ManuscriptRow;
+export type ManuscriptRow = Database['public']['Tables']['manuscripts']['Row'];
 export type ManuscriptInsert = Database['public']['Tables']['manuscripts']['Insert'];
 export type ManuscriptUpdate = Database['public']['Tables']['manuscripts']['Update'];
 
