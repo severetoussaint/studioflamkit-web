@@ -1,5 +1,6 @@
 import { supabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/database.types';
+import type { Notification, NotificationStatus } from '@/types/domain.types';
 
 export type NotificationRow = Database['public']['Tables']['notifications']['Row'];
 
@@ -7,13 +8,24 @@ export interface CreateNotificationInput {
   authorId: string;
   title: string;
   message: string;
-  status?: NotificationRow['status'];
+  status?: NotificationStatus;
+}
+
+function mapNotificationRowToDomain(row: NotificationRow): Notification {
+  return {
+    id: row.id,
+    authorId: row.author_id,
+    title: row.title,
+    message: row.message,
+    status: row.status,
+    createdAt: row.created_at,
+  };
 }
 
 /**
  * Fetch real notifications for a given user (Author or Admin)
  */
-export async function getUserNotifications(userId: string): Promise<NotificationRow[]> {
+export async function getUserNotifications(userId: string): Promise<Notification[]> {
   if (!userId) return [];
   try {
     const { data, error } = await supabaseClient
@@ -28,14 +40,14 @@ export async function getUserNotifications(userId: string): Promise<Notification
       return [];
     }
 
-    return (data ?? []) as NotificationRow[];
+    return ((data ?? []) as NotificationRow[]).map(mapNotificationRowToDomain);
   } catch (err) {
     console.error('Unexpected error in getUserNotifications:', err);
     return [];
   }
 }
 
-export async function createNotification(input: CreateNotificationInput): Promise<NotificationRow> {
+export async function createNotification(input: CreateNotificationInput): Promise<Notification> {
   if (!input.authorId) throw new Error('authorId is required to create a notification.');
   if (!input.title.trim()) throw new Error('Notification title is required.');
   if (!input.message.trim()) throw new Error('Notification message is required.');
@@ -52,7 +64,7 @@ export async function createNotification(input: CreateNotificationInput): Promis
     .single();
 
   if (error) throw error;
-  return data as NotificationRow;
+  return mapNotificationRowToDomain(data as NotificationRow);
 }
 
 /**
