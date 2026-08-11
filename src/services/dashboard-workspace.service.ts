@@ -29,7 +29,7 @@ function buildWorkspaceData(
     requestState: requestContext?.state ?? (editorialWorkspace?.project ? 'active' : 'none'),
     projectId: editorialWorkspace?.project?.id ?? requestContext?.projectId ?? null,
     projectStatus: editorialWorkspace?.project?.status ?? null,
-    projectTitle: editorialWorkspace?.project?.title ?? requestContext?.title ?? null,
+    projectTitle: requestContext?.title ?? null,
   };
 }
 
