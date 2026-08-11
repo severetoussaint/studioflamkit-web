@@ -6,8 +6,9 @@ import { getEvaluationByRequest } from '@/services/evaluation.service';
 import { getProjectRequestByManuscript } from '@/services/request.service';
 import { getProjectByManuscript } from '@/services/project.service';
 import { mapProjectRowToDomain } from '@/domain/project/mapProject';
-import { hasOpenReviewsByProject } from '@/services/review.service';
+import { hasOpenReviewsByProject, listReviewsByProject } from '@/services/review.service';
 import { getProjectProgress } from '@/services/production-stage.service';
+import { listProjectTimeline } from '@/services/timeline.service';
 import type { AuthorProjectViewModel } from '@/domain/view-models/authorProjectViewModel';
 
 export type EditorialWorkspaceData = AuthorProjectViewModel;
@@ -33,11 +34,15 @@ export async function getEditorialWorkspaceByManuscript(
   const project: Project | null = projectRow ? mapProjectRowToDomain(projectRow) : null;
 
   let progress: ProjectProgress | null = null;
+  let reviews = [] as Awaited<ReturnType<typeof listReviewsByProject>>;
+  let timeline = [] as Awaited<ReturnType<typeof listProjectTimeline>>;
   let hasOpenReviews = false;
 
   if (project) {
-    [progress, hasOpenReviews] = await Promise.all([
+    [progress, reviews, timeline, hasOpenReviews] = await Promise.all([
       getProjectProgress(project.id),
+      listReviewsByProject(project.id),
+      listProjectTimeline(project.id),
       hasOpenReviewsByProject(project.id),
     ]);
   }
@@ -56,6 +61,8 @@ export async function getEditorialWorkspaceByManuscript(
     proposal,
     project,
     progress,
+    reviews,
+    timeline,
     hasOpenReviews,
     journey: deriveEditorialJourney(context),
   };
