@@ -5,18 +5,10 @@ import { mapProposalRowToDomain } from '@/domain/proposal/mapProposal';
 
 type ProposalRow = Database['public']['Tables']['proposals']['Row'];
 type ProposalRpcName = 'send_proposal' | 'accept_proposal' | 'reject_proposal' | 'expire_proposal';
-type ProposalRpcResult = { data: string | null; error: { message: string } | null };
 
-async function callProposalRpc(name: ProposalRpcName, proposalId: string): Promise<string | null> {
-  // `database.types.ts` is generated from Supabase and may lag a newly deployed RPC
-  // until the next type-generation commit. Keep the cast isolated at this API boundary.
-  const rpc = supabaseClient.rpc as unknown as (
-    functionName: ProposalRpcName,
-    args: { p_proposal_id: string },
-  ) => Promise<ProposalRpcResult>;
-
-  const { data, error } = await rpc(name, { p_proposal_id: proposalId });
-  if (error) throw new Error(error.message);
+async function callProposalRpc(name: ProposalRpcName, proposalId: string): Promise<string> {
+  const { data, error } = await supabaseClient.rpc(name, { p_proposal_id: proposalId });
+  if (error) throw error;
   return data;
 }
 
@@ -56,7 +48,7 @@ export async function listProposals(requestId?: string): Promise<Proposal[]> {
 
   const { data, error } = await query;
   if (error) throw error;
-  return ((data ?? []) as ProposalRow[]).map(mapProposalRowToDomain);
+  return (data ?? []).map(mapProposalRowToDomain);
 }
 
 export async function getProposal(proposalId: string): Promise<Proposal | null> {
@@ -67,7 +59,7 @@ export async function getProposal(proposalId: string): Promise<Proposal | null> 
     .maybeSingle();
 
   if (error) throw error;
-  return data ? mapProposalRowToDomain(data as ProposalRow) : null;
+  return data ? mapProposalRowToDomain(data) : null;
 }
 
 export async function createProposal(input: CreateProposalInput): Promise<Proposal> {
@@ -86,24 +78,24 @@ export async function createProposal(input: CreateProposalInput): Promise<Propos
       deadline: input.deadline ?? null,
       expires_at: input.expiresAt ?? null,
       status: 'pending',
-    } as never)
+    })
     .select('*')
     .single();
 
   if (error) throw error;
-  return mapProposalRowToDomain(data as ProposalRow);
+  return mapProposalRowToDomain(data);
 }
 
 export async function sendProposal(proposalId: string): Promise<Proposal> {
-  const persistedProposalId = (await callProposalRpc('send_proposal', proposalId)) ?? proposalId;
+  const persistedProposalId = await callProposalRpc('send_proposal', proposalId);
   const proposal = await getProposal(persistedProposalId);
   if (!proposal) throw new Error(`Proposal ${persistedProposalId} not found after sending.`);
   return proposal;
 }
 
 export async function acceptProposal(proposalId: string): Promise<Proposal> {
-  const projectId = await callProposalRpc('accept_proposal', proposalId);
-  if (!projectId) throw new Error(`Proposal ${proposalId} could not be accepted.`);
+  const persistedProjectId = await callProposalRpc('accept_proposal', proposalId);
+  if (!persistedProjectId) throw new Error(`Proposal ${proposalId} could not be accepted.`);
 
   const proposal = await getProposal(proposalId);
   if (!proposal) throw new Error(`Proposal ${proposalId} not found after acceptance.`);
@@ -111,7 +103,7 @@ export async function acceptProposal(proposalId: string): Promise<Proposal> {
 }
 
 export async function rejectProposal(proposalId: string): Promise<Proposal> {
-  const persistedProposalId = (await callProposalRpc('reject_proposal', proposalId)) ?? proposalId;
+  const persistedProposalId = await callProposalRpc('reject_proposal', proposalId);
   const proposal = await getProposal(persistedProposalId);
   if (!proposal) throw new Error(`Proposal ${persistedProposalId} not found after rejection.`);
   return proposal;
@@ -124,7 +116,7 @@ export async function expireProposal(proposalId: string): Promise<Proposal> {
   assertPendingStatus(proposal);
   assertExpired(proposal);
 
-  const persistedProposalId = (await callProposalRpc('expire_proposal', proposalId)) ?? proposalId;
+  const persistedProposalId = await callProposalRpc('expire_proposal', proposalId);
   const persistedProposal = await getProposal(persistedProposalId);
   if (!persistedProposal) throw new Error(`Proposal ${persistedProposalId} not found after expiration.`);
   return persistedProposal;
