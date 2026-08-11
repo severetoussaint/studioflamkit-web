@@ -101,7 +101,7 @@ export async function createReview(input: CreateReviewInput): Promise<Review> {
 }
 
 async function updateReviewStatus(reviewId: string, status: ReviewTransitionStatus): Promise<Review> {
-  if (!isReviewStatus(status) || status === 'open') {
+  if (!isReviewStatus(status)) {
     throw new Error(`Invalid review transition status: ${status}`);
   }
 
