@@ -1,21 +1,11 @@
 import type { Database } from '@/types/database.types';
-import type { Project, ProjectStatus } from '@/types/domain.types';
+import type { Project } from '@/types/domain.types';
+import { isProjectStatus } from '@/domain/project/projectStatus';
 
 type ProjectRow = Database['public']['Tables']['projects']['Row'];
 
-const PROJECT_STATUSES: ReadonlySet<string> = new Set([
-  'planning',
-  'production',
-  'review',
-  'completed',
-  'archived',
-]);
-
-function mapProjectStatus(value: string | null): ProjectStatus {
-  if (value !== null && PROJECT_STATUSES.has(value)) {
-    return value as ProjectStatus;
-  }
-  return 'planning';
+function mapProjectStatus(value: string | null) {
+  return isProjectStatus(value) ? value : 'planning';
 }
 
 function requireProjectString(value: string | null, field: string): string {
