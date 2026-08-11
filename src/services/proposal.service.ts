@@ -82,22 +82,53 @@ export async function createProposal(input: CreateProposalInput): Promise<Propos
   return mapProposalRowToDomain(data as ProposalRow);
 }
 
-export async function rejectProposal(proposalId: string): Promise<Proposal> {
-  const proposal = await getProposal(proposalId);
-  if (!proposal) throw new Error(`Proposal ${proposalId} not found.`);
-
-  assertPendingStatus(proposal);
-
-  const { data, error } = await supabaseClient
-    .from('proposals')
-    .update({ status: 'rejected' })
-    .eq('id', proposalId)
-    .eq('status', 'pending')
-    .select('*')
-    .single();
+export async function sendProposal(proposalId: string): Promise<Proposal> {
+  const { data, error } = await supabaseClient.rpc('send_proposal', {
+    p_proposal_id: proposalId,
+  });
 
   if (error) throw error;
-  return mapProposalRowToDomain(data as ProposalRow);
+
+  const persistedProposalId = (data as string | null) ?? proposalId;
+  const proposal = await getProposal(persistedProposalId);
+  if (!proposal) throw new Error(`Proposal ${persistedProposalId} not found after sending.`);
+
+  assertPendingStatus(proposal);
+  return proposal;
+}
+
+export async function acceptProposal(proposalId: string): Promise<Proposal> {
+  const { data, error } = await supabaseClient.rpc('accept_proposal', {
+    p_proposal_id: proposalId,
+  });
+
+  if (error) throw error;
+
+  const projectId = data as string | null;
+  if (!projectId) {
+    const expiredProposal = await getProposal(proposalId);
+    if (expiredProposal?.status === 'expired') {
+      throw new Error(`Proposal ${proposalId} has expired.`);
+    }
+    throw new Error(`Proposal ${proposalId} could not be accepted.`);
+  }
+
+  const proposal = await getProposal(proposalId);
+  if (!proposal) throw new Error(`Proposal ${proposalId} not found after acceptance.`);
+  return proposal;
+}
+
+export async function rejectProposal(proposalId: string): Promise<Proposal> {
+  const { data, error } = await supabaseClient.rpc('reject_proposal', {
+    p_proposal_id: proposalId,
+  });
+
+  if (error) throw error;
+
+  const persistedProposalId = (data as string | null) ?? proposalId;
+  const proposal = await getProposal(persistedProposalId);
+  if (!proposal) throw new Error(`Proposal ${persistedProposalId} not found after rejection.`);
+  return proposal;
 }
 
 export async function expireProposal(proposalId: string): Promise<Proposal> {
@@ -107,35 +138,16 @@ export async function expireProposal(proposalId: string): Promise<Proposal> {
   assertPendingStatus(proposal);
   assertExpired(proposal);
 
-  const { data, error } = await supabaseClient
-    .from('proposals')
-    .update({ status: 'expired' })
-    .eq('id', proposalId)
-    .eq('status', 'pending')
-    .select('*')
-    .single();
+  const { data, error } = await supabaseClient.rpc('expire_proposal', {
+    p_proposal_id: proposalId,
+  });
 
   if (error) throw error;
-  return mapProposalRowToDomain(data as ProposalRow);
-}
 
-/**
- * Sending is intentionally not implemented yet because `proposals.status` has
- * no `sent` state. Adding a transient state here would create a second semantic
- * model instead of matching the real Supabase contract.
- */
-export async function sendProposal(_proposalId: string): Promise<never> {
-  throw new Error('sendProposal is blocked: proposals.status has no sent state in the current Supabase schema.');
-}
-
-/**
- * Acceptance is intentionally blocked until the existing Supabase trigger
- * `sync_projects_from_accepted_request` is reconciled with the 1B2.5 contract.
- * That trigger creates projects with proposal_id = NULL when a request is
- * accepted, so a multi-write implementation here would not be atomic.
- */
-export async function acceptProposal(_proposalId: string): Promise<never> {
-  throw new Error('acceptProposal is blocked: request acceptance currently competes with the Supabase project-creation trigger.');
+  const persistedProposalId = (data as string | null) ?? proposalId;
+  const persistedProposal = await getProposal(persistedProposalId);
+  if (!persistedProposal) throw new Error(`Proposal ${persistedProposalId} not found after expiration.`);
+  return persistedProposal;
 }
 
 export async function getProposalStatus(proposalId: string): Promise<ProposalStatus | null> {
