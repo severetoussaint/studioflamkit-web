@@ -28,7 +28,7 @@ export async function updateProject(id: string, updates: ProjectUpdate) {
   return data as ProjectRow | null;
 }
 
-export async function updateProjectStatus(id: string, status: ProjectRow['status']) {
+export async function updateProjectStatus(id: string, status: ProjectStatus) {
   return updateProject(id, { status, updated_at: new Date().toISOString() });
 }
 
