@@ -1,4 +1,4 @@
-import type { EvaluationResult, Project, Proposal } from '@/types/domain.types';
+import type { EvaluationResult, Project, ProjectProgress, Proposal } from '@/types/domain.types';
 import { buildEditorialJourneyContext } from '@/domain/editorial/buildEditorialJourneyContext';
 import { deriveEditorialJourney } from '@/domain/editorial/deriveEditorialJourney';
 import { listProposals } from '@/services/proposal.service';
@@ -33,12 +33,15 @@ export async function getEditorialWorkspaceByManuscript(
   const proposal: Proposal | null = proposals[0] ?? null;
   const project: Project | null = projectRow ? mapProjectRowToDomain(projectRow) : null;
 
-  const [progress, hasOpenReviews] = project
-    ? await Promise.all([
-        getProjectProgress(project.id),
-        hasOpenReviewsByProject(project.id),
-      ])
-    : [null, false];
+  let progress: ProjectProgress | null = null;
+  let hasOpenReviews = false;
+
+  if (project) {
+    [progress, hasOpenReviews] = await Promise.all([
+      getProjectProgress(project.id),
+      hasOpenReviewsByProject(project.id),
+    ]);
+  }
 
   const context = buildEditorialJourneyContext({
     hasManuscript: true,
