@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUser } from '@/services/auth.service';
-import { submitManuscript, type AuthorRequestContext } from '@/services/manuscript.service';
+import { submitManuscript } from '@/services/manuscript.service';
 import { getAuthorProjectData, type AuthorProjectData } from '@/services/project.service';
 import { getDashboardFileLibraryData, type DashboardFileLibraryData } from '@/services/file.service';
 import { useEditorialWorkspace } from '@/hooks/useEditorialWorkspace';
@@ -129,7 +129,7 @@ export default function DashboardPage() {
 
   // Integración de useDashboardWorkspace (Fase 1B3.6)
   const dashboardWorkspace = useDashboardWorkspace(authorId, selectedManuscriptId);
-  const {  workspaceData } = dashboardWorkspace;
+  const { data: workspaceData } = dashboardWorkspace;
   const requestContext = workspaceData?.requestContext ?? null;
   const projectsOverview = workspaceData?.projectsOverview ?? [];
   const requestState = workspaceData?.requestState ?? 'none';
