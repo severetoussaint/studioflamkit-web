@@ -40,6 +40,11 @@ export type ProductionStageStatus =
   | 'in_progress'
   | 'completed';
 
+export type NotificationStatus =
+  | 'pending'
+  | 'sent'
+  | 'read';
+
 export type EditorialPhase =
   | 'received'
   | 'analysis'
@@ -112,6 +117,15 @@ export interface TimelineEntry {
   projectId: string;
   event: TimelineEvent;
   details: string | null;
+  createdAt: string;
+}
+
+export interface Notification {
+  id: string;
+  authorId: string;
+  title: string;
+  message: string;
+  status: NotificationStatus;
   createdAt: string;
 }
 
