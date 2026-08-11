@@ -133,14 +133,16 @@ export default function DashboardPage() {
   const projectsOverview = workspaceData?.projectsOverview ?? [];
   const requestState = workspaceData?.requestState ?? 'none';
 
+  // Manuscrito activo derivado: la selección manual del usuario (selectedManuscriptId) prevalece;
+  // si aún no hay selección manual, se deriva del workspace de forma pura sin setState síncrono.
+  const activeManuscriptId = selectedManuscriptId ?? workspaceData?.manuscriptId ?? null;
+
   // Datos migrados desde workspaceData (Fase 1B3.6)
   const projectTitle = workspaceData?.projectTitle ?? null;
-  const projectStatus = workspaceData?.projectStatus ?? null;
   const editorialProgress = workspaceData?.editorialWorkspace?.progress?.percentage ?? 0;
-  const activeProject = workspaceData?.editorialWorkspace?.project ?? null;
 
   // Integración de Workspace Editorial (Fase 1B3.6.A)
-  const editorialWorkspace = useEditorialWorkspace(selectedManuscriptId);
+  const editorialWorkspace = useEditorialWorkspace(activeManuscriptId);
 
   // realProject se mantiene únicamente para capítulos y datos legacy sin sustituto en el ViewModel
   const [realProject, setRealProject] = useState<AuthorProjectData | null>(null);
@@ -244,19 +246,14 @@ export default function DashboardPage() {
     };
   }, [router]);
 
-  // 2. Efecto para cargar realProject (capítulos y datos legacy) cuando existe un manuscrito seleccionado
+  // 2. Efecto para cargar realProject (capítulos y datos legacy) cuando existe un manuscrito activo
   // Nota: Este efecto se mantiene como frontera 1B3.7 - no migrar capítulos aún
   useEffect(() => {
-    if (!authorId || !selectedManuscriptId) {
-      setRealProject(null);
-      setChaptersState([]);
-      return;
-    }
-
-    const currentAuthorId = authorId;
-    const currentManuscriptId = selectedManuscriptId;
+    if (!authorId || !activeManuscriptId) return;
 
     let isMounted = true;
+    const currentAuthorId = authorId;
+    const currentManuscriptId = activeManuscriptId;
 
     async function loadProjectData() {
       try {
@@ -330,13 +327,13 @@ export default function DashboardPage() {
     return () => {
       isMounted = false;
     };
-  }, [authorId, selectedManuscriptId]);
+  }, [authorId, activeManuscriptId]);
 
   // 3. Efecto para cargar datos completos de la biblioteca de archivos
   useEffect(() => {
-    if (!authorId || !selectedManuscriptId) return;
+    if (!authorId || !activeManuscriptId) return;
     const currentAuthorId = authorId;
-    const currentManuscriptId = selectedManuscriptId;
+    const currentManuscriptId = activeManuscriptId;
     let isMounted = true;
 
     async function loadLibrary() {
@@ -358,16 +355,7 @@ export default function DashboardPage() {
     return () => {
       isMounted = false;
     };
-  }, [authorId, workspaceData?.projectId, selectedManuscriptId]);
-
-  // Sincronización de estado para migración 1B3.6:
-  // Cuando selectedManuscriptId es null y workspaceData?.manuscriptId existe,
-  // se establece como manuscrito seleccionado. No sobrescribe si ya hay selección manual.
-  useEffect(() => {
-    if (selectedManuscriptId === null && workspaceData?.manuscriptId) {
-      setSelectedManuscriptId(workspaceData.manuscriptId);
-    }
-  }, [selectedManuscriptId, workspaceData?.manuscriptId]);
+  }, [authorId, workspaceData?.projectId, activeManuscriptId]);
 
   const togglePlay = () => {
     setIsPlaying(!isPlaying);
@@ -662,7 +650,7 @@ export default function DashboardPage() {
                           {requestContext?.manuscripts && requestContext.manuscripts.length > 0 ? (
                             requestContext.manuscripts.map((m) => {
                               const info = getManuscriptSelectorInfo(m);
-                              const isSelected = m.id === selectedManuscriptId;
+                              const isSelected = m.id === activeManuscriptId;
                               return (
                                 <button
                                   key={m.id}
@@ -725,7 +713,7 @@ export default function DashboardPage() {
                 {requestContext?.manuscripts && requestContext.manuscripts.length > 1 && (
                   <ManuscriptSwitcher
                     manuscripts={requestContext.manuscripts}
-                    selectedManuscriptId={selectedManuscriptId}
+                    selectedManuscriptId={activeManuscriptId}
                     onSelect={(id) => setSelectedManuscriptId(id)}
                   />
                 )}
