@@ -6,6 +6,7 @@ import { getUser } from '@/services/auth.service';
 import { getAuthorRequestContext, submitManuscript, type AuthorRequestState, type AuthorRequestContext } from '@/services/manuscript.service';
 import { getAuthorProjectData, getAuthorProjectsList, type AuthorProjectData, type AuthorProjectOverview } from '@/services/project.service';
 import { getDashboardFileLibraryData, type DashboardFileLibraryData } from '@/services/file.service';
+import { useEditorialWorkspace } from '@/hooks/useEditorialWorkspace';
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
 import {
@@ -130,6 +131,13 @@ export default function DashboardPage() {
   const [projectsOverview, setProjectsOverview] = useState<AuthorProjectOverview[]>([]);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
 
+  // Integración de Workspace Editorial (Fase 1B3.6.A)
+  const editorialWorkspace = useEditorialWorkspace(selectedManuscriptId);
+  const activeWorkspaceProject = editorialWorkspace.data?.project;
+
+  // Estado del proyecto desde el Workspace Editorial con fallback a la carga legacy
+  const activeProjectStatus = activeWorkspaceProject?.status ?? realProject?.status;
+
   // Estados de la biblioteca de archivos
   const [libraryData, setLibraryData] = useState<DashboardFileLibraryData | null>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
@@ -140,16 +148,17 @@ export default function DashboardPage() {
     if (project) {
       let label = 'Producción';
       let dotColor = 'bg-emerald-500';
-      if (project.status === 'planning') {
+      const statusToUse = (m.id === selectedManuscriptId && activeProjectStatus) ? activeProjectStatus : project.status;
+      if (statusToUse === 'planning') {
         label = project.progress <= 30 ? 'En análisis' : 'Propuesta';
         dotColor = 'bg-amber-500';
-      } else if (project.status === 'production') {
+      } else if (statusToUse === 'production') {
         label = 'Producción';
         dotColor = 'bg-violet-500';
-      } else if (project.status === 'review') {
+      } else if (statusToUse === 'review') {
         label = 'En revisión';
         dotColor = 'bg-blue-500';
-      } else if (project.status === 'completed') {
+      } else if (statusToUse === 'completed') {
         label = 'Entregado';
         dotColor = 'bg-emerald-500';
       }
