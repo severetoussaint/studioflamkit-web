@@ -7,6 +7,17 @@ import { isReviewStatus } from '@/domain/review/reviewStatus';
 type ReviewRow = Database['public']['Tables']['reviews']['Row'];
 type DeliverableRow = Pick<Database['public']['Tables']['deliverables']['Row'], 'id'>;
 type ReviewTransitionStatus = Exclude<ReviewStatus, 'open'>;
+type CreateReviewRpcResult = {
+  data: string | null;
+  error: { message: string } | null;
+};
+
+type RpcClient = (
+  functionName: string,
+  args: Record<string, unknown>,
+) => Promise<CreateReviewRpcResult>;
+
+const rpcClient = supabaseClient.rpc as unknown as RpcClient;
 
 export interface CreateReviewInput {
   deliverableId: string;
@@ -84,20 +95,19 @@ export async function createReview(input: CreateReviewInput): Promise<Review> {
   if (!input.deliverableId) throw new Error('deliverableId is required to create a review.');
   if (!input.comment.trim()) throw new Error('Review comment is required.');
 
-  const { data, error } = await supabaseClient
-    .from('reviews')
-    .insert({
-      deliverable_id: input.deliverableId,
-      chapter_title: input.chapterTitle ?? null,
-      comment: input.comment,
-      file_path: input.filePath ?? null,
-      status: 'open',
-    })
-    .select('*')
-    .single();
+  const { data: reviewId, error } = await rpcClient('create_review', {
+    p_deliverable_id: input.deliverableId,
+    p_chapter_title: input.chapterTitle ?? null,
+    p_comment: input.comment,
+    p_file_path: input.filePath ?? null,
+  });
 
-  if (error) throw error;
-  return mapReviewRowToDomain(data as ReviewRow);
+  if (error) throw new Error(error.message);
+  if (!reviewId) throw new Error('Review creation did not return an id.');
+
+  const review = await getReview(reviewId);
+  if (!review) throw new Error(`Review ${reviewId} not found after creation.`);
+  return review;
 }
 
 async function updateReviewStatus(reviewId: string, status: ReviewTransitionStatus): Promise<Review> {
