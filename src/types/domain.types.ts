@@ -4,9 +4,9 @@
  * Este archivo define los tipos de dominio centralizados compartidos entre
  * el Dashboard (Autor) y la consola de Administración (Admin).
  *
- * Fuente de especificación:
- * - docs/Fase 1B2/Fase 1B2.7/architecture/1B2.7.5 — Especificación de implementación.md
- * - docs/Fase 1B2/Fase 1B2.8/architecture/1B2.8 — Revisión global del modelo.md
+ * Contrato de Dominio Mínimo Ajustado (1B3.1.A):
+ * - Refleja los valores reales almacenados en la base de datos Supabase.
+ * - Separa los conceptos puros de dominio de los ViewModels / Presentación.
  */
 
 /**
@@ -27,14 +27,13 @@ export type RequestStatus =
   | 'evaluating'
   | 'accepted'
   | 'rejected'
-  | 'cancelled';
+  | 'canceled';
 
 /**
  * Estados reales de una propuesta comercial/técnica en `proposals.status`.
  */
 export type ProposalStatus =
-  | 'draft'
-  | 'sent'
+  | 'pending'
   | 'accepted'
   | 'rejected'
   | 'expired';
@@ -43,10 +42,9 @@ export type ProposalStatus =
  * Estados reales de las revisiones de entregables en `reviews.status`.
  */
 export type ReviewStatus =
-  | 'pending'
-  | 'in_review'
-  | 'approved'
-  | 'changes_requested';
+  | 'open'
+  | 'resolved'
+  | 'discarded';
 
 /**
  * Las seis fases de producto del itinerario editorial (Editorial Journey).
@@ -62,35 +60,32 @@ export type EditorialPhase =
 /**
  * Estado individual de un paso en el itinerario editorial.
  */
-export type EditorialStepStatus = 'completed' | 'active' | 'pending' | 'blocked';
+export type EditorialStepStatus =
+  | 'completed'
+  | 'active'
+  | 'pending'
+  | 'blocked';
 
 /**
- * Paso individual del timeline del itinerario editorial.
+ * Paso individual del itinerario editorial de dominio.
  */
 export interface EditorialTimelineStep {
   id: EditorialPhase;
-  title: string;
-  description: string;
   status: EditorialStepStatus;
 }
 
 /**
  * Modelo de dominio del itinerario editorial (Editorial Journey).
- * Representa el avance del autor a lo largo de las 6 fases de producto.
+ * Modela la fase actual y los pasos sin acoplarse a etiquetas o controles de UI.
  */
 export interface EditorialJourney {
   currentPhase: EditorialPhase;
-  label: string;
-  progress: number;
-  nextActionTitle: string;
-  nextActionDescription: string;
-  buttonLabel?: string;
   steps: EditorialTimelineStep[];
 }
 
 /**
  * Modelo de dominio de Proyecto.
- * Representa el concepto de negocio (no la fila de Supabase ni un ViewModel de UI).
+ * Representa el concepto de negocio sin campos de presentación.
  */
 export interface Project {
   id: string;
