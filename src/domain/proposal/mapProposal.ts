@@ -3,20 +3,20 @@ import type { Proposal, ProposalStatus } from '@/types/domain.types';
 
 type ProposalRow = Database['public']['Tables']['proposals']['Row'];
 
-const PROPOSAL_STATUSES: readonly ProposalStatus[] = [
+const PROPOSAL_STATUSES: ReadonlySet<string> = new Set([
   'pending',
   'accepted',
   'rejected',
   'expired',
-];
+]);
 
 function mapProposalStatus(value: string | null): ProposalStatus {
-  return PROPOSAL_STATUSES.includes(value as ProposalStatus)
-    ? (value as ProposalStatus)
-    : 'pending';
+  if (value !== null && PROPOSAL_STATUSES.has(value)) {
+    return value as ProposalStatus;
+  }
+  return 'pending';
 }
 
-/** Maps the persisted proposal row into the shared domain model. */
 export function mapProposalRowToDomain(row: ProposalRow): Proposal {
   return {
     id: row.id,
