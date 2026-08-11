@@ -7,8 +7,8 @@ import {
   getEditorialSnapshot,
   resolveEditorialJourney,
   snapshotFromDashboardProps,
-  type EditorialTimelineStep,
 } from './editorialJourney';
+import type { EditorialJourney, EditorialPhase, EditorialStepStatus } from '@/types/domain.types';
 
 export interface TimelineStep {
   id: string;
@@ -20,6 +20,7 @@ export interface TimelineStep {
 interface ProgressTimelineProps {
   steps?: TimelineStep[];
   currentState?: 'none' | 'pending' | 'active';
+  journey?: EditorialJourney | null;
 }
 
 function legacySnapshotFromState(currentState?: 'none' | 'pending' | 'active') {
@@ -40,26 +41,79 @@ function legacySnapshotFromState(currentState?: 'none' | 'pending' | 'active') {
   });
 }
 
-function mapTimelineStep(step: EditorialTimelineStep): TimelineStep {
-  return {
-    id: step.id,
-    title: step.title,
-    description: step.description,
-    status: step.status,
-  };
+const PRESENTATION_META: Record<EditorialPhase, { title: string; description: string }> = {
+  received: {
+    title: 'Recibido',
+    description: 'El manuscrito ya está resguardado en el sistema.',
+  },
+  analysis: {
+    title: 'En análisis',
+    description: 'La obra está siendo revisada por el equipo editorial.',
+  },
+  proposal: {
+    title: 'Propuesta en preparación',
+    description: 'Se está cerrando el desglose técnico y comercial.',
+  },
+  production: {
+    title: 'Producción',
+    description: 'La obra está en grabación, edición o mezcla.',
+  },
+  review: {
+    title: 'En revisión',
+    description: 'Hay observaciones, correcciones o aprobaciones pendientes.',
+  },
+  completed: {
+    title: 'Entrega final',
+    description: 'El master o paquete final ya está listo para revisión o descarga.',
+  },
+};
+
+function mapDomainStatus(status: EditorialStepStatus): TimelineStep['status'] {
+  switch (status) {
+    case 'completed':
+      return 'completado';
+    case 'active':
+      return 'activo';
+    case 'blocked':
+      return 'bloqueado';
+    case 'pending':
+    default:
+      return 'pendiente';
+  }
 }
 
-export function ProgressTimeline({ steps, currentState }: ProgressTimelineProps) {
+function mapDomainJourney(journey: EditorialJourney): TimelineStep[] {
+  return journey.steps.map((step) => ({
+    id: step.id,
+    title: PRESENTATION_META[step.id].title,
+    description: PRESENTATION_META[step.id].description,
+    status: mapDomainStatus(step.status),
+  }));
+}
+
+export function ProgressTimeline({ steps, currentState, journey: domainJourney = null }: ProgressTimelineProps) {
   const snapshot = getEditorialSnapshot() ?? legacySnapshotFromState(currentState);
-  const journey = React.useMemo(() => resolveEditorialJourney(snapshot), [snapshot]);
+  const legacyJourney = React.useMemo(() => resolveEditorialJourney(snapshot), [snapshot]);
 
   const activeSteps = React.useMemo(() => {
     if (steps && steps.length > 0) {
       return steps;
     }
 
-    return journey.steps.map(mapTimelineStep);
-  }, [steps, journey.steps]);
+    if (domainJourney) {
+      return mapDomainJourney(domainJourney);
+    }
+
+    return legacyJourney.steps;
+  }, [steps, domainJourney, legacyJourney.steps]);
+
+  const subtitle = domainJourney
+    ? 'Fase actual del manuscrito en el proceso de producción de audio'
+    : legacyJourney.label === 'Sin manuscrito'
+      ? 'Aún no hay obra cargada para esta cuenta'
+      : 'Fase actual del manuscrito en el proceso de producción de audio';
+
+  const activeIndex = activeSteps.findIndex((s) => s.status === 'activo');
 
   return (
     <div className="relative overflow-hidden rounded-3xl border-edge/50 bg-surface-elevated/95 p-5 sm:p-6 shadow-[0_12px_36px_rgba(0,0,0,0.20)] backdrop-blur-xs">
@@ -76,15 +130,13 @@ export function ProgressTimeline({ steps, currentState }: ProgressTimelineProps)
               Ruta Editorial de la Obra
             </h2>
             <p className="text-xs text-ink-muted/80 font-light">
-              {journey.label === 'Sin manuscrito'
-                ? 'Aún no hay obra cargada para esta cuenta'
-                : 'Fase actual del manuscrito en el proceso de producción de audio'}
+              {subtitle}
             </p>
           </div>
         </div>
 
         <span className="inline-flex items-center gap-1.5 rounded-full border-edge/60 bg-surface px-3 py-1 text-[11px] font-mono font-medium text-ink-muted">
-          Etapa {activeSteps.findIndex((s) => s.status === 'activo') + 1 || 1} de {activeSteps.length}
+          Etapa {activeIndex >= 0 ? activeIndex + 1 : 1} de {activeSteps.length}
         </span>
       </div>
 
