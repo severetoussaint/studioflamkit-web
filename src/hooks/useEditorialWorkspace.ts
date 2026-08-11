@@ -26,10 +26,10 @@ export function useEditorialWorkspace(manuscriptId: string | null): EditorialWor
     setError(null);
 
     try {
-      // DashboardWorkspace is now the orchestration boundary for the shared
-      // workspace. It still preserves legacy context/overview reads during the
-      // migration, but the hook exposes only the stable domain ViewModel.
-      const workspace = await getDashboardWorkspaceData('', manuscriptId);
+      // The Dashboard already consumes this hook, so routing it through the
+      // transitional workspace loader lets us migrate orchestration without
+      // replacing the page or changing its visual contract.
+      const workspace = await getDashboardWorkspaceData(null, manuscriptId);
       setData(workspace.editorialWorkspace);
     } catch (cause) {
       const nextError = cause instanceof Error ? cause : new Error(String(cause));
