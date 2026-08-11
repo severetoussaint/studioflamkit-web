@@ -124,7 +124,6 @@ export default function DashboardPage() {
   const [isChecking, setIsChecking] = useState(true);
   const [authorId, setAuthorId] = useState<string | null>(null);
   const [selectedManuscriptId, setSelectedManuscriptId] = useState<string | null>(null);
-  const [realProject, setRealProject] = useState<AuthorProjectData | null>(null);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
 
   // Integración de useDashboardWorkspace (Fase 1B3.6)
@@ -137,11 +136,14 @@ export default function DashboardPage() {
   // Datos migrados desde workspaceData (Fase 1B3.6)
   const projectTitle = workspaceData?.projectTitle ?? null;
   const projectStatus = workspaceData?.projectStatus ?? null;
-  const editorialProgress = workspaceData?.editorialWorkspace?.progress?.percentage ?? null;
+  const editorialProgress = workspaceData?.editorialWorkspace?.progress?.percentage ?? 0;
   const activeProject = workspaceData?.editorialWorkspace?.project ?? null;
 
   // Integración de Workspace Editorial (Fase 1B3.6.A)
   const editorialWorkspace = useEditorialWorkspace(selectedManuscriptId);
+
+  // realProject se mantiene únicamente para capítulos y datos legacy sin sustituto en el ViewModel
+  const [realProject, setRealProject] = useState<AuthorProjectData | null>(null);
 
   // Estados de la biblioteca de archivos
   const [libraryData, setLibraryData] = useState<DashboardFileLibraryData | null>(null);
@@ -242,16 +244,10 @@ export default function DashboardPage() {
     };
   }, [router]);
 
-  // 2. Efecto para cargar realProject (capítulos y datos legacy) cuando el estado es 'active'
+  // 2. Efecto para cargar realProject (capítulos y datos legacy) cuando existe un manuscrito seleccionado
+  // Nota: Este efecto se mantiene como frontera 1B3.7 - no migrar capítulos aún
   useEffect(() => {
-    if (!authorId || requestState !== 'active') {
-      setRealProject(null);
-      setChaptersState([]);
-      return;
-    }
-    const currentAuthorId = authorId;
-    const manuscriptIdToLoad = selectedManuscriptId ?? requestContext?.manuscriptId;
-    if (!manuscriptIdToLoad) {
+    if (!authorId || !selectedManuscriptId) {
       setRealProject(null);
       setChaptersState([]);
       return;
@@ -261,7 +257,7 @@ export default function DashboardPage() {
 
     async function loadProjectData() {
       try {
-        const projectData = await getAuthorProjectData(currentAuthorId, manuscriptIdToLoad);
+        const projectData = await getAuthorProjectData(authorId, selectedManuscriptId);
         if (!isMounted) return;
 
         if (projectData) {
@@ -330,20 +326,19 @@ export default function DashboardPage() {
     return () => {
       isMounted = false;
     };
-  }, [authorId, selectedManuscriptId, requestState, requestContext?.manuscriptId]);
+  }, [authorId, selectedManuscriptId]);
 
   // 3. Efecto para cargar datos completos de la biblioteca de archivos
   useEffect(() => {
-    if (!authorId) return;
-    const currentAuthorId = authorId;
+    if (!authorId || !selectedManuscriptId) return;
     let isMounted = true;
 
     async function loadLibrary() {
       try {
         const data = await getDashboardFileLibraryData(
-          currentAuthorId,
+          authorId,
           workspaceData?.projectId ?? null,
-          selectedManuscriptId ?? requestContext?.manuscriptId ?? null
+          selectedManuscriptId
         );
         if (isMounted) setLibraryData(data);
       } catch (err) {
@@ -357,7 +352,7 @@ export default function DashboardPage() {
     return () => {
       isMounted = false;
     };
-  }, [authorId, workspaceData?.projectId, selectedManuscriptId, requestContext?.manuscriptId]);
+  }, [authorId, workspaceData?.projectId, selectedManuscriptId]);
 
   // Sincronización de estado para migración 1B3.6:
   // Cuando selectedManuscriptId es null y workspaceData?.manuscriptId existe,
