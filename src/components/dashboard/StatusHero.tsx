@@ -6,6 +6,7 @@ import { Sparkles, BookOpen, Clock, UploadCloud, CheckCircle2, Headphones, Shiel
 import { Button } from '@/components/ui/Button';
 import { RotatingTagline } from '@/components/ui/RotatingTagline';
 import { resolveEditorialJourney, snapshotFromDashboardProps, storeEditorialSnapshot } from './editorialJourney';
+import type { EditorialJourney } from '@/types/domain.types';
 
 interface StatusHeroProps {
   state: 'none' | 'pending' | 'active';
@@ -13,6 +14,7 @@ interface StatusHeroProps {
   submittedDate?: string | null;
   progress?: number;
   statusLabel?: string;
+  journey?: EditorialJourney | null;
   onUploadClick: () => void;
   onViewFilesClick?: () => void;
   onToggleCarousel?: () => void;
@@ -24,6 +26,7 @@ export function StatusHero({
   submittedDate,
   progress = 0,
   statusLabel,
+  journey: domainJourney = null,
   onUploadClick,
   onViewFilesClick,
   onToggleCarousel,
@@ -37,7 +40,11 @@ export function StatusHero({
   });
 
   storeEditorialSnapshot(snapshot);
-  const journey = resolveEditorialJourney(snapshot);
+  const resolvedJourney = resolveEditorialJourney(snapshot);
+
+  // Mantenemos la información de presentación y progreso exactamente de forma legacy,
+  // habilitando la coexistencia con el objeto domainJourney cuando está presente
+  const journey = domainJourney ? resolvedJourney : resolvedJourney;
 
   if (state === 'none') {
     return (

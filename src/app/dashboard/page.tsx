@@ -779,6 +779,7 @@ export default function DashboardPage() {
                   submittedDate={requestContext?.createdAt ? new Date(requestContext.createdAt).toLocaleDateString() : undefined}
                   progress={realProject?.progress || 0}
                   statusLabel={requestState === 'active' ? 'Producción Audiocinematográfica' : undefined}
+                  journey={editorialWorkspace.data?.journey ?? null}
                   onUploadClick={() => setUploaderModalOpen(true)}
                   onViewFilesClick={() => setIsLibraryOpen(true)}
                   onToggleCarousel={() => setShowPostSubmitCarousel((prev) => !prev)}
