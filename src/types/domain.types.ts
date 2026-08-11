@@ -35,6 +35,11 @@ export type EvaluationResult =
   | 'approved_with_notes'
   | 'rejected';
 
+export type ProductionStageStatus =
+  | 'pending'
+  | 'in_progress'
+  | 'completed';
+
 export type EditorialPhase =
   | 'received'
   | 'analysis'
@@ -67,6 +72,27 @@ export interface Project {
   status: ProjectStatus;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ProjectProgress {
+  percentage: number;
+  completedStages: number;
+  totalStages: number;
+  currentStageId: string | null;
+}
+
+export interface ProductionStage {
+  id: string;
+  projectId: string;
+  name: string;
+  orderIndex: number;
+  progressPercentage: number;
+  status: ProductionStageStatus;
+  startDate: string | null;
+  endDate: string | null;
+  assignedTo: string | null;
+  notes: string | null;
+  createdAt: string;
 }
 
 export interface ProjectRequest {
