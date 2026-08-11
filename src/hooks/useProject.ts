@@ -43,6 +43,8 @@ export function useProject(projectId: string | null): UseProjectState {
   }, [projectId]);
 
   useEffect(() => {
+    // Async project synchronization intentionally updates local state after the fetch resolves.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void reload();
   }, [reload]);
 
