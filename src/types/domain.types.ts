@@ -77,6 +77,18 @@ export interface ProjectRequest {
   createdAt: string;
 }
 
+export interface Evaluation {
+  id: string;
+  requestId: string;
+  feasibility: string | null;
+  narrativeQuality: string | null;
+  technicalDifficulty: string | null;
+  estimatedTime: string | null;
+  observations: string | null;
+  result: EvaluationResult;
+  createdAt: string;
+}
+
 export interface Proposal {
   id: string;
   requestId: string;
@@ -87,5 +99,15 @@ export interface Proposal {
   deadline: string | null;
   status: ProposalStatus;
   expiresAt: string | null;
+  createdAt: string;
+}
+
+export interface Review {
+  id: string;
+  deliverableId: string;
+  chapterTitle: string | null;
+  comment: string;
+  filePath: string | null;
+  status: ReviewStatus;
   createdAt: string;
 }
