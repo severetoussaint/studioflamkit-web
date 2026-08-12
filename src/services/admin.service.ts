@@ -1,5 +1,8 @@
 import { supabaseClient } from '@/lib/supabase/client';
 import { calculateManuscriptPrice, calculateChapterPrice } from '@/features/quotations/utils/calculator';
+import { isProjectStatus } from '@/domain/project/projectStatus';
+import { getProjectsProgress } from '@/services/production-stage.service';
+import type { ProjectStatus } from '@/types/domain.types';
 
 // ─── Tipos (mismos nombres que antes para no tocar admin/page.tsx) ────────────
 
@@ -153,33 +156,23 @@ export async function executeWithRetry<T>(queryFn: () => Promise<T>, retries = 3
   }
 }
 
-function dbStatusToAdmin(dbStatus: string | null): AdminProjectStatus {
-  const map: Record<string, AdminProjectStatus> = {
+function dbStatusToAdmin(dbStatus: ProjectStatus | string | null): AdminProjectStatus {
+  const map: Record<ProjectStatus, AdminProjectStatus> = {
     planning: 'analisis',
     production: 'produccion',
     review: 'revisiones',
     completed: 'completado',
     archived: 'completado',
   };
-  return map[dbStatus ?? ''] ?? 'analisis';
+  return isProjectStatus(dbStatus) ? map[dbStatus] : 'analisis';
 }
 
-function adminStatusToDb(status: AdminProjectStatus): string {
-  const map: Record<AdminProjectStatus, string> = {
+function adminStatusToDb(status: AdminProjectStatus): ProjectStatus {
+  const map: Record<AdminProjectStatus, ProjectStatus> = {
     analisis: 'planning',
     produccion: 'production',
     revisiones: 'review',
     completado: 'completed',
-  };
-  return map[status];
-}
-
-function getProgressByStatus(status: AdminProjectStatus): number {
-  const map: Record<AdminProjectStatus, number> = {
-    analisis: 25,
-    produccion: 74,
-    revisiones: 82,
-    completado: 100,
   };
   return map[status];
 }
@@ -420,7 +413,10 @@ export async function listAdminProjects(): Promise<AdminProject[]> {
 
     console.log('listAdminProjects: Datos recibidos de Supabase:', data);
 
-    return ((data as unknown as ProjectRow[]) ?? []).map((row) => {
+    const rows = ((data as unknown as ProjectRow[]) ?? []);
+    const projectProgress = await getProjectsProgress(rows.map((row) => row.id));
+
+    return rows.map((row) => {
       const adminStatus = dbStatusToAdmin(row.status);
       const deliverables: AudioDeliverable[] = (Array.isArray(row.deliverables) ? row.deliverables : []).map((d: DeliverableItemRow) => ({
         id: d.id,
@@ -450,19 +446,7 @@ export async function listAdminProjects(): Promise<AdminProject[]> {
       const chapterPriceSum = chapterList.reduce((acc, c) => acc + (c.price || 0), 0);
       const totalAmount = chapterPriceSum > 0 ? chapterPriceSum : (wordCount > 0 ? calculateManuscriptPrice(wordCount) : 0);
 
-      // Calcular avance real basado en el estado de cada capítulo si existen
-      let progress = getProgressByStatus(adminStatus);
-      if (chapterList.length > 0) {
-        const weights: Record<string, number> = {
-          pendiente: 0,
-          cotizado: 20,
-          pagado: 40,
-          en_produccion: 75,
-          entregado: 100,
-        };
-        const totalWeight = chapterList.reduce((acc, c) => acc + (weights[c.status] ?? 0), 0);
-        progress = Math.round(totalWeight / chapterList.length);
-      }
+      const progress = projectProgress[row.id]?.percentage ?? 0;
 
       return {
         id: row.id,
@@ -567,7 +551,7 @@ export async function createAdminProject(
     const stub: AdminProject = {
       ...newProj,
       id: createdProjectId ?? `proj-${Date.now()}`,
-      progress: getProgressByStatus(newProj.status),
+      progress: 0,
       deliverables: [],
       lastUpdate: new Date().toISOString().slice(0, 10),
     };
