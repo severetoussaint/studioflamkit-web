@@ -293,10 +293,10 @@ export default function AdminPage() {
 
     const activeProjects = safeProjects.filter((project) => project.status !== 'completado').length;
     const completedProjects = safeProjects.filter((project) => project.status === 'completado').length;
-    const pendingRequests = safeRequests.filter((request) => request.status === 'pendiente' || request.status === 'en_revision').length;
+    const pendingRequests = safeRequests.filter((request) => request.request.status === 'pending' || request.request.status === 'evaluating').length;
     const projectsTotal = safeProjects.reduce((acc, curr) => acc + (curr.amount || 0), 0);
     const pendingRequestsTotal = safeRequests
-      .filter((r) => r.status === 'pendiente' || r.status === 'en_revision')
+      .filter((request) => request.request.status === 'pending' || request.request.status === 'evaluating')
       .reduce((acc, curr) => acc + (curr.amount || 0), 0);
     const totalAmount = projectsTotal + pendingRequestsTotal;
 
@@ -331,12 +331,12 @@ export default function AdminPage() {
         amount: request.amount,
         maxRevisions: 3,
         revisionsUsed: 0,
-        manuscript_id: request.manuscript_id,
+        manuscript_id: request.request.manuscriptId,
         author_id: request.author_id,
       });
 
       // Mark quote as approved
-      await adminService.updateQuotationRequestStatus(request.id, 'aprobada');
+      await adminService.updateQuotationRequestStatus(request.request.id, 'aprobada');
       await loadAllData();
 
       if (created) {
@@ -1134,13 +1134,13 @@ export default function AdminPage() {
                     {requests.map((request) => (
                       <motion.div
                         layout
-                        key={request.id}
+                        key={request.request.id}
                         className="rounded-2xl border-edge bg-surface-elevated p-5 relative"
                       >
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
                             <span className="inline-flex items-center gap-1 rounded-full border-edge bg-surface px-2 py-0.5 text-[9px] uppercase tracking-wider text-ink">
-                              Manuscrito #{request.id}
+                              Manuscrito #{request.request.id}
                             </span>
                             <h4 className="font-serif text-base font-bold text-ink mt-2">{request.title}</h4>
                             <p className="text-xs text-ink-muted mt-1">
@@ -1151,7 +1151,7 @@ export default function AdminPage() {
                               {request.wordCount ? (
                                 <> • Conteo: <span className="text-ink font-medium">{request.wordCount.toLocaleString()} palabras</span> (~{request.durationMinutes} min)</>
                               ) : null}
-                              • Fecha: <span className="text-ink-muted">{request.requestedAt}</span>
+                              • Fecha: <span className="text-ink-muted">{request.request.createdAt.slice(0, 10)}</span>
                             </p>
                           </div>
 
@@ -1173,9 +1173,9 @@ export default function AdminPage() {
                               {(['pendiente', 'en_revision'] as QuotationRequestStatus[]).map((st) => (
                                 <button
                                   key={st}
-                                  onClick={() => handleQuotationStatus(request.id, st)}
+                                  onClick={() => handleQuotationStatus(request.request.id, st)}
                                   className={`rounded-lg px-2 py-1 text-[10px] font-medium transition cursor-pointer ${
-                                    request.status === st
+                                    (request.request.status === 'pending' && st === 'pendiente') || (request.request.status === 'evaluating' && st === 'en_revision')
                                       ? 'bg-accent text-surface font-bold'
                                       : 'bg-surface-elevated text-ink-muted hover:text-ink border-edge'
                                   }`}
@@ -1208,7 +1208,7 @@ export default function AdminPage() {
                           </div>
 
                           <button
-                            onClick={() => handleDeleteQuote(request.id)}
+                            onClick={() => handleDeleteQuote(request.request.id)}
                             className="text-xs text-ink-muted hover:text-rose-500 hover:underline flex items-center gap-1 transition p-1 cursor-pointer"
                           >
                             <Trash2 className="h-3.5 w-3.5" />

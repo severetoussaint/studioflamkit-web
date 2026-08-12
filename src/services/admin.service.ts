@@ -1,5 +1,9 @@
 import { supabaseClient } from '@/lib/supabase/client';
 import { calculateManuscriptPrice, calculateChapterPrice } from '@/features/quotations/utils/calculator';
+import { isProjectStatus } from '@/domain/project/projectStatus';
+import { mapProjectRequestRowToDomain } from '@/domain/request/mapProjectRequest';
+import { getProjectsProgress } from '@/services/production-stage.service';
+import type { ProjectRequest, ProjectStatus } from '@/types/domain.types';
 
 // ─── Tipos (mismos nombres que antes para no tocar admin/page.tsx) ────────────
 
@@ -28,6 +32,7 @@ export interface QuotationRequest {
   title: string;
   requestedAt: string;
   status: QuotationRequestStatus;
+  request: ProjectRequest;
   chapters: number;
   amount: number;
   wordCount?: number;
@@ -153,46 +158,25 @@ export async function executeWithRetry<T>(queryFn: () => Promise<T>, retries = 3
   }
 }
 
-function dbStatusToAdmin(dbStatus: string | null): AdminProjectStatus {
-  const map: Record<string, AdminProjectStatus> = {
+function dbStatusToAdmin(dbStatus: ProjectStatus | string | null): AdminProjectStatus {
+  const map: Record<ProjectStatus, AdminProjectStatus> = {
     planning: 'analisis',
     production: 'produccion',
     review: 'revisiones',
     completed: 'completado',
     archived: 'completado',
   };
-  return map[dbStatus ?? ''] ?? 'analisis';
+  return isProjectStatus(dbStatus) ? map[dbStatus] : 'analisis';
 }
 
-function adminStatusToDb(status: AdminProjectStatus): string {
-  const map: Record<AdminProjectStatus, string> = {
+function adminStatusToDb(status: AdminProjectStatus): ProjectStatus {
+  const map: Record<AdminProjectStatus, ProjectStatus> = {
     analisis: 'planning',
     produccion: 'production',
     revisiones: 'review',
     completado: 'completed',
   };
   return map[status];
-}
-
-function getProgressByStatus(status: AdminProjectStatus): number {
-  const map: Record<AdminProjectStatus, number> = {
-    analisis: 25,
-    produccion: 74,
-    revisiones: 82,
-    completado: 100,
-  };
-  return map[status];
-}
-
-function dbRequestStatusToAdmin(dbStatus: string | null): QuotationRequestStatus {
-  const map: Record<string, QuotationRequestStatus> = {
-    pending: 'pendiente',
-    evaluating: 'en_revision',
-    accepted: 'aprobada',
-    rejected: 'aprobada',
-    canceled: 'aprobada',
-  };
-  return map[dbStatus ?? ''] ?? 'pendiente';
 }
 
 function adminRequestStatusToDb(status: QuotationRequestStatus): string {
@@ -289,22 +273,30 @@ export async function listQuotationRequests(): Promise<QuotationRequest[]> {
     }
 
     return ((data as unknown as QuotationRequestRow[]) ?? []).map((row) => {
+      const request = mapProjectRequestRowToDomain({
+        id: row.id,
+        manuscript_id: row.manuscripts?.id ?? '',
+        channel: null,
+        status: row.status,
+        created_at: row.created_at,
+      });
       const wordCount = row.manuscripts?.word_count ?? 0;
       const amount = wordCount > 0 ? calculateManuscriptPrice(wordCount) : 0;
       const estimatedChapters = Math.max(1, Math.round(wordCount / 3000)) || 1;
       const durationMinutes = Math.round(wordCount / 155);
 
       return {
-        id: row.id,
+        id: request.id,
         client: row.manuscripts?.authors?.full_name ?? 'Autor desconocido',
         title: row.manuscripts?.title ?? 'Sin título',
-        requestedAt: (row.created_at ?? '').slice(0, 10),
-        status: dbRequestStatusToAdmin(row.status),
+        requestedAt: request.createdAt.slice(0, 10),
+        status: request.status === 'evaluating' ? 'en_revision' : 'pendiente',
+        request,
         chapters: estimatedChapters,
         amount,
         wordCount,
         durationMinutes,
-        manuscript_id: row.manuscripts?.id,
+        manuscript_id: request.manuscriptId,
         author_id: row.manuscripts?.author_id,
       };
     });
@@ -359,27 +351,49 @@ export async function updateQuotationRequestStatus(
     const estimatedChapters = Math.max(1, Math.round(wordCount / 3000)) || 1;
     const durationMinutes = Math.round(wordCount / 155);
 
-    return {
+    const request = mapProjectRequestRowToDomain({
       id: row.id,
+      manuscript_id: row.manuscripts?.id ?? '',
+      channel: null,
+      status: row.status,
+      created_at: row.created_at,
+    });
+
+    return {
+      id: request.id,
       client: row.manuscripts?.authors?.full_name ?? 'Autor desconocido',
       title: row.manuscripts?.title ?? 'Sin título',
-      requestedAt: (row.created_at ?? '').slice(0, 10),
+      requestedAt: request.createdAt.slice(0, 10),
       status,
+      request,
       chapters: estimatedChapters,
       amount,
       wordCount,
       durationMinutes,
-      manuscript_id: row.manuscripts?.id,
+      manuscript_id: request.manuscriptId,
       author_id: row.manuscripts?.author_id,
     };
   });
 }
 
 export async function addQuotationRequest(
-  req: Omit<QuotationRequest, 'id' | 'requestedAt'>
+  req: Omit<QuotationRequest, 'id' | 'requestedAt' | 'request'>
 ): Promise<QuotationRequest> {
   console.warn('addQuotationRequest: operación no soportada en modo real');
-  return { ...req, id: `rq-${Date.now()}`, requestedAt: new Date().toISOString().slice(0, 10) };
+  const id = `rq-${Date.now()}`;
+  const requestedAt = new Date().toISOString().slice(0, 10);
+  return {
+    ...req,
+    id,
+    requestedAt,
+    request: {
+      id,
+      manuscriptId: req.manuscript_id ?? '',
+      channel: null,
+      status: req.status === 'en_revision' ? 'evaluating' : 'pending',
+      createdAt: requestedAt,
+    },
+  };
 }
 
 export async function deleteQuotationRequest(id: string): Promise<boolean> {
@@ -420,7 +434,10 @@ export async function listAdminProjects(): Promise<AdminProject[]> {
 
     console.log('listAdminProjects: Datos recibidos de Supabase:', data);
 
-    return ((data as unknown as ProjectRow[]) ?? []).map((row) => {
+    const rows = ((data as unknown as ProjectRow[]) ?? []);
+    const projectProgress = await getProjectsProgress(rows.map((row) => row.id));
+
+    return rows.map((row) => {
       const adminStatus = dbStatusToAdmin(row.status);
       const deliverables: AudioDeliverable[] = (Array.isArray(row.deliverables) ? row.deliverables : []).map((d: DeliverableItemRow) => ({
         id: d.id,
@@ -450,19 +467,7 @@ export async function listAdminProjects(): Promise<AdminProject[]> {
       const chapterPriceSum = chapterList.reduce((acc, c) => acc + (c.price || 0), 0);
       const totalAmount = chapterPriceSum > 0 ? chapterPriceSum : (wordCount > 0 ? calculateManuscriptPrice(wordCount) : 0);
 
-      // Calcular avance real basado en el estado de cada capítulo si existen
-      let progress = getProgressByStatus(adminStatus);
-      if (chapterList.length > 0) {
-        const weights: Record<string, number> = {
-          pendiente: 0,
-          cotizado: 20,
-          pagado: 40,
-          en_produccion: 75,
-          entregado: 100,
-        };
-        const totalWeight = chapterList.reduce((acc, c) => acc + (weights[c.status] ?? 0), 0);
-        progress = Math.round(totalWeight / chapterList.length);
-      }
+      const progress = projectProgress[row.id]?.percentage ?? 0;
 
       return {
         id: row.id,
@@ -567,7 +572,7 @@ export async function createAdminProject(
     const stub: AdminProject = {
       ...newProj,
       id: createdProjectId ?? `proj-${Date.now()}`,
-      progress: getProgressByStatus(newProj.status),
+      progress: 0,
       deliverables: [],
       lastUpdate: new Date().toISOString().slice(0, 10),
     };
