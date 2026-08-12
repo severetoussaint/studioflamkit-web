@@ -1,8 +1,9 @@
 import { supabaseClient } from '@/lib/supabase/client';
 import { calculateManuscriptPrice, calculateChapterPrice } from '@/features/quotations/utils/calculator';
 import { isProjectStatus } from '@/domain/project/projectStatus';
+import { mapProjectRequestRowToDomain } from '@/domain/request/mapProjectRequest';
 import { getProjectsProgress } from '@/services/production-stage.service';
-import type { ProjectStatus } from '@/types/domain.types';
+import type { ProjectRequest, ProjectStatus } from '@/types/domain.types';
 
 // ─── Tipos (mismos nombres que antes para no tocar admin/page.tsx) ────────────
 
@@ -31,6 +32,7 @@ export interface QuotationRequest {
   title: string;
   requestedAt: string;
   status: QuotationRequestStatus;
+  request: ProjectRequest;
   chapters: number;
   amount: number;
   wordCount?: number;
@@ -177,17 +179,6 @@ function adminStatusToDb(status: AdminProjectStatus): ProjectStatus {
   return map[status];
 }
 
-function dbRequestStatusToAdmin(dbStatus: string | null): QuotationRequestStatus {
-  const map: Record<string, QuotationRequestStatus> = {
-    pending: 'pendiente',
-    evaluating: 'en_revision',
-    accepted: 'aprobada',
-    rejected: 'aprobada',
-    canceled: 'aprobada',
-  };
-  return map[dbStatus ?? ''] ?? 'pendiente';
-}
-
 function adminRequestStatusToDb(status: QuotationRequestStatus): string {
   const map: Record<QuotationRequestStatus, string> = {
     pendiente: 'pending',
@@ -282,22 +273,30 @@ export async function listQuotationRequests(): Promise<QuotationRequest[]> {
     }
 
     return ((data as unknown as QuotationRequestRow[]) ?? []).map((row) => {
+      const request = mapProjectRequestRowToDomain({
+        id: row.id,
+        manuscript_id: row.manuscripts?.id ?? '',
+        channel: null,
+        status: row.status,
+        created_at: row.created_at,
+      });
       const wordCount = row.manuscripts?.word_count ?? 0;
       const amount = wordCount > 0 ? calculateManuscriptPrice(wordCount) : 0;
       const estimatedChapters = Math.max(1, Math.round(wordCount / 3000)) || 1;
       const durationMinutes = Math.round(wordCount / 155);
 
       return {
-        id: row.id,
+        id: request.id,
         client: row.manuscripts?.authors?.full_name ?? 'Autor desconocido',
         title: row.manuscripts?.title ?? 'Sin título',
-        requestedAt: (row.created_at ?? '').slice(0, 10),
-        status: dbRequestStatusToAdmin(row.status),
+        requestedAt: request.createdAt.slice(0, 10),
+        status: request.status === 'evaluating' ? 'en_revision' : 'pendiente',
+        request,
         chapters: estimatedChapters,
         amount,
         wordCount,
         durationMinutes,
-        manuscript_id: row.manuscripts?.id,
+        manuscript_id: request.manuscriptId,
         author_id: row.manuscripts?.author_id,
       };
     });
@@ -352,17 +351,26 @@ export async function updateQuotationRequestStatus(
     const estimatedChapters = Math.max(1, Math.round(wordCount / 3000)) || 1;
     const durationMinutes = Math.round(wordCount / 155);
 
-    return {
+    const request = mapProjectRequestRowToDomain({
       id: row.id,
+      manuscript_id: row.manuscripts?.id ?? '',
+      channel: null,
+      status: row.status,
+      created_at: row.created_at,
+    });
+
+    return {
+      id: request.id,
       client: row.manuscripts?.authors?.full_name ?? 'Autor desconocido',
       title: row.manuscripts?.title ?? 'Sin título',
-      requestedAt: (row.created_at ?? '').slice(0, 10),
+      requestedAt: request.createdAt.slice(0, 10),
       status,
+      request,
       chapters: estimatedChapters,
       amount,
       wordCount,
       durationMinutes,
-      manuscript_id: row.manuscripts?.id,
+      manuscript_id: request.manuscriptId,
       author_id: row.manuscripts?.author_id,
     };
   });
@@ -372,7 +380,20 @@ export async function addQuotationRequest(
   req: Omit<QuotationRequest, 'id' | 'requestedAt'>
 ): Promise<QuotationRequest> {
   console.warn('addQuotationRequest: operación no soportada en modo real');
-  return { ...req, id: `rq-${Date.now()}`, requestedAt: new Date().toISOString().slice(0, 10) };
+  const id = `rq-${Date.now()}`;
+  const requestedAt = new Date().toISOString().slice(0, 10);
+  return {
+    ...req,
+    id,
+    requestedAt,
+    request: {
+      id,
+      manuscriptId: req.manuscript_id ?? '',
+      channel: null,
+      status: req.status === 'en_revision' ? 'evaluating' : 'pending',
+      createdAt: requestedAt,
+    },
+  };
 }
 
 export async function deleteQuotationRequest(id: string): Promise<boolean> {
