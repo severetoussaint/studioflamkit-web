@@ -1,16 +1,15 @@
-import { DM_Serif_Display, Inter } from 'next/font/google';
+import localFont from 'next/font/local';
 
-export const dmSerif = DM_Serif_Display({
-  subsets: ['latin'],
-  weight: ['400'],
+export const dmSerif = localFont({
+  src: './fonts/dm-serif-display-latin.woff2',
+  weight: '400',
   variable: '--font-dm-serif',
   display: 'swap',
 });
 
-export const inter = Inter({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
+export const inter = localFont({
+  src: './fonts/inter-latin.woff2',
+  weight: '400 700',
   variable: '--font-inter',
   display: 'swap',
 });
-

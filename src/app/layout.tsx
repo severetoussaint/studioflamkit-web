@@ -1,7 +1,7 @@
 import React from 'react';
 import './globals.css';
-import { dmSerif, inter } from './fonts';
 import Providers from './providers';
+import { dmSerif, inter } from './fonts';
 
 export const metadata = {
   title: 'Studio Flamkit & Art',
