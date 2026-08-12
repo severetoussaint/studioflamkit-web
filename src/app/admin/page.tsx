@@ -57,12 +57,6 @@ const statusLabels: Record<AdminProjectStatus, string> = {
   completado: 'Obra Completada',
 };
 
-const quotationStatusLabels: Record<QuotationRequestStatus, string> = {
-  pendiente: 'Pendiente de Revisión',
-  aprobada: 'Aprobada / Cotizada',
-  en_revision: 'En Análisis Editorial',
-};
-
 const statusStyles: Record<AdminProjectStatus, string> = {
   analisis: 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-300 font-medium',
   produccion: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 font-medium',
