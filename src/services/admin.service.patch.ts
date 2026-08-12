@@ -1,5 +1,6 @@
 import { calculateManuscriptPrice } from '@/features/quotations/utils/calculator';
 import { supabaseClient } from '@/lib/supabase/client';
+import { mapProjectRequestRowToDomain } from '@/domain/request/mapProjectRequest';
 import { adminService, handleSupabaseError, type QuotationRequest, type QuotationRequestStatus } from './admin.service';
 
 interface ProjectRequestRow {
@@ -107,17 +108,26 @@ async function updateQuotationRequestStatusSafe(
   const estimatedChapters = Math.max(1, Math.round(wordCount / 3000)) || 1;
   const durationMinutes = Math.round(wordCount / 155);
 
-  return {
+  const request = mapProjectRequestRowToDomain({
     id: row.id,
+    manuscript_id: row.manuscripts?.id ?? row.manuscript_id ?? '',
+    channel: null,
+    status: row.status,
+    created_at: row.created_at,
+  });
+
+  return {
+    id: request.id,
     client: row.manuscripts?.authors?.full_name ?? 'Autor desconocido',
     title: row.manuscripts?.title ?? 'Sin título',
-    requestedAt: (row.created_at ?? '').slice(0, 10),
+    requestedAt: request.createdAt.slice(0, 10),
     status,
+    request,
     chapters: estimatedChapters,
     amount,
     wordCount,
     durationMinutes,
-    manuscript_id: row.manuscripts?.id,
+    manuscript_id: request.manuscriptId,
     author_id: row.manuscripts?.author_id,
   };
 }

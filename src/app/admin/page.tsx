@@ -57,12 +57,6 @@ const statusLabels: Record<AdminProjectStatus, string> = {
   completado: 'Obra Completada',
 };
 
-const quotationStatusLabels: Record<QuotationRequestStatus, string> = {
-  pendiente: 'Pendiente de Revisión',
-  aprobada: 'Aprobada / Cotizada',
-  en_revision: 'En Análisis Editorial',
-};
-
 const statusStyles: Record<AdminProjectStatus, string> = {
   analisis: 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-300 font-medium',
   produccion: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 font-medium',
@@ -111,7 +105,11 @@ export default function AdminPage() {
   const adminWorkspace = useAdminProjectWorkspace(currentProjectId || null);
   const adminWorkspaceData = adminWorkspace.data;
 
-  // activeProject remains as fallback for legacy data (chapters, deliverables, feedback)
+  const activeWorkspaceProject = adminWorkspaceData?.project ?? null;
+  const activeProgressPercentage = adminWorkspaceData?.progress?.percentage;
+  const activeProjectId = activeWorkspaceProject?.id ?? currentProjectId;
+  // activeProject remains temporarily only for legacy data not yet covered by AdminProjectViewModel:
+  // title/client, chapterList/chapters, deliverables, revision limits, budget and audio feedback state.
   const activeProject = currentAuthorProjects.find((p) => p.id === currentProjectId) || currentAuthorProjects[0] || null;
 
   // Deliverables add state
@@ -289,10 +287,10 @@ export default function AdminPage() {
 
     const activeProjects = safeProjects.filter((project) => project.status !== 'completado').length;
     const completedProjects = safeProjects.filter((project) => project.status === 'completado').length;
-    const pendingRequests = safeRequests.filter((request) => request.status === 'pendiente' || request.status === 'en_revision').length;
+    const pendingRequests = safeRequests.filter((request) => request.request.status === 'pending' || request.request.status === 'evaluating').length;
     const projectsTotal = safeProjects.reduce((acc, curr) => acc + (curr.amount || 0), 0);
     const pendingRequestsTotal = safeRequests
-      .filter((r) => r.status === 'pendiente' || r.status === 'en_revision')
+      .filter((request) => request.request.status === 'pending' || request.request.status === 'evaluating')
       .reduce((acc, curr) => acc + (curr.amount || 0), 0);
     const totalAmount = projectsTotal + pendingRequestsTotal;
 
@@ -327,12 +325,12 @@ export default function AdminPage() {
         amount: request.amount,
         maxRevisions: 3,
         revisionsUsed: 0,
-        manuscript_id: request.manuscript_id,
+        manuscript_id: request.request.manuscriptId,
         author_id: request.author_id,
       });
 
       // Mark quote as approved
-      await adminService.updateQuotationRequestStatus(request.id, 'aprobada');
+      await adminService.updateQuotationRequestStatus(request.request.id, 'aprobada');
       await loadAllData();
 
       if (created) {
@@ -758,7 +756,7 @@ export default function AdminPage() {
                             <p className="text-ink-muted text-xs mt-1">Autor: <span className="text-ink font-semibold">{activeProject.client}</span></p>
                           </div>
                           <button
-                            onClick={() => handleDeleteProject(activeProject.id)}
+                            onClick={() => handleDeleteProject(activeProjectId)}
                             className="p-1.5 text-ink-muted hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
                             title="Eliminar Obra"
                           >
@@ -771,13 +769,13 @@ export default function AdminPage() {
                           <div className="flex justify-between text-xs font-medium text-ink-muted mb-1.5">
                             <span>Progreso General</span>
                             <span className="text-accent font-bold">
-                              {adminWorkspaceData?.progress?.percentage ?? activeProject.progress}%
+                              {activeProgressPercentage ?? 0}%
                             </span>
                           </div>
                           <div className="h-2 w-full bg-surface-elevated rounded-full overflow-hidden border border-edge">
                             <div
                               className="h-full bg-accent transition-all duration-500 rounded-full"
-                              style={{ width: `${adminWorkspaceData?.progress?.percentage ?? activeProject.progress}%` }}
+                              style={{ width: `${activeProgressPercentage ?? 0}%` }}
                             />
                           </div>
                         </div>
@@ -791,7 +789,7 @@ export default function AdminPage() {
                           <div>
                             <p className="text-[10px] text-ink-muted uppercase tracking-wide">Presupuesto</p>
                             <button
-                              onClick={() => handleUpdateBudget(activeProject.id, activeProject.amount || 0)}
+                              onClick={() => handleUpdateBudget(activeProjectId, activeProject.amount || 0)}
                               className="text-xs font-semibold text-accent hover:underline flex items-center gap-1 mt-0.5 cursor-pointer bg-transparent border-none p-0"
                               title="Editar presupuesto"
                             >
@@ -821,7 +819,7 @@ export default function AdminPage() {
                             <div className="flex items-center gap-1">
                               <button
                                 type="button"
-                                onClick={() => handleUpdateMaxRevisions(activeProject.id, false, activeProject.maxRevisions)}
+                                onClick={() => handleUpdateMaxRevisions(activeProjectId, false, activeProject.maxRevisions)}
                                 className="h-8 w-8 rounded-lg bg-surface-elevated hover:bg-surface border border-edge text-ink-muted hover:text-ink flex items-center justify-center transition active:scale-90 cursor-pointer"
                                 title="Disminuir revisiones máximas"
                               >
@@ -832,7 +830,7 @@ export default function AdminPage() {
                               </span>
                               <button
                                 type="button"
-                                onClick={() => handleUpdateMaxRevisions(activeProject.id, true, activeProject.maxRevisions)}
+                                onClick={() => handleUpdateMaxRevisions(activeProjectId, true, activeProject.maxRevisions)}
                                 className="h-8 w-8 rounded-lg bg-surface-elevated hover:bg-surface border border-edge text-ink-muted hover:text-ink flex items-center justify-center transition active:scale-90 cursor-pointer"
                                 title="Aumentar revisiones máximas"
                               >
@@ -849,7 +847,7 @@ export default function AdminPage() {
                             {(['analisis', 'produccion', 'revisiones', 'completado'] as AdminProjectStatus[]).map((st) => (
                               <button
                                 key={st}
-                                onClick={() => handleProjectStatus(activeProject.id, st)}
+                                onClick={() => handleProjectStatus(activeProjectId, st)}
                                 className={`rounded-lg py-1.5 px-1 text-[10px] font-bold uppercase tracking-wider text-center transition cursor-pointer ${
                                   activeProject.status === st
                                     ? 'bg-accent text-surface font-bold'
@@ -864,7 +862,7 @@ export default function AdminPage() {
 
                         {/* Project Footer ID and Sync info */}
                         <div className="mt-6 pt-4 border-t border-edge/60 flex items-center justify-between text-[10px] text-ink-muted">
-                          <span>ID: {activeProject.id}</span>
+                          <span>ID: {activeProjectId}</span>
                           <span>Actualizado: {activeProject.lastUpdate}</span>
                         </div>
                       </div>
@@ -881,7 +879,7 @@ export default function AdminPage() {
                             </span>
                             {activeProject.chapterList && activeProject.chapterList.length > 0 && (
                               <span className="text-[10px] font-medium text-accent bg-accent/10 px-2 py-0.5 rounded-full">
-                                Avance Real: {adminWorkspaceData?.progress?.percentage ?? activeProject.progress}%
+                                Avance Real: {activeProgressPercentage ?? 0}%
                               </span>
                             )}
                           </div>
@@ -946,21 +944,21 @@ export default function AdminPage() {
                             <input
                               type="text"
                               placeholder={`Título (ej: Capítulo ${(activeProject.chapterList?.length || 0) + 1})`}
-                              value={newChapterTitles[activeProject.id] || ''}
-                              onChange={(e) => setNewChapterTitles((prev) => ({ ...prev, [activeProject.id]: e.target.value }))}
+                              value={newChapterTitles[activeProjectId] || ''}
+                              onChange={(e) => setNewChapterTitles((prev) => ({ ...prev, [activeProjectId]: e.target.value }))}
                               className="w-full rounded-xl border border-edge bg-surface px-3 py-1.5 text-xs text-ink outline-none focus:border-accent transition"
                             />
                             <div className="flex gap-2">
                               <input
                                 type="number"
                                 placeholder="Conteo de palabras (ej: 3000)"
-                                value={newChapterWords[activeProject.id] || ''}
-                                onChange={(e) => setNewChapterWords((prev) => ({ ...prev, [activeProject.id]: parseInt(e.target.value) || 0 }))}
+                                value={newChapterWords[activeProjectId] || ''}
+                                onChange={(e) => setNewChapterWords((prev) => ({ ...prev, [activeProjectId]: parseInt(e.target.value) || 0 }))}
                                 className="flex-1 rounded-xl border border-edge bg-surface px-3 py-1.5 text-xs text-ink outline-none focus:border-accent transition"
                               />
                               <Button
                                 variant="primary"
-                                onClick={() => handleCreateChapter(activeProject.id, activeProject.chapterList?.length || 0)}
+                                onClick={() => handleCreateChapter(activeProjectId, activeProject.chapterList?.length || 0)}
                                 className="px-3 text-xs py-1.5 cursor-pointer whitespace-nowrap"
                               >
                                 <Plus className="h-3 w-3 mr-1" />
@@ -997,7 +995,7 @@ export default function AdminPage() {
                                     <input
                                       type="checkbox"
                                       checked={del.completed}
-                                      onChange={() => handleToggleDeliverable(activeProject.id, del.id)}
+                                      onChange={() => handleToggleDeliverable(activeProjectId, del.id)}
                                       className="h-4 w-4 rounded border-edge bg-surface text-accent focus:ring-accent cursor-pointer"
                                     />
                                     <div className="truncate">
@@ -1037,13 +1035,13 @@ export default function AdminPage() {
                             <input
                               type="text"
                               placeholder="Ejem: Capítulo 1 - Master Final"
-                              value={newDeliverableTitles[activeProject.id] || ''}
-                              onChange={(e) => setNewDeliverableTitles(prev => ({ ...prev, [activeProject.id]: e.target.value }))}
+                              value={newDeliverableTitles[activeProjectId] || ''}
+                              onChange={(e) => setNewDeliverableTitles(prev => ({ ...prev, [activeProjectId]: e.target.value }))}
                               className="flex-1 rounded-xl border border-edge bg-surface px-3 py-1.5 text-xs text-ink outline-none focus:border-accent transition"
                             />
                             <Button
                               variant="primary"
-                              onClick={() => handleAddDeliverable(activeProject.id)}
+                              onClick={() => handleAddDeliverable(activeProjectId)}
                               className="px-3 text-xs py-1.5 cursor-pointer"
                             >
                               Agregar
@@ -1054,8 +1052,8 @@ export default function AdminPage() {
                             <label className="flex w-full items-center gap-1.5 text-[10px] text-ink bg-surface border border-edge px-3 py-1.5 rounded-xl cursor-pointer hover:border-accent transition">
                               <UploadCloud className="h-3.5 w-3.5 text-accent shrink-0" />
                               <span className="truncate">
-                                {newDeliverableFiles[activeProject.id]
-                                  ? newDeliverableFiles[activeProject.id]?.name
+                                {newDeliverableFiles[activeProjectId]
+                                  ? newDeliverableFiles[activeProjectId]?.name
                                   : 'Sube un archivo de audio'}
                               </span>
                               <input
@@ -1065,9 +1063,9 @@ export default function AdminPage() {
                                 onChange={(e) => {
                                   const file = e.target.files?.[0];
                                   if (file) {
-                                    setNewDeliverableFiles(prev => ({ ...prev, [activeProject.id]: file }));
-                                    if (!newDeliverableTitles[activeProject.id]) {
-                                      setNewDeliverableTitles(prev => ({ ...prev, [activeProject.id]: file.name }));
+                                    setNewDeliverableFiles(prev => ({ ...prev, [activeProjectId]: file }));
+                                    if (!newDeliverableTitles[activeProjectId]) {
+                                      setNewDeliverableTitles(prev => ({ ...prev, [activeProjectId]: file.name }));
                                     }
                                   }
                                 }}
@@ -1077,8 +1075,8 @@ export default function AdminPage() {
                             <input
                               type="text"
                               placeholder="o pega URL de audio"
-                              value={newDeliverableUrls[activeProject.id] || ''}
-                              onChange={(e) => setNewDeliverableUrls(prev => ({ ...prev, [activeProject.id]: e.target.value }))}
+                              value={newDeliverableUrls[activeProjectId] || ''}
+                              onChange={(e) => setNewDeliverableUrls(prev => ({ ...prev, [activeProjectId]: e.target.value }))}
                               className="w-full rounded-xl border border-edge bg-surface px-3 py-1.5 text-[10px] text-ink outline-none focus:border-accent transition"
                             />
                           </div>
@@ -1130,13 +1128,13 @@ export default function AdminPage() {
                     {requests.map((request) => (
                       <motion.div
                         layout
-                        key={request.id}
+                        key={request.request.id}
                         className="rounded-2xl border-edge bg-surface-elevated p-5 relative"
                       >
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
                             <span className="inline-flex items-center gap-1 rounded-full border-edge bg-surface px-2 py-0.5 text-[9px] uppercase tracking-wider text-ink">
-                              Manuscrito #{request.id}
+                              Manuscrito #{request.request.id}
                             </span>
                             <h4 className="font-serif text-base font-bold text-ink mt-2">{request.title}</h4>
                             <p className="text-xs text-ink-muted mt-1">
@@ -1147,7 +1145,7 @@ export default function AdminPage() {
                               {request.wordCount ? (
                                 <> • Conteo: <span className="text-ink font-medium">{request.wordCount.toLocaleString()} palabras</span> (~{request.durationMinutes} min)</>
                               ) : null}
-                              • Fecha: <span className="text-ink-muted">{request.requestedAt}</span>
+                              • Fecha: <span className="text-ink-muted">{request.request.createdAt.slice(0, 10)}</span>
                             </p>
                           </div>
 
@@ -1169,7 +1167,7 @@ export default function AdminPage() {
                               {(['pendiente', 'en_revision'] as QuotationRequestStatus[]).map((st) => (
                                 <button
                                   key={st}
-                                  onClick={() => handleQuotationStatus(request.id, st)}
+                                  onClick={() => handleQuotationStatus(request.request.id, st)}
                                   className={`rounded-lg px-2 py-1 text-[10px] font-medium transition cursor-pointer ${
                                     request.status === st
                                       ? 'bg-accent text-surface font-bold'
@@ -1204,7 +1202,7 @@ export default function AdminPage() {
                           </div>
 
                           <button
-                            onClick={() => handleDeleteQuote(request.id)}
+                            onClick={() => handleDeleteQuote(request.request.id)}
                             className="text-xs text-ink-muted hover:text-rose-500 hover:underline flex items-center gap-1 transition p-1 cursor-pointer"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
