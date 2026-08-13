@@ -97,9 +97,13 @@ export function NextActionCard({
 
         {buttonLabel && onActionClick && (
           <div className="shrink-0">
-            <Button variant={buttonVariant} className={buttonClassName} onClick={onActionClick}>
+            <Button
+              variant={buttonVariant}
+              className={`${buttonClassName} group/btn active:scale-[0.98]`}
+              onClick={onActionClick}
+            >
               <span>{buttonLabel}</span>
-              <ArrowRight className="h-4 w-4" />
+              <ArrowRight className="h-4 w-4 transition-transform duration-200 ease-out group-hover/btn:translate-x-1" />
             </Button>
           </div>
         )}

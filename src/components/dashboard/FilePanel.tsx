@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { FileText, Download, Lock, CheckCircle2, FileCheck, UploadCloud, Eye, X, DollarSign, Calendar, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
@@ -168,111 +169,127 @@ export function FilePanel({ files, isLocked = false, onUploadReplacement, projec
       </div>
 
       {/* Modal de Detalle Completo de Archivos y Metadatos */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <div className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-edge bg-surface-elevated p-6 sm:p-8 shadow-2xl max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between border-b border-edge/50 pb-4">
-              <div>
-                <h3 className="font-serif text-2xl text-ink">Expediente de Archivos y Custodia Editorial</h3>
-                <p className="text-xs text-ink-muted mt-0.5">
-                  {projectTitle ? `Proyecto: «${projectTitle}»` : 'Información y metadatos oficiales'}
-                </p>
-              </div>
-              <button
-                onClick={() => {
-                  setModalOpen(false);
-                  setSelectedFileDetail(null);
-                }}
-                className="rounded-full p-2 text-ink-muted hover:bg-surface hover:text-ink transition"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="mt-6 overflow-y-auto space-y-4 pr-1">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-2xl border border-edge/60 bg-surface p-4">
-                  <span className="text-[10px] font-medium uppercase tracking-wider text-ink-muted flex items-center gap-1">
-                    <DollarSign className="h-3.5 w-3.5 text-accent" /> Presupuesto / Pago Aceptado
-                  </span>
-                  <p className="font-serif text-xl font-semibold text-ink mt-1">
-                    {acceptedPaymentAmount ? `${acceptedPaymentAmount} ${currency}` : 'Pendiente de aprobación'}
+      <AnimatePresence>
+        {modalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="absolute inset-0 bg-black backdrop-blur-xs"
+              onClick={() => setModalOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              transition={{ duration: 0.22, ease: 'easeOut' }}
+              className="relative z-10 w-full max-w-3xl overflow-hidden rounded-3xl border border-edge bg-surface-elevated p-6 sm:p-8 shadow-2xl max-h-[90vh] flex flex-col"
+            >
+              <div className="flex items-center justify-between border-b border-edge/50 pb-4">
+                <div>
+                  <h3 className="font-serif text-2xl text-ink">Expediente de Archivos y Custodia Editorial</h3>
+                  <p className="text-xs text-ink-muted mt-0.5">
+                    {projectTitle ? `Proyecto: «${projectTitle}»` : 'Información y metadatos oficiales'}
                   </p>
-                  <p className="text-xs text-ink-muted mt-1">Aprobado y registrado por la dirección administrativa del estudio.</p>
                 </div>
-
-                <div className="rounded-2xl border border-edge/60 bg-surface p-4">
-                  <span className="text-[10px] font-medium uppercase tracking-wider text-ink-muted flex items-center gap-1">
-                    <Calendar className="h-3.5 w-3.5 text-accent" /> Resguardo y Custodia
-                  </span>
-                  <p className="font-serif text-xl font-semibold text-ink mt-1">
-                    {files.length} {files.length === 1 ? 'Documento Activo' : 'Documentos Activos'}
-                  </p>
-                  <p className="text-xs text-ink-muted mt-1">Cifrado de propiedad intelectual garantizado.</p>
-                </div>
+                <button
+                  onClick={() => {
+                    setModalOpen(false);
+                    setSelectedFileDetail(null);
+                  }}
+                  className="rounded-full p-2 text-ink-muted hover:bg-surface hover:text-ink transition-colors duration-200 cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
               </div>
 
-              <h4 className="font-serif text-lg text-ink pt-2">Listado Detallado de Archivos</h4>
+              <div className="mt-6 overflow-y-auto space-y-4 pr-1">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-edge/60 bg-surface p-4">
+                    <span className="text-[10px] font-medium uppercase tracking-wider text-ink-muted flex items-center gap-1">
+                      <DollarSign className="h-3.5 w-3.5 text-accent" /> Presupuesto / Pago Aceptado
+                    </span>
+                    <p className="font-serif text-xl font-semibold text-ink mt-1">
+                      {acceptedPaymentAmount ? `${acceptedPaymentAmount} ${currency}` : 'Pendiente de aprobación'}
+                    </p>
+                    <p className="text-xs text-ink-muted mt-1">Aprobado y registrado por la dirección administrativa del estudio.</p>
+                  </div>
 
-              {files.map((file) => (
-                <div key={file.id} className="rounded-2xl border border-edge/60 bg-surface p-5 space-y-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent">
-                        <FileText className="h-5 w-5" />
+                  <div className="rounded-2xl border border-edge/60 bg-surface p-4">
+                    <span className="text-[10px] font-medium uppercase tracking-wider text-ink-muted flex items-center gap-1">
+                      <Calendar className="h-3.5 w-3.5 text-accent" /> Resguardo y Custodia
+                    </span>
+                    <p className="font-serif text-xl font-semibold text-ink mt-1">
+                      {files.length} {files.length === 1 ? 'Documento Activo' : 'Documentos Activos'}
+                    </p>
+                    <p className="text-xs text-ink-muted mt-1">Cifrado de propiedad intelectual garantizado.</p>
+                  </div>
+                </div>
+
+                <h4 className="font-serif text-lg text-ink pt-2">Listado Detallado de Archivos</h4>
+
+                {files.map((file) => (
+                  <div key={file.id} className="rounded-2xl border border-edge/60 bg-surface p-5 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent">
+                          <FileText className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <h5 className="font-serif text-base text-ink">{file.name}</h5>
+                          <p className="text-xs text-ink-muted">
+                            {file.size || 'Manuscrito oficial'} · Cargado: {file.date || 'Reciente'}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-medium uppercase tracking-wider border border-accent/25 bg-accent/10 text-accent">
+                        {file.status}
+                      </span>
+                    </div>
+
+                    <div className="grid gap-3 pt-3 border-t border-edge/50 sm:grid-cols-2 text-xs text-ink-muted">
+                      <div>
+                        <span className="font-medium text-ink">Información de pago aceptada:</span>{' '}
+                        {acceptedPaymentAmount ? `${acceptedPaymentAmount} ${currency} (Aprobado)` : 'En evaluación por admin'}
                       </div>
                       <div>
-                        <h5 className="font-serif text-base text-ink">{file.name}</h5>
-                        <p className="text-xs text-ink-muted">
-                          {file.size || 'Manuscrito oficial'} · Cargado: {file.date || 'Reciente'}
-                        </p>
+                        <span className="font-medium text-ink">Estado de revisión:</span>{' '}
+                        {isLocked ? 'En análisis por dirección artística' : 'Liberado / Aprobado'}
                       </div>
                     </div>
-                    <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-medium uppercase tracking-wider border border-accent/25 bg-accent/10 text-accent">
-                      {file.status}
-                    </span>
+
+                    {file.downloadUrl && !isLocked && (
+                      <div className="pt-2 flex justify-end">
+                        <a
+                          href={file.downloadUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-xs font-medium text-white transition hover:opacity-90 active:scale-[0.98]"
+                        >
+                          <Download className="h-4 w-4" />
+                          <span>Descargar Archivo Máster</span>
+                        </a>
+                      </div>
+                    )}
                   </div>
+                ))}
+              </div>
 
-                  <div className="grid gap-3 pt-3 border-t border-edge/50 sm:grid-cols-2 text-xs text-ink-muted">
-                    <div>
-                      <span className="font-medium text-ink">Información de pago aceptada:</span>{' '}
-                      {acceptedPaymentAmount ? `${acceptedPaymentAmount} ${currency} (Aprobado)` : 'En evaluación por admin'}
-                    </div>
-                    <div>
-                      <span className="font-medium text-ink">Estado de revisión:</span>{' '}
-                      {isLocked ? 'En análisis por dirección artística' : 'Liberado / Aprobado'}
-                    </div>
-                  </div>
-
-                  {file.downloadUrl && !isLocked && (
-                    <div className="pt-2 flex justify-end">
-                      <a
-                        href={file.downloadUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-xs font-medium text-white transition hover:opacity-90"
-                      >
-                        <Download className="h-4 w-4" />
-                        <span>Descargar Archivo Máster</span>
-                      </a>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6 border-t border-edge/50 pt-4 flex justify-end">
-              <Button
-                variant="primary"
-                onClick={() => setModalOpen(false)}
-                className="px-6 py-2.5 text-xs font-medium uppercase tracking-wider"
-              >
-                Cerrar Ventana
-              </Button>
-            </div>
+              <div className="mt-6 border-t border-edge/50 pt-4 flex justify-end">
+                <Button
+                  variant="primary"
+                  onClick={() => setModalOpen(false)}
+                  className="px-6 py-2.5 text-xs font-medium uppercase tracking-wider active:scale-[0.98]"
+                >
+                  Cerrar Ventana
+                </Button>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </>
   );
 }

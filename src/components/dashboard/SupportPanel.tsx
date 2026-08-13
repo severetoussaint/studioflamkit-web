@@ -64,18 +64,18 @@ export function SupportPanel({
           {onOpenMessageModal ? (
             <Button
               variant="secondary"
-              className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 px-4 text-xs font-medium uppercase tracking-wider transition-all duration-300 hover:-translate-y-0.5"
+              className="group/btn w-full flex items-center justify-center gap-2 rounded-2xl py-3 px-4 text-xs font-medium uppercase tracking-wider transition-all duration-300 ease-out hover:-translate-y-0.5 active:scale-[0.98]"
               onClick={onOpenMessageModal}
             >
-              <MessageCircle className="h-4 w-4 text-accent shrink-0" />
+              <MessageCircle className="h-4 w-4 text-accent shrink-0 transition-transform duration-200 group-hover/btn:scale-110" />
               <span>Enviar Consulta Editorial</span>
             </Button>
           ) : (
             <a
               href={`mailto:${contactEmail}`}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border-edge/60 bg-surface px-4 py-3 text-xs font-medium uppercase tracking-wider text-ink transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/25 hover:bg-surface-elevated"
+              className="group/btn flex w-full items-center justify-center gap-2 rounded-2xl border-edge/60 bg-surface px-4 py-3 text-xs font-medium uppercase tracking-wider text-ink transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-accent/25 hover:bg-surface-elevated active:scale-[0.98]"
             >
-              <Mail className="h-4 w-4 text-accent shrink-0" />
+              <Mail className="h-4 w-4 text-accent shrink-0 transition-transform duration-200 group-hover/btn:scale-110" />
               <span className="truncate">Escribir Soporte</span>
             </a>
           )}

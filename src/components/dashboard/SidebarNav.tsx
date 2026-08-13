@@ -37,15 +37,15 @@ export function SidebarNav<T extends string = string>({
                 key={section.id}
                 type="button"
                 onClick={() => onSectionChange(section.id)}
-                className={`group relative flex shrink-0 items-center justify-between rounded-2xl px-3.5 py-3 text-sm font-medium transition-all cursor-pointer ${
+                className={`group relative flex shrink-0 items-center justify-between rounded-2xl px-3.5 py-3 text-sm font-medium transition-all duration-200 ease-out cursor-pointer active:scale-[0.98] ${
                   isActive
-                    ? 'border-accent/30 bg-accent/10 text-accent shadow-2xs'
-                    : 'border-transparent text-ink-muted hover:border-edge hover:bg-surface hover:text-ink'
+                    ? 'border-accent/30 bg-accent/10 text-accent shadow-2xs font-semibold'
+                    : 'border-transparent text-ink-muted hover:border-edge hover:bg-surface hover:text-ink hover:-translate-y-0.5'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <Icon
-                    className={`h-4 w-4 transition-transform group-hover:scale-110 ${
+                    className={`h-4 w-4 transition-transform duration-200 ease-out group-hover:scale-110 ${
                       isActive ? 'text-accent' : 'text-ink-muted'
                     }`}
                     strokeWidth={1.75}
@@ -54,7 +54,7 @@ export function SidebarNav<T extends string = string>({
                 </div>
                 {section.badge ? (
                   <span
-                    className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors duration-200 ${
                       isActive
                         ? 'bg-accent/20 text-accent'
                         : 'bg-surface border-edge text-ink-muted'
@@ -82,10 +82,10 @@ export function SidebarNav<T extends string = string>({
         </p>
         <Link
           href="/contacto"
-          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border-edge bg-surface px-3 py-2.5 text-xs font-medium text-ink transition hover:border-accent/40 hover:text-accent shadow-2xs"
+          className="group mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border-edge bg-surface px-3 py-2.5 text-xs font-medium text-ink transition-all duration-200 ease-out hover:border-accent/40 hover:text-accent hover:-translate-y-0.5 active:scale-[0.98] shadow-2xs"
         >
-          <MessageCircle className="h-3.5 w-3.5" />
-          Contactar Productor
+          <MessageCircle className="h-3.5 w-3.5 transition-transform duration-200 ease-out group-hover:scale-110" />
+          <span>Contactar Productor</span>
         </Link>
       </div>
     </aside>

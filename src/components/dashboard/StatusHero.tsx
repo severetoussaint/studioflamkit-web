@@ -56,12 +56,12 @@ export function StatusHero({
           <div className="mt-8 flex flex-wrap items-center gap-4">
             <Button
               variant="primary"
-              className="flex items-center gap-2.5 px-6 py-3.5 text-xs font-medium uppercase tracking-[0.15em] shadow-xs hover:shadow-md transition-all duration-300"
+              className="group/btn flex items-center gap-2.5 px-6 py-3.5 text-xs font-medium uppercase tracking-[0.15em] shadow-xs hover:shadow-md transition-all duration-300 ease-out active:scale-[0.98]"
               onClick={onUploadClick}
             >
-              <UploadCloud className="h-4 w-4" />
+              <UploadCloud className="h-4 w-4 transition-transform duration-200 group-hover/btn:-translate-y-0.5" />
               <span>Enviar Manuscrito para Evaluación</span>
-              <ArrowRight className="h-3.5 w-3.5 opacity-70" />
+              <ArrowRight className="h-3.5 w-3.5 opacity-70 transition-transform duration-200 group-hover/btn:translate-x-1" />
             </Button>
           </div>
 
@@ -113,25 +113,25 @@ export function StatusHero({
             {onToggleCarousel && (
               <Button
                 variant="primary"
-                className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.12em]"
+                className="group/btn flex items-center gap-2 text-xs font-medium uppercase tracking-[0.12em] transition-all duration-200 ease-out active:scale-[0.98]"
                 onClick={onToggleCarousel}
               >
-                <Sparkles className="h-4 w-4" />
+                <Sparkles className="h-4 w-4 transition-transform duration-200 group-hover/btn:scale-110 text-amber-200" />
                 <span>Ver Ruta Editorial (3 Pasos)</span>
               </Button>
             )}
             {onViewFilesClick && (
               <Button
                 variant="secondary"
-                className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.12em]"
+                className="group/btn flex items-center gap-2 text-xs font-medium uppercase tracking-[0.12em] transition-all duration-200 ease-out active:scale-[0.98]"
                 onClick={onViewFilesClick}
               >
-                <BookOpen className="h-4 w-4 text-accent" />
+                <BookOpen className="h-4 w-4 text-accent transition-transform duration-200 group-hover/btn:scale-110" />
                 <span>Ver Manuscrito en Custodia</span>
               </Button>
             )}
             <div className="inline-flex items-center gap-2 rounded-2xl bg-surface/80 px-4 py-2.5 text-xs text-ink-muted border-edge/60">
-              <Clock className="h-3.5 w-3.5 text-accent shrink-0" />
+              <Clock className="h-3.5 w-3.5 text-accent shrink-0 animate-pulse" />
               <span>Siguiente paso: {presentation.nextActionTitle}</span>
             </div>
           </div>

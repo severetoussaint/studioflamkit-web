@@ -28,22 +28,22 @@ export interface ChapterCardProps {
 export function ChapterCard({ chapter, index, onSelectChapter }: ChapterCardProps) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16, scale: 0.98 }}
+      initial={{ opacity: 0, y: 12, scale: 0.99 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.35, delay: index * 0.08, ease: 'easeOut' }}
-      whileHover={{ scale: 1.01, transition: { duration: 0.2, ease: 'easeOut' } }}
+      transition={{ duration: 0.28, delay: index * 0.05, ease: 'easeOut' }}
+      whileHover={{ y: -2, transition: { duration: 0.2, ease: 'easeOut' } }}
       onClick={() => onSelectChapter(chapter)}
-      className="group rounded-2xl border-edge/50 bg-surface-elevated p-5 transition-colors hover:border-accent/40 hover:shadow-md cursor-pointer"
+      className="group rounded-2xl border-edge/50 bg-surface-elevated p-5 transition-all duration-200 ease-out hover:border-accent/40 hover:shadow-[0_12px_32px_rgba(0,0,0,0.06)] cursor-pointer active:scale-[0.995]"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3.5">
-          <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border-edge/50 bg-surface text-accent group-hover:border-accent/30 group-hover:bg-accent/10">
-            <FileAudio className="h-5 w-5" strokeWidth={1.75} />
+          <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border-edge/50 bg-surface text-accent transition-all duration-200 group-hover:border-accent/30 group-hover:bg-accent/10 group-hover:scale-105">
+            <FileAudio className="h-5 w-5 transition-transform duration-200 group-hover:rotate-6" strokeWidth={1.75} />
           </div>
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-mono text-accent">#0{index + 1}</span>
-              <p className="text-base font-semibold text-ink group-hover:text-accent transition-colors">{chapter.title}</p>
+              <p className="text-base font-semibold text-ink group-hover:text-accent transition-colors duration-200">{chapter.title}</p>
             </div>
             <p className="mt-1 text-xs text-ink-muted">
               {chapter.words} · Duración estimada: {chapter.duration}
@@ -54,7 +54,7 @@ export function ChapterCard({ chapter, index, onSelectChapter }: ChapterCardProp
         <div className="flex flex-wrap items-center gap-2.5 self-end sm:self-auto">
           <StatusPill status={chapter.status} />
 
-          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium border ${
+          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium border transition-colors duration-200 ${
             chapter.paymentStatus === 'Pagado'
               ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
               : 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400'
@@ -69,9 +69,9 @@ export function ChapterCard({ chapter, index, onSelectChapter }: ChapterCardProp
               e.stopPropagation();
               onSelectChapter(chapter);
             }}
-            className="inline-flex items-center gap-1.5 rounded-xl border-edge/50 bg-surface px-3 py-1.5 text-xs font-medium text-ink transition hover:border-accent/40 hover:text-accent cursor-pointer"
+            className="group/btn inline-flex items-center gap-1.5 rounded-xl border-edge/50 bg-surface px-3 py-1.5 text-xs font-medium text-ink transition-all duration-200 ease-out hover:border-accent/40 hover:bg-accent hover:text-surface active:scale-[0.98] shadow-2xs cursor-pointer"
           >
-            <Play className="h-3.5 w-3.5 text-accent" />
+            <Play className="h-3.5 w-3.5 text-accent transition-transform duration-200 group-hover/btn:scale-110 group-hover/btn:text-surface" />
             <span>Abrir Panel</span>
           </button>
         </div>

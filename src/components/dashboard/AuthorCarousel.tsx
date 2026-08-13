@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
+import { AnimatePresence, motion } from 'motion/react';
 import { ChevronLeft, ChevronRight, CheckCircle2, Sparkles, Clock, Compass } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
@@ -84,93 +85,102 @@ export function AuthorCarousel({ onClose, manuscriptTitle }: AuthorCarouselProps
       </div>
 
       {/* Main Grid Content */}
-      <div className="relative z-10 mt-6 grid gap-6 lg:grid-cols-12 lg:items-center">
-        {/* Visual Frame (Image area with 3:2 ratio) */}
-        <div className="relative overflow-hidden rounded-2xl border-edge/60 bg-surface lg:col-span-6 aspect-[3/2] flex items-center justify-center">
-          <Image
-            src={current.imageSrc}
-            alt={current.title}
-            fill
-            className="object-cover transition-all duration-500 hover:scale-105"
-            referrerPolicy="no-referrer"
-            onError={(e) => {
-              // Hide broken image gracefully and reveal stylized fallback card
-              e.currentTarget.style.display = 'none';
-            }}
-          />
-          {/* Fallback stylized artwork if image file is not yet dropped into repository */}
-          <div className={`absolute inset-0 bg-gradient-to-br ${current.fallbackBg} p-6 flex flex-col justify-between`}>
-            <div className="flex justify-between items-start">
-              <span className="inline-flex items-center gap-1.5 rounded-full border-edge/60 bg-surface/80 px-3 py-1 text-[10px] font-mono font-medium text-ink">
-                {current.badge}
-              </span>
-              <span className="font-serif text-3xl font-light text-accent/30">0{currentIndex + 1}</span>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={currentIndex}
+          initial={{ opacity: 0, x: 12 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -12 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
+          className="relative z-10 mt-6 grid gap-6 lg:grid-cols-12 lg:items-center"
+        >
+          {/* Visual Frame (Image area with 3:2 ratio) */}
+          <div className="relative overflow-hidden rounded-2xl border-edge/60 bg-surface lg:col-span-6 aspect-[3/2] flex items-center justify-center">
+            <Image
+              src={current.imageSrc}
+              alt={current.title}
+              fill
+              className="object-cover transition-all duration-500 hover:scale-105"
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                // Hide broken image gracefully and reveal stylized fallback card
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+            {/* Fallback stylized artwork if image file is not yet dropped into repository */}
+            <div className={`absolute inset-0 bg-gradient-to-br ${current.fallbackBg} p-6 flex flex-col justify-between`}>
+              <div className="flex justify-between items-start">
+                <span className="inline-flex items-center gap-1.5 rounded-full border-edge/60 bg-surface/80 px-3 py-1 text-[10px] font-mono font-medium text-ink">
+                  {current.badge}
+                </span>
+                <span className="font-serif text-3xl font-light text-accent/30">0{currentIndex + 1}</span>
+              </div>
+              <div>
+                <p className="font-serif text-lg font-medium text-ink">{manuscriptTitle || 'Tu Obra'}</p>
+                <p className="text-xs text-ink-muted mt-1">{current.step}</p>
+              </div>
             </div>
+          </div>
+
+          {/* Text Details Area */}
+          <div className="flex flex-col justify-between space-y-4 lg:col-span-6">
             <div>
-              <p className="font-serif text-lg font-medium text-ink">{manuscriptTitle || 'Tu Obra'}</p>
-              <p className="text-xs text-ink-muted mt-1">{current.step}</p>
+              <div className="inline-flex items-center gap-2 rounded-full border-accent/20 bg-accent/5 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-accent">
+                <StepIcon className="h-3.5 w-3.5" />
+                <span>{current.step}</span>
+              </div>
+
+              <h3 className="mt-3 font-serif text-2xl font-medium tracking-tight text-ink sm:text-3xl leading-snug">
+                {current.title}
+              </h3>
+
+              <p className="mt-2 text-sm font-medium text-ink/90 leading-relaxed">
+                {current.subtitle}
+              </p>
+
+              <p className="mt-2 text-xs font-light text-ink-muted leading-relaxed">
+                {current.description}
+              </p>
             </div>
-          </div>
-        </div>
 
-        {/* Text Details Area */}
-        <div className="flex flex-col justify-between space-y-4 lg:col-span-6">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border-accent/20 bg-accent/5 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-accent">
-              <StepIcon className="h-3.5 w-3.5" />
-              <span>{current.step}</span>
-            </div>
+            {/* Navigation Controls */}
+            <div className="flex items-center justify-between border-t border-edge/40 pt-4 mt-4">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={isFirst}
+                  onClick={() => setCurrentIndex((prev) => prev - 1)}
+                  className={`flex h-9 w-9 items-center justify-center rounded-full border-edge/60 bg-surface transition-all duration-200 active:scale-[0.95] ${
+                    isFirst ? 'opacity-40 cursor-not-allowed' : 'hover:border-accent/30 hover:text-accent hover:-translate-x-0.5 cursor-pointer'
+                  }`}
+                  title="Paso anterior"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  disabled={isLast}
+                  onClick={() => setCurrentIndex((prev) => prev + 1)}
+                  className={`flex h-9 w-9 items-center justify-center rounded-full border-edge/60 bg-surface transition-all duration-200 active:scale-[0.95] ${
+                    isLast ? 'opacity-40 cursor-not-allowed' : 'hover:border-accent/30 hover:text-accent hover:translate-x-0.5 cursor-pointer'
+                  }`}
+                  title="Siguiente paso"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
 
-            <h3 className="mt-3 font-serif text-2xl font-medium tracking-tight text-ink sm:text-3xl leading-snug">
-              {current.title}
-            </h3>
-
-            <p className="mt-2 text-sm font-medium text-ink/90 leading-relaxed">
-              {current.subtitle}
-            </p>
-
-            <p className="mt-2 text-xs font-light text-ink-muted leading-relaxed">
-              {current.description}
-            </p>
-          </div>
-
-          {/* Navigation Controls */}
-          <div className="flex items-center justify-between border-t border-edge/40 pt-4 mt-4">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                disabled={isFirst}
-                onClick={() => setCurrentIndex((prev) => prev - 1)}
-                className={`flex h-9 w-9 items-center justify-center rounded-full border-edge/60 bg-surface transition-all ${
-                  isFirst ? 'opacity-40 cursor-not-allowed' : 'hover:border-accent/30 hover:text-accent cursor-pointer'
-                }`}
-                title="Paso anterior"
+              <Button
+                variant={isLast ? 'primary' : 'secondary'}
+                className="px-5 py-2.5 text-xs font-medium uppercase tracking-wider rounded-xl transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98]"
+                onClick={onClose}
               >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                disabled={isLast}
-                onClick={() => setCurrentIndex((prev) => prev + 1)}
-                className={`flex h-9 w-9 items-center justify-center rounded-full border-edge/60 bg-surface transition-all ${
-                  isLast ? 'opacity-40 cursor-not-allowed' : 'hover:border-accent/30 hover:text-accent cursor-pointer'
-                }`}
-                title="Siguiente paso"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
+                {isLast ? 'Ir a mi Panel Vivo' : 'Entendido, ver Panel'}
+              </Button>
             </div>
-
-            <Button
-              variant={isLast ? 'primary' : 'secondary'}
-              className="px-5 py-2.5 text-xs font-medium uppercase tracking-wider rounded-xl"
-              onClick={onClose}
-            >
-              {isLast ? 'Ir a mi Panel Vivo' : 'Entendido, ver Panel'}
-            </Button>
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 }

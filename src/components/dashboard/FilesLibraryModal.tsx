@@ -82,7 +82,7 @@ export function FilesLibraryModal({ open, onClose, data }: FilesLibraryModalProp
               <button
                 type="button"
                 onClick={onClose}
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-edge/60 bg-surface text-ink-muted transition hover:border-accent/30 hover:text-accent cursor-pointer"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-edge/60 bg-surface text-ink-muted transition-all duration-200 ease-out hover:border-accent/30 hover:text-accent hover:rotate-90 active:scale-[0.95] cursor-pointer"
                 aria-label="Cerrar biblioteca de archivos"
               >
                 <X className="h-4 w-4" />
@@ -112,16 +112,16 @@ export function FilesLibraryModal({ open, onClose, data }: FilesLibraryModalProp
                     ) : (
                       <div className="space-y-3">
                         {group.items.map((file) => (
-                          <div key={file.id} className="rounded-2xl border border-edge/60 bg-surface/75 p-4 sm:p-5">
+                          <div key={file.id} className="group/file rounded-2xl border border-edge/60 bg-surface/75 p-4 sm:p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-accent/40 hover:bg-surface hover:shadow-md">
                             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                               <div className="flex min-w-0 items-start gap-3.5">
-                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-edge/60 bg-surface-elevated text-accent">
-                                  <FileText className="h-4 w-4" strokeWidth={1.8} />
+                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-edge/60 bg-surface-elevated text-accent transition-all duration-200 group-hover/file:border-accent/30 group-hover/file:bg-accent/10 group-hover/file:scale-105">
+                                  <FileText className="h-4 w-4 transition-transform duration-200 group-hover/file:rotate-6" strokeWidth={1.8} />
                                 </div>
 
                                 <div className="min-w-0">
                                   <div className="flex flex-wrap items-center gap-2">
-                                    <p className="font-serif text-base font-normal tracking-tight text-ink sm:text-lg">{file.name}</p>
+                                    <p className="font-serif text-base font-normal tracking-tight text-ink sm:text-lg group-hover/file:text-accent transition-colors duration-200">{file.name}</p>
                                     <span className="inline-flex items-center rounded-full border border-edge/60 bg-surface-elevated px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-ink-muted">
                                       {file.kind === 'deliverable' ? 'Entregable' : file.kind === 'project_file' ? 'Archivo de proyecto' : 'Manuscrito'}
                                     </span>
@@ -160,9 +160,9 @@ export function FilesLibraryModal({ open, onClose, data }: FilesLibraryModalProp
                                     href={file.downloadUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex h-10 items-center gap-2 rounded-full border border-edge/60 bg-surface-elevated px-4 text-xs font-medium text-ink transition hover:border-accent/30 hover:text-accent"
+                                    className="group/btn inline-flex h-10 items-center gap-2 rounded-full border border-edge/60 bg-surface-elevated px-4 text-xs font-medium text-ink transition-all duration-200 ease-out hover:border-accent/40 hover:text-accent hover:-translate-y-0.5 active:scale-[0.98] shadow-2xs"
                                   >
-                                    <ArrowDownToLine className="h-3.5 w-3.5" />
+                                    <ArrowDownToLine className="h-3.5 w-3.5 transition-transform duration-200 group-hover/btn:translate-y-0.5" />
                                     <span>Abrir</span>
                                   </a>
                                 ) : (

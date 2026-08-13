@@ -149,13 +149,13 @@ export function ProgressTimeline({ steps, currentState, journey = null }: Progre
                 key={step.id}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.25, delay: index * 0.03 }}
-                className={`relative flex flex-col items-center text-center p-3.5 rounded-2xl transition-all duration-200 ${
+                transition={{ duration: 0.25, delay: index * 0.03, ease: 'easeOut' }}
+                className={`relative flex flex-col items-center text-center p-3.5 rounded-2xl transition-all duration-200 ease-out hover:-translate-y-0.5 ${
                   isActive
                     ? 'border-accent/40 bg-accent/12 shadow-[0_4px_16px_rgba(255,116,24,0.12)]'
                     : isDone
-                    ? 'border-edge/60 bg-surface/60'
-                    : 'border-edge/30 bg-surface/30 opacity-70'
+                    ? 'border-edge/60 bg-surface/60 hover:border-accent/30'
+                    : 'border-edge/30 bg-surface/30 opacity-70 hover:opacity-100 hover:border-edge/60'
                 }`}
               >
                 <div
