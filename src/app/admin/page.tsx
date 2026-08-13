@@ -4,12 +4,14 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import {
-  BookOpen, Plus, Trash2, ChevronDown, Upload, MessageCircle, Send, X,
-  Inbox, User, Hash, Clock, AlertTriangle, CheckCircle2, Radio, Circle,
-  BarChart3, Layers, TrendingUp, ArrowRight, Info, FileText, ArrowRightCircle,
-  ListMusic, Package, Play, Pause, MessageSquareWarning,
+  BookOpen, Plus, Trash2, Upload, MessageCircle, Send, X,
+  Inbox, User, AlertTriangle, CheckCircle2,
+  BarChart3, ArrowRight, ArrowRightCircle, ShieldCheck,
 } from "lucide-react";
+import { Navbar } from "@/components/layout/Navbar";
+import { Footer } from "@/components/layout/Footer";
 import { supabaseClient } from "@/lib/supabase/client";
+
 import { getUser, getUserRole } from "@/services/auth.service";
 import { adminService } from "@/services/admin.service";
 import { uploadProjectDeliverableFile } from "@/services/storage.service";
@@ -378,438 +380,475 @@ export default function AdminPage() {
      RENDER
      ═══════════════════════════════════════════════════════════════ */
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* ─── Hero Header ─── */}
-        <motion.div {...fadeInUp} className="mb-8">
-          <div className="relative overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-8 shadow-[0_8px_30px_rgba(0,0,0,0.04)] sm:p-10">
-            <div className="absolute left-0 right-0 top-0 h-1 bg-gradient-to-r from-[var(--color-accent)] via-[var(--color-premium)] to-[var(--color-accent)] opacity-60" />
-            <h1 className="font-serif text-3xl font-semibold tracking-tight sm:text-4xl">Estudio Flamkit • Editor de Control</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--color-text-secondary)]">
-              Supervisa y gestiona la conversión de manuscritos a obras cinemáticas. Configura límites de revisiones, sube archivos de sonido y responde en tiempo real al feedback de tus autores.
-            </p>
-          </div>
-        </motion.div>
+    <main className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] transition-colors duration-200 flex flex-col justify-between">
+      <div>
+        <Navbar />
 
-        {/* ─── Quick Metrics (legacy preserved, restyled) ─── */}
-        <motion.div {...fadeInUp} className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {[
-            { label: "Proyectos Activos", value: summary.activeProjects, icon: BookOpen },
-            { label: "Obras Completadas", value: summary.completedProjects, icon: CheckCircle2 },
-            { label: "Nuevos Manuscritos", value: summary.pendingRequests, icon: Inbox },
-            { label: "Valor de Cartera", value: `$${summary.totalAmount} USD`, icon: BarChart3 },
-          ].map((kpi) => (
-            <div key={kpi.label} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-5 shadow-[0_4px_16px_rgba(0,0,0,0.02)] transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.04)]">
-              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
-                <kpi.icon className="h-4 w-4" />{kpi.label}
+        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+          {/* ─── Hero Header ─── */}
+          <motion.div {...fadeInUp} className="mb-8">
+            <div className="relative overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-8 shadow-[0_8px_30px_rgba(0,0,0,0.04)] sm:p-10">
+              <div className="absolute left-0 right-0 top-0 h-1 bg-gradient-to-r from-[var(--color-accent)] via-[var(--color-premium)] to-[var(--color-accent)] opacity-60" />
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h1 className="font-serif text-3xl font-semibold tracking-tight sm:text-4xl">Estudio Flamkit • Editor de Control</h1>
+                  <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--color-text-secondary)]">
+                    Supervisa y gestiona la conversión de manuscritos a obras cinemáticas. Configura límites de revisiones, sube archivos de sonido y responde en tiempo real al feedback de tus autores.
+                  </p>
+                </div>
+                <div className="shrink-0">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-accent)]/20 bg-[var(--color-accent-soft)] px-3.5 py-1.5 text-xs font-semibold text-[var(--color-accent)]">
+                    <ShieldCheck className="h-4 w-4" />
+                    Vista Operativa Admin
+                  </span>
+                </div>
               </div>
-              <p className="mt-2 font-serif text-2xl font-semibold text-[var(--color-text)]">{kpi.value}</p>
             </div>
-          ))}
-        </motion.div>
+          </motion.div>
 
-        {/* ─── Tabs Navigation ─── */}
-        <div className="mb-8 flex items-center gap-2 border-b border-[var(--color-border)] pb-1">
-          {([{ id: "proyectos", label: "Proyectos en Curso" }, { id: "cotizaciones", label: "Cotizaciones" }, { id: "crear", label: "Registrar Obra" }] as const).map((tab) => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={`relative px-4 py-2.5 text-sm font-medium transition-colors ${activeTab === tab.id ? "text-[var(--color-accent)]" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"}`}>
-              {tab.label}
-              {activeTab === tab.id && <motion.div layoutId="adminTabIndicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--color-accent)]" />}
-            </button>
-          ))}
-        </div>
-
-        {/* ═════════════════════════════════════════════════════════
-            TAB 1: PROYECTOS — NEW ADMIN EXPERIENCE
-            ═════════════════════════════════════════════════════════ */}
-        <AnimatePresence mode="wait">
-          {activeTab === "proyectos" && (
-            <motion.div key="proyectos" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }} className="space-y-6">
-              {projectsError && (
-                <div className="rounded-2xl border border-[var(--color-error)]/20 bg-[var(--color-error-soft)] p-4 text-sm text-[var(--color-error)]">
-                  <strong>Error al cargar proyectos de la base de datos</strong><p className="mt-1">{projectsError}</p>
+          {/* ─── Quick Metrics ─── */}
+          <motion.div {...fadeInUp} className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {[
+              { label: "Proyectos Activos", value: summary.activeProjects, icon: BookOpen },
+              { label: "Obras Completadas", value: summary.completedProjects, icon: CheckCircle2 },
+              { label: "Nuevos Manuscritos", value: summary.pendingRequests, icon: Inbox },
+              { label: "Valor de Cartera", value: `$${summary.totalAmount} USD`, icon: BarChart3 },
+            ].map((kpi) => (
+              <div key={kpi.label} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-5 shadow-[0_4px_16px_rgba(0,0,0,0.02)] transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.04)]">
+                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
+                  <kpi.icon className="h-4 w-4 text-[var(--color-accent)]" />{kpi.label}
                 </div>
-              )}
-
-              {projects.length === 0 ? (
-                <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-10 text-center shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
-                  <BookOpen className="mx-auto h-10 w-10 text-[var(--color-text-muted)]" />
-                  <p className="mt-4 text-sm text-[var(--color-text-secondary)]">No se encontraron proyectos activos en este momento.</p>
-                  <p className="mt-1 text-xs text-[var(--color-text-muted)]">Crea un nuevo proyecto en la pestaña "Registrar Obra" o aprueba un manuscrito.</p>
-                </div>
-              ) : (
-                <>
-                  {/* Context Selectors */}
-                  <div className="flex flex-col gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-5 sm:flex-row sm:items-center">
-                    <div className="flex items-center gap-3">
-                      <User className="h-4 w-4 text-[var(--color-text-muted)]" />
-                      <label className="text-sm font-medium text-[var(--color-text-secondary)]">Autor:</label>
-                      <select value={currentAuthor} onChange={(e) => { setSelectedAuthor(e.target.value); setSelectedProjectId(""); }}
-                        className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]">
-                        {authorNames.map((name) => (<option key={name} value={name}>{name}</option>))}
-                      </select>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <BookOpen className="h-4 w-4 text-[var(--color-text-muted)]" />
-                      <label className="text-sm font-medium text-[var(--color-text-secondary)]">Obra Activa:</label>
-                      <select value={currentProjectId} onChange={(e) => setSelectedProjectId(e.target.value)}
-                        className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]">
-                        {currentAuthorProjects.map((p) => (<option key={p.id} value={p.id}>{p.title} ({statusLabels[p.status]})</option>))}
-                      </select>
-                    </div>
-                    <div className="flex flex-wrap gap-2 sm:ml-auto">
-                      {currentAuthorProjects.map((p) => {
-                        const isActive = p.id === currentProjectId;
-                        return (
-                          <button key={p.id} onClick={() => setSelectedProjectId(p.id)}
-                            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${isActive ? "border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-accent)]" : "border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:border-[var(--color-accent)]/30"}`}>
-                            {p.title}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* NEW ADMIN LAYOUT */}
-                  {activeProject && (
-                    <div className="space-y-6">
-                      {/* 1. Header / Context */}
-                      <AdminProjectHeader workspaceProject={activeWorkspaceProject} legacyProject={activeProject} progress={adminWorkspaceData?.progress ?? null} hasOpenReviews={adminWorkspaceData?.hasOpenReviews ?? false} currentPhaseLabel={editorialJourney?.currentPhase ? statusLabels[activeProject.status] ?? "En curso" : "Sin obra seleccionada"} />
-
-                      {/* 2. Editorial Journey */}
-                      <AdminEditorialJourneyView journey={editorialJourney} />
-
-                      {/* 3. Next Action */}
-                      <AdminNextActionCard journey={editorialJourney} hasOpenReviews={adminWorkspaceData?.hasOpenReviews ?? false} legacyStatus={activeProject.status} />
-
-                      {/* 4. Three-column grid: Progress | Request/Proposal */}
-                      <div className="grid gap-6 lg:grid-cols-3">
-                        <AdminProgressPanel progress={adminWorkspaceData?.progress ?? null} legacyProgress={activeProject.progress} currentStageName={adminWorkspaceData?.progress?.currentStageId ? `Etapa ${adminWorkspaceData.progress.currentStageId.slice(0, 6)}…` : null} />
-                        <div className="lg:col-span-2">
-                          <AdminRequestProposalPanel request={linkedRequest} workspaceProject={activeWorkspaceProject} />
-                        </div>
-                      </div>
-
-                      {/* 5. Chapters & Deliverables */}
-                      <AdminChaptersDeliverablesPanel chapters={activeProject.chapterList ?? []} deliverables={activeProject.deliverables} onToggleDeliverable={(deliverableId) => handleToggleDeliverable(activeProjectId, deliverableId)} onOpenFeedback={(deliverable) => openChatPanel(activeProject, deliverable)} />
-
-                      {/* 6. Feedback / Review */}
-                      <AdminFeedbackReviewPanel deliverables={activeProject.deliverables} hasOpenReviews={adminWorkspaceData?.hasOpenReviews ?? false} onOpenFeedback={(deliverable) => openChatPanel(activeProject, deliverable)} />
-
-                      {/* ─── LEGACY OPERATIONAL SECTIONS (preserved, restyled) ─── */}
-                      <div className="grid gap-6 lg:grid-cols-3">
-                        {/* Legacy: Status Controls */}
-                        <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)] sm:p-8">
-                          <h3 className="font-serif text-lg font-semibold text-[var(--color-text)]">Estado de la Obra</h3>
-                          <p className="mt-1 text-xs text-[var(--color-text-muted)]">Cambia el estado legacy del proyecto. Esto se sincroniza con projects.status en Supabase.</p>
-                          <div className="mt-4 space-y-2">
-                            {(["analisis", "produccion", "revisiones", "completado"] as AdminProjectStatus[]).map((st) => (
-                              <button key={st} onClick={() => handleProjectStatus(activeProjectId, st)}
-                                className={`flex w-full items-center justify-between rounded-xl border px-4 py-2.5 text-sm transition-all ${activeProject.status === st ? statusStyles[st] : "border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:border-[var(--color-accent)]/20"}`}>
-                                <span>{statusLabels[st]}</span>{activeProject.status === st && <CheckCircle2 className="h-4 w-4" />}
-                              </button>
-                            ))}
-                          </div>
-                          {/* Budget */}
-                          <div className="mt-6 border-t border-[var(--color-border)] pt-5">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm text-[var(--color-text-secondary)]">Presupuesto</span>
-                              <button onClick={() => handleUpdateBudget(activeProjectId, activeProject.amount || 0)} className="text-xs font-medium text-[var(--color-accent)] hover:underline">Editar</button>
-                            </div>
-                            <p className="mt-1 font-serif text-xl font-semibold text-[var(--color-text)]">${activeProject.amount || 0} USD</p>
-                          </div>
-                          {/* Revisions */}
-                          <div className="mt-4 border-t border-[var(--color-border)] pt-5">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm text-[var(--color-text-secondary)]">Límite de Revisiones</span>
-                              <div className="flex items-center gap-2">
-                                <button onClick={() => handleUpdateMaxRevisions(activeProjectId, false, activeProject.maxRevisions)} className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-secondary)]">-</button>
-                                <span className="w-6 text-center text-sm font-medium">{activeProject.maxRevisions}</span>
-                                <button onClick={() => handleUpdateMaxRevisions(activeProjectId, true, activeProject.maxRevisions)} className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-secondary)]">+</button>
-                              </div>
-                            </div>
-                            <p className="mt-1 text-xs text-[var(--color-text-muted)]">{activeProject.revisionsUsed} / {activeProject.maxRevisions} usadas</p>
-                          </div>
-                        </div>
-
-                        {/* Legacy: Chapter Manager */}
-                        <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)] sm:p-8 lg:col-span-2">
-                          <h3 className="font-serif text-lg font-semibold text-[var(--color-text)]">Gestión de Capítulos</h3>
-                          <p className="mt-1 text-xs text-[var(--color-text-muted)]">Crea, actualiza y elimina capítulos reales en Supabase.</p>
-                          <div className="mt-4 space-y-3">
-                            {(activeProject.chapterList || []).map((chap) => (
-                              <div key={chap.id} className="flex flex-col gap-3 rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)] p-4 sm:flex-row sm:items-center sm:justify-between">
-                                <div>
-                                  <p className="text-sm font-medium text-[var(--color-text)]">Capítulo {chap.chapter_number}: {chap.title}</p>
-                                  <p className="text-xs text-[var(--color-text-secondary)]">{chap.word_count.toLocaleString()} palabras • ~{chap.duration_minutes} min • ${chap.price} {chap.currency}</p>
-                                </div>
-                                <div className="flex flex-wrap items-center gap-2">
-                                  {(["pendiente", "cotizado", "pagado", "en_produccion", "entregado"] as const).map((st) => (
-                                    <button key={st} onClick={() => handleUpdateChapterStatus(chap.id, st)}
-                                      className={`rounded-lg px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide transition-colors ${chap.status === st ? "bg-[var(--color-accent)] text-white" : "bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"}`}>
-                                      {st.replace("_", " ")}
-                                    </button>
-                                  ))}
-                                  <button onClick={() => handleDeleteChapter(chap.id)} className="ml-2 rounded-lg p-1.5 text-[var(--color-error)] transition-colors hover:bg-[var(--color-error-soft)]" title="Eliminar capítulo"><Trash2 className="h-3.5 w-3.5" /></button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                          {/* Add chapter form */}
-                          <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4 sm:flex-row sm:items-center">
-                            <input type="text" placeholder="Título del capítulo" value={newChapterTitles[activeProjectId] || ""} onChange={(e) => setNewChapterTitles((prev) => ({ ...prev, [activeProjectId]: e.target.value }))}
-                              className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]" />
-                            <input type="number" placeholder="Palabras" value={newChapterWords[activeProjectId] || 3000} onChange={(e) => setNewChapterWords((prev) => ({ ...prev, [activeProjectId]: parseInt(e.target.value) || 0 }))}
-                              className="w-28 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]" />
-                            <button onClick={() => handleCreateChapter(activeProjectId, activeProject.chapterList?.length || 0)}
-                              className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent-hover)]">
-                              <Plus className="h-4 w-4" />Crear
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Legacy: Deliverable Upload + Audio Chat */}
-                      <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)] sm:p-8">
-                        <h3 className="font-serif text-lg font-semibold text-[var(--color-text)]">Subida de Audio y Chat</h3>
-                        <p className="mt-1 text-xs text-[var(--color-text-muted)]">Gestión legacy de entregables y feedback directo.</p>
-                        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                          {activeProject.deliverables.map((del) => (
-                            <div key={del.id} className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)] p-4">
-                              <div className="flex items-start justify-between">
-                                <div className="flex items-center gap-2">
-                                  <input type="checkbox" checked={del.completed} onChange={() => handleToggleDeliverable(activeProjectId, del.id)}
-                                    className="h-4 w-4 rounded border-[var(--color-border)] bg-[var(--color-bg-elevated)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]" />
-                                  <span className={`text-sm font-medium ${del.completed ? "line-through text-[var(--color-text-muted)]" : "text-[var(--color-text)]"}`}>{del.title}</span>
-                                </div>
-                              </div>
-                              <p className="mt-1 text-xs text-[var(--color-text-muted)]">Modificado: {del.updatedAt}</p>
-                              <button onClick={() => openChatPanel(activeProject, del)} className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-[var(--color-accent)] hover:underline">
-                                <MessageCircle className="h-3.5 w-3.5" />Chat / Feedback
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                        {/* Add deliverable form */}
-                        <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4 sm:flex-row sm:items-center">
-                          <input type="text" placeholder="Título del audio" value={newDeliverableTitles[activeProjectId] || ""} onChange={(e) => setNewDeliverableTitles((prev) => ({ ...prev, [activeProjectId]: e.target.value }))}
-                            className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]" />
-                          <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-3 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-accent)]/30">
-                            <Upload className="h-4 w-4" />
-                            <span className="text-xs">{newDeliverableFiles[activeProjectId] ? newDeliverableFiles[activeProjectId]?.name : "Subir archivo"}</span>
-                            <input type="file" accept="audio/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) { setNewDeliverableFiles((prev) => ({ ...prev, [activeProjectId]: file })); if (!newDeliverableTitles[activeProjectId]) { setNewDeliverableTitles((prev) => ({ ...prev, [activeProjectId]: file.name })); } } }} />
-                          </label>
-                          <input type="text" placeholder="URL externa (opcional)" value={newDeliverableUrls[activeProjectId] || ""} onChange={(e) => setNewDeliverableUrls((prev) => ({ ...prev, [activeProjectId]: e.target.value }))}
-                            className="w-40 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-3 py-2 text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]" />
-                          <button onClick={() => handleAddDeliverable(activeProjectId)} className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent-hover)]">
-                            <Plus className="h-4 w-4" />Añadir
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </motion.div>
-          )}
-
-          {/* ═════════════════════════════════════════════════════════
-              TAB 2: COTIZACIONES — Legacy preserved, restyled
-              ═════════════════════════════════════════════════════════ */}
-          {activeTab === "cotizaciones" && (
-            <motion.div key="cotizaciones" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }} className="space-y-6">
-              <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-8 shadow-[0_8px_30px_rgba(0,0,0,0.04)] sm:p-10">
-                <h2 className="font-serif text-2xl font-semibold text-[var(--color-text)]">Solicitudes de Cotización y Análisis Editorial</h2>
-                <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                  Aquí se reciben las peticiones de los autores de Studio Flamkit. Puedes evaluarlas, ajustar el presupuesto y activarlas como Proyectos con un solo clic.
-                </p>
+                <p className="mt-2 font-serif text-2xl font-semibold text-[var(--color-text)]">{kpi.value}</p>
               </div>
+            ))}
+          </motion.div>
 
-              {requestsError && (
-                <div className="rounded-2xl border border-[var(--color-error)]/20 bg-[var(--color-error-soft)] p-4 text-sm text-[var(--color-error)]">
-                  <strong>Error al cargar solicitudes de cotización</strong><p className="mt-1">{requestsError}</p>
-                </div>
-              )}
-
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {requests.length === 0 ? (
-                  <div className="col-span-full rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-10 text-center shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
-                    <Inbox className="mx-auto h-10 w-10 text-[var(--color-text-muted)]" />
-                    <p className="mt-4 text-sm text-[var(--color-text-secondary)]">No hay solicitudes de cotización o manuscritos pendientes.</p>
+          {/* ─── Alerts Banner (backed by real data) ─── */}
+          {(summary.pendingRequests > 0 || (adminWorkspaceData?.hasOpenReviews)) && (
+            <motion.div {...fadeInUp} className="mb-8 rounded-2xl border border-[var(--color-accent)]/30 bg-[var(--color-accent-soft)] p-4 sm:p-5 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--color-accent)] text-white">
+                    <AlertTriangle className="h-5 w-5" />
                   </div>
-                ) : (
-                  requests.map((request) => (
-                    <div key={request.id} className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_40px_rgba(0,0,0,0.06)]">
-                      <div className="mb-3 flex items-center justify-between">
-                        <span className="font-mono text-xs text-[var(--color-text-muted)]">Manuscrito #{request.request.id}</span>
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${request.status === "pendiente" ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)]" : "bg-[var(--color-info-soft)] text-[var(--color-info)]"}`}>
-                          {request.status === "pendiente" ? "Pendiente" : "En revisión"}
-                        </span>
-                      </div>
-                      <h3 className="font-serif text-lg font-semibold text-[var(--color-text)]">{request.title}</h3>
-                      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Autor: {request.client}</p>
-                      <div className="mt-3 space-y-1 text-xs text-[var(--color-text-muted)]">
-                        <p>{request.chapters} capítulos</p>
-                        {request.wordCount ? <p>{request.wordCount.toLocaleString()} palabras (~{request.durationMinutes} min)</p> : null}
-                        <p>Fecha: {request.request.createdAt.slice(0, 10)}</p>
-                      </div>
-                      <div className="mt-4 border-t border-[var(--color-border)] pt-4">
-                        <div className="flex items-center justify-between">
-                          <span className="font-serif text-xl font-semibold text-[var(--color-premium)]">${request.amount} USD</span>
-                          <span className="text-xs text-[var(--color-text-muted)]">Presupuesto estimado</span>
-                        </div>
-                      </div>
-                      <div className="mt-4 space-y-2">
-                        <label className="text-xs font-medium text-[var(--color-text-secondary)]">Cambiar estado del análisis:</label>
-                        <div className="flex gap-2">
-                          {(["pendiente", "en_revision"] as QuotationRequestStatus[]).map((st) => (
-                            <button key={st} onClick={() => handleQuotationStatus(request.request.id, st)}
-                              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${request.status === st ? "bg-[var(--color-accent)] text-white" : "border border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:border-[var(--color-accent)]/30"}`}>
-                              {st === "pendiente" ? "Pendiente" : "En revisión"}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <button onClick={() => handleConvertQuoteToProject(request)} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent-hover)]">
-                        <ArrowRightCircle className="h-4 w-4" />Convertir en Obra Activa
-                      </button>
-                      <button onClick={() => handleDeleteQuote(request.request.id)} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--color-error)]/20 px-4 py-2 text-xs font-medium text-[var(--color-error)] transition-colors hover:bg-[var(--color-error-soft)]">
-                        <Trash2 className="h-3.5 w-3.5" />Eliminar solicitud
-                      </button>
-                    </div>
-                  ))
+                  <div>
+                    <h4 className="text-sm font-semibold text-[var(--color-text)]">Atención Requerida</h4>
+                    <p className="text-xs text-[var(--color-text-secondary)]">
+                      {summary.pendingRequests > 0 && adminWorkspaceData?.hasOpenReviews
+                        ? `${summary.pendingRequests} solicitud(es) de cotización pendiente(s) y revisiones abiertas del autor.`
+                        : summary.pendingRequests > 0
+                        ? `${summary.pendingRequests} nueva(s) solicitud(es) de cotización esperando evaluación.`
+                        : "El autor ha registrado nuevo feedback o revisiones abiertas en la obra."}
+                    </p>
+                  </div>
+                </div>
+                {summary.pendingRequests > 0 && activeTab !== "cotizaciones" && (
+                  <button
+                    onClick={() => setActiveTab("cotizaciones")}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-accent)] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[var(--color-accent-hover)] shrink-0 cursor-pointer"
+                  >
+                    Ver Cotizaciones <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
                 )}
               </div>
             </motion.div>
           )}
 
+          {/* ─── Tabs Navigation ─── */}
+          <div className="mb-8 flex items-center gap-2 border-b border-[var(--color-border)] pb-1">
+            {([{ id: "proyectos", label: "Proyectos en Curso" }, { id: "cotizaciones", label: "Cotizaciones" }, { id: "crear", label: "Registrar Obra" }] as const).map((tab) => (
+              <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                className={`relative px-4 py-2.5 text-sm font-medium transition-colors cursor-pointer ${activeTab === tab.id ? "text-[var(--color-accent)]" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"}`}>
+                {tab.label}
+                {activeTab === tab.id && <motion.div layoutId="adminTabIndicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--color-accent)]" />}
+              </button>
+            ))}
+          </div>
+
           {/* ═════════════════════════════════════════════════════════
-              TAB 3: CREAR — Legacy preserved, restyled
+              TAB 1: PROYECTOS — NEW ADMIN EXPERIENCE
               ═════════════════════════════════════════════════════════ */}
-          {activeTab === "crear" && (
-            <motion.div key="crear" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }} className="space-y-6">
-              <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-8 shadow-[0_8px_30px_rgba(0,0,0,0.04)] sm:p-10">
-                <h2 className="font-serif text-2xl font-semibold text-[var(--color-text)]">Registrar Nueva Obra Manualmente</h2>
-                <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                  Utiliza este formulario para dar de alta a un autor con el que ya has acordado un límite de revisiones y presupuesto, saltándote el paso de cotización previa.
-                </p>
-              </div>
+          <AnimatePresence mode="wait">
+            {activeTab === "proyectos" && (
+              <motion.div key="proyectos" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }} className="space-y-6">
+                {projectsError && (
+                  <div className="rounded-2xl border border-[var(--color-error)]/20 bg-[var(--color-error-soft)] p-4 text-sm text-[var(--color-error)]">
+                    <strong>Error al cargar proyectos de la base de datos</strong><p className="mt-1">{projectsError}</p>
+                  </div>
+                )}
 
-              {creationSuccess && (
-                <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="rounded-2xl border border-[var(--color-success)]/20 bg-[var(--color-success-soft)] p-4 text-sm text-[var(--color-success)]">
-                  <div className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5" />¡Obra registrada exitosamente! Se ha añadido a la pestaña "Proyectos en Curso".</div>
-                </motion.div>
-              )}
+                {projects.length === 0 ? (
+                  <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-10 text-center shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
+                    <BookOpen className="mx-auto h-10 w-10 text-[var(--color-text-muted)]" />
+                    <p className="mt-4 text-sm text-[var(--color-text-secondary)]">No se encontraron proyectos activos en este momento.</p>
+                    <p className="mt-1 text-xs text-[var(--color-text-muted)]">Crea un nuevo proyecto en la pestaña &quot;Registrar Obra&quot; o aprueba un manuscrito.</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Context Selectors */}
+                    <div className="flex flex-col gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-5 sm:flex-row sm:items-center">
+                      <div className="flex items-center gap-3">
+                        <User className="h-4 w-4 text-[var(--color-text-muted)]" />
+                        <label className="text-sm font-medium text-[var(--color-text-secondary)]">Autor:</label>
+                        <select value={currentAuthor} onChange={(e) => { setSelectedAuthor(e.target.value); setSelectedProjectId(""); }}
+                          className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]">
+                          {authorNames.map((name) => (<option key={name} value={name}>{name}</option>))}
+                        </select>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <BookOpen className="h-4 w-4 text-[var(--color-text-muted)]" />
+                        <label className="text-sm font-medium text-[var(--color-text-secondary)]">Obra Activa:</label>
+                        <select value={currentProjectId} onChange={(e) => setSelectedProjectId(e.target.value)}
+                          className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]">
+                          {currentAuthorProjects.map((p) => (<option key={p.id} value={p.id}>{p.title} ({statusLabels[p.status]})</option>))}
+                        </select>
+                      </div>
+                      <div className="flex flex-wrap gap-2 sm:ml-auto">
+                        {currentAuthorProjects.map((p) => {
+                          const isActive = p.id === currentProjectId;
+                          return (
+                            <button key={p.id} onClick={() => setSelectedProjectId(p.id)}
+                              className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${isActive ? "border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-accent)]" : "border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:border-[var(--color-accent)]/30"}`}>
+                              {p.title}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
 
-              <form onSubmit={handleCreateProjectManually} className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)] sm:p-8 lg:max-w-2xl">
-                <div className="space-y-5">
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-[var(--color-text-secondary)]">Título de la obra</label>
-                    <input type="text" value={newProjTitle} onChange={(e) => setNewProjTitle(e.target.value)} placeholder="Ej: El Último Arcano"
-                      className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-accent)]" required />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-[var(--color-text-secondary)]">Nombre del autor</label>
-                    <input type="text" value={newProjClient} onChange={(e) => setNewProjClient(e.target.value)} placeholder="Ej: María González"
-                      className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-accent)]" required />
-                  </div>
-                  <div className="grid gap-5 sm:grid-cols-2">
-                    <div>
-                      <label className="mb-1.5 block text-sm font-medium text-[var(--color-text-secondary)]">Estado inicial</label>
-                      <select value={newProjStatus} onChange={(e) => setNewProjStatus(e.target.value as AdminProjectStatus)}
-                        className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]">
-                        <option value="analisis">Análisis</option>
-                        <option value="produccion">Producción</option>
-                        <option value="revisiones">Revisiones</option>
-                        <option value="completado">Completado</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="mb-1.5 block text-sm font-medium text-[var(--color-text-secondary)]">Capítulos estimados</label>
-                      <input type="number" min={1} value={newProjChapters} onChange={(e) => setNewProjChapters(parseInt(e.target.value) || 1)}
-                        className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]" />
-                    </div>
-                  </div>
-                  <div className="grid gap-5 sm:grid-cols-2">
-                    <div>
-                      <label className="mb-1.5 block text-sm font-medium text-[var(--color-text-secondary)]">Presupuesto (USD)</label>
-                      <input type="number" min={0} value={newProjAmount} onChange={(e) => setNewProjAmount(parseFloat(e.target.value) || 0)}
-                        className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]" />
-                    </div>
-                    <div>
-                      <label className="mb-1.5 block text-sm font-medium text-[var(--color-text-secondary)]">Revisiones incluidas</label>
-                      <input type="number" min={0} value={newProjMaxRevisions} onChange={(e) => setNewProjMaxRevisions(parseInt(e.target.value) || 0)}
-                        className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]" />
-                    </div>
-                  </div>
-                  <button type="submit" className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent-hover)] sm:w-auto">
-                    <Plus className="h-4 w-4" />Registrar Obra
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                    {/* NEW ADMIN LAYOUT */}
+                    {activeProject && (
+                      <div className="space-y-6">
+                        {/* 1. Header / Context */}
+                        <AdminProjectHeader workspaceProject={activeWorkspaceProject} legacyProject={activeProject} progress={adminWorkspaceData?.progress ?? null} hasOpenReviews={adminWorkspaceData?.hasOpenReviews ?? false} currentPhaseLabel={editorialJourney?.currentPhase ? statusLabels[activeProject.status] ?? "En curso" : "Sin obra seleccionada"} />
 
-        {/* ═════════════════════════════════════════════════════════
-            CHAT / FEEDBACK SLIDE-OVER (Legacy preserved, restyled)
-            ═════════════════════════════════════════════════════════ */}
-        <AnimatePresence>
-          {selectedProject && selectedDeliverable && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex justify-end">
-              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setSelectedProject(null); setSelectedDeliverable(null); }} />
-              <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="relative z-10 flex h-full w-full max-w-lg flex-col border-l border-[var(--color-border)] bg-[var(--color-bg-elevated)] shadow-2xl">
-                {/* Header */}
-                <div className="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-4">
-                  <div>
-                    <h3 className="font-serif text-lg font-semibold text-[var(--color-text)]">{selectedDeliverable.title}</h3>
-                    <p className="text-xs text-[var(--color-text-muted)]">Obra: {selectedProject.title}</p>
-                  </div>
-                  <button onClick={() => { setSelectedProject(null); setSelectedDeliverable(null); }} className="rounded-lg p-2 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text)]">
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
+                        {/* 2. Editorial Journey */}
+                        <AdminEditorialJourneyView journey={editorialJourney} />
 
-                {/* Messages */}
-                <div className="flex-1 space-y-4 overflow-y-auto p-6">
-                  {selectedDeliverable.comments && selectedDeliverable.comments.length > 0 ? (
-                    selectedDeliverable.comments.map((comment) => (
-                      <div key={comment.id} className={`flex gap-3 ${comment.sender === "admin" ? "flex-row-reverse" : ""}`}>
-                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${comment.sender === "admin" ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)]" : "bg-[var(--color-premium-soft)] text-[var(--color-premium)]"}`}>
-                          {comment.sender === "admin" ? "A" : "U"}
+                        {/* 3. Next Action */}
+                        <AdminNextActionCard journey={editorialJourney} hasOpenReviews={adminWorkspaceData?.hasOpenReviews ?? false} legacyStatus={activeProject.status} />
+
+                        {/* 4. Three-column grid: Progress | Request/Proposal */}
+                        <div className="grid gap-6 lg:grid-cols-3">
+                          <AdminProgressPanel progress={adminWorkspaceData?.progress ?? null} legacyProgress={activeProject.progress} currentStageName={adminWorkspaceData?.progress?.currentStageId ? `Etapa ${adminWorkspaceData.progress.currentStageId.slice(0, 6)}…` : null} />
+                          <div className="lg:col-span-2">
+                            <AdminRequestProposalPanel request={linkedRequest} workspaceProject={activeWorkspaceProject} />
+                          </div>
                         </div>
-                        <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${comment.sender === "admin" ? "bg-[var(--color-accent)] text-white" : "border border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-[var(--color-text)]"}`}>
-                          <p>{comment.text}</p>
-                          <p className={`mt-1 text-[10px] ${comment.sender === "admin" ? "text-white/60" : "text-[var(--color-text-muted)]"}`}>{comment.timestamp}</p>
+
+                        {/* 5. Chapters & Deliverables - Primary Consolidated View */}
+                        <AdminChaptersDeliverablesPanel
+                          chapters={activeProject.chapterList ?? []}
+                          deliverables={activeProject.deliverables}
+                          onToggleDeliverable={(deliverableId) => handleToggleDeliverable(activeProjectId, deliverableId)}
+                          onOpenFeedback={(deliverable) => openChatPanel(activeProject, deliverable)}
+                          onUpdateChapterStatus={(chapterId, newStatus) => handleUpdateChapterStatus(chapterId, newStatus)}
+                          onDeleteChapter={(chapterId) => handleDeleteChapter(chapterId)}
+                        />
+
+                        {/* 6. Feedback / Review */}
+                        <AdminFeedbackReviewPanel deliverables={activeProject.deliverables} hasOpenReviews={adminWorkspaceData?.hasOpenReviews ?? false} onOpenFeedback={(deliverable) => openChatPanel(activeProject, deliverable)} />
+
+                        {/* ─── CONSOLIDATED OPERATIONAL ACTIONS ─── */}
+                        <div className="grid gap-6 lg:grid-cols-3">
+                          {/* Status & Limits Control */}
+                          <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)] sm:p-8">
+                            <h3 className="font-serif text-lg font-semibold text-[var(--color-text)]">Configuración de Obra</h3>
+                            <p className="mt-1 text-xs text-[var(--color-text-muted)]">Ajusta el estado editorial, presupuesto y límite de revisiones sincronizado con Supabase.</p>
+                            
+                            <div className="mt-4 space-y-2">
+                              {(["analisis", "produccion", "revisiones", "completado"] as AdminProjectStatus[]).map((st) => (
+                                <button key={st} onClick={() => handleProjectStatus(activeProjectId, st)}
+                                  className={`flex w-full items-center justify-between rounded-xl border px-4 py-2.5 text-xs font-medium transition-all ${activeProject.status === st ? statusStyles[st] : "border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:border-[var(--color-accent)]/20"}`}>
+                                  <span>{statusLabels[st]}</span>{activeProject.status === st && <CheckCircle2 className="h-4 w-4" />}
+                                </button>
+                              ))}
+                            </div>
+
+                            <div className="mt-5 border-t border-[var(--color-border)] pt-4">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-medium text-[var(--color-text-secondary)]">Presupuesto</span>
+                                <button onClick={() => handleUpdateBudget(activeProjectId, activeProject.amount || 0)} className="text-xs font-semibold text-[var(--color-accent)] hover:underline">Editar</button>
+                              </div>
+                              <p className="mt-1 font-serif text-xl font-semibold text-[var(--color-text)]">${activeProject.amount || 0} USD</p>
+                            </div>
+
+                            <div className="mt-4 border-t border-[var(--color-border)] pt-4">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-medium text-[var(--color-text-secondary)]">Límite de Revisiones</span>
+                                <div className="flex items-center gap-2">
+                                  <button onClick={() => handleUpdateMaxRevisions(activeProjectId, false, activeProject.maxRevisions)} className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-secondary)]">-</button>
+                                  <span className="w-6 text-center text-xs font-semibold">{activeProject.maxRevisions}</span>
+                                  <button onClick={() => handleUpdateMaxRevisions(activeProjectId, true, activeProject.maxRevisions)} className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-secondary)]">+</button>
+                                </div>
+                              </div>
+                              <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">{activeProject.revisionsUsed} / {activeProject.maxRevisions} usadas</p>
+                            </div>
+                          </div>
+
+                          {/* Add Chapter Action */}
+                          <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)] sm:p-8">
+                            <h3 className="font-serif text-lg font-semibold text-[var(--color-text)]">Añadir Nuevo Capítulo</h3>
+                            <p className="mt-1 text-xs text-[var(--color-text-muted)]">Inserta un nuevo capítulo numerado al plan de producción del proyecto.</p>
+
+                            <div className="mt-4 space-y-3">
+                              <div>
+                                <label className="mb-1 block text-xs font-medium text-[var(--color-text-secondary)]">Título del capítulo</label>
+                                <input type="text" placeholder="Ej: Capítulo I - La Revelación" value={newChapterTitles[activeProjectId] || ""} onChange={(e) => setNewChapterTitles((prev) => ({ ...prev, [activeProjectId]: e.target.value }))}
+                                  className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 py-2.5 text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]" />
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs font-medium text-[var(--color-text-secondary)]">Conteo de palabras</label>
+                                <input type="number" placeholder="Ej: 3500" value={newChapterWords[activeProjectId] || 3000} onChange={(e) => setNewChapterWords((prev) => ({ ...prev, [activeProjectId]: parseInt(e.target.value) || 0 }))}
+                                  className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 py-2.5 text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]" />
+                              </div>
+                              <button onClick={() => handleCreateChapter(activeProjectId, activeProject.chapterList?.length || 0)}
+                                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-[var(--color-accent)] px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--color-accent-hover)] cursor-pointer">
+                                <Plus className="h-4 w-4" /> Registrar Capítulo
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Upload Deliverable Audio */}
+                          <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)] sm:p-8">
+                            <h3 className="font-serif text-lg font-semibold text-[var(--color-text)]">Subir Archivo de Audio</h3>
+                            <p className="mt-1 text-xs text-[var(--color-text-muted)]">Publica entregables de audio o maquetas para que el autor las revise.</p>
+
+                            <div className="mt-4 space-y-3">
+                              <div>
+                                <label className="mb-1 block text-xs font-medium text-[var(--color-text-secondary)]">Título del entregable</label>
+                                <input type="text" placeholder="Ej: Muestra Capítulo 1 (Audio)" value={newDeliverableTitles[activeProjectId] || ""} onChange={(e) => setNewDeliverableTitles((prev) => ({ ...prev, [activeProjectId]: e.target.value }))}
+                                  className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 py-2.5 text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]" />
+                              </div>
+
+                              <div>
+                                <label className="mb-1 block text-xs font-medium text-[var(--color-text-secondary)]">Archivo MP3/WAV o enlace</label>
+                                <label className="flex cursor-pointer items-center justify-between rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 py-2 text-xs text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-accent)]">
+                                  <span className="truncate max-w-[180px]">{newDeliverableFiles[activeProjectId] ? newDeliverableFiles[activeProjectId]?.name : "Seleccionar audio..."}</span>
+                                  <Upload className="h-4 w-4 text-[var(--color-accent)] shrink-0" />
+                                  <input type="file" accept="audio/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) { setNewDeliverableFiles((prev) => ({ ...prev, [activeProjectId]: file })); if (!newDeliverableTitles[activeProjectId]) { setNewDeliverableTitles((prev) => ({ ...prev, [activeProjectId]: file.name })); } } }} />
+                                </label>
+                              </div>
+
+                              <div>
+                                <input type="text" placeholder="URL externa opcional (SoundCloud/Drive)" value={newDeliverableUrls[activeProjectId] || ""} onChange={(e) => setNewDeliverableUrls((prev) => ({ ...prev, [activeProjectId]: e.target.value }))}
+                                  className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 py-2 text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]" />
+                              </div>
+
+                              <button onClick={() => handleAddDeliverable(activeProjectId)} className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-[var(--color-accent)] px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--color-accent-hover)] cursor-pointer">
+                                <Plus className="h-4 w-4" /> Publicar Entregable
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    ))
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-12 text-center">
-                      <MessageCircle className="h-10 w-10 text-[var(--color-text-muted)]" />
-                      <p className="mt-3 text-sm text-[var(--color-text-secondary)]">No hay mensajes de feedback para este entregable.</p>
-                      <p className="mt-1 text-xs text-[var(--color-text-muted)]">Escribe el primer comentario para iniciar la conversación.</p>
-                    </div>
-                  )}
+                    )}
+                  </>
+                )}
+              </motion.div>
+            )}
+
+            {/* ═════════════════════════════════════════════════════════
+                TAB 2: COTIZACIONES — Legacy preserved, restyled
+                ═════════════════════════════════════════════════════════ */}
+            {activeTab === "cotizaciones" && (
+              <motion.div key="cotizaciones" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }} className="space-y-6">
+                <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-8 shadow-[0_8px_30px_rgba(0,0,0,0.04)] sm:p-10">
+                  <h2 className="font-serif text-2xl font-semibold text-[var(--color-text)]">Solicitudes de Cotización y Análisis Editorial</h2>
+                  <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[var(--color-text-secondary)]">
+                    Aquí se reciben las peticiones de los autores de Studio Flamkit. Puedes evaluarlas, ajustar el presupuesto y activarlas como Proyectos con un solo clic.
+                  </p>
                 </div>
 
-                {/* Input */}
-                <form onSubmit={handleSendComment} className="border-t border-[var(--color-border)] p-4">
-                  <div className="flex items-center gap-3">
-                    <input type="text" value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Escribe tu respuesta..."
-                      className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-accent)]" />
-                    <button type="submit" disabled={!replyText.trim()}
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--color-accent)] text-white transition-colors hover:bg-[var(--color-accent-hover)] disabled:opacity-40">
-                      <Send className="h-4 w-4" />
+                {requestsError && (
+                  <div className="rounded-2xl border border-[var(--color-error)]/20 bg-[var(--color-error-soft)] p-4 text-sm text-[var(--color-error)]">
+                    <strong>Error al cargar solicitudes de cotización</strong><p className="mt-1">{requestsError}</p>
+                  </div>
+                )}
+
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {requests.length === 0 ? (
+                    <div className="col-span-full rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-10 text-center shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
+                      <Inbox className="mx-auto h-10 w-10 text-[var(--color-text-muted)]" />
+                      <p className="mt-4 text-sm text-[var(--color-text-secondary)]">No hay solicitudes de cotización o manuscritos pendientes.</p>
+                    </div>
+                  ) : (
+                    requests.map((request) => (
+                      <div key={request.id} className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_40px_rgba(0,0,0,0.06)]">
+                        <div className="mb-3 flex items-center justify-between">
+                          <span className="font-mono text-xs text-[var(--color-text-muted)]">Manuscrito #{request.request.id}</span>
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${request.status === "pendiente" ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)]" : "bg-[var(--color-info-soft)] text-[var(--color-info)]"}`}>
+                            {request.status === "pendiente" ? "Pendiente" : "En revisión"}
+                          </span>
+                        </div>
+                        <h3 className="font-serif text-lg font-semibold text-[var(--color-text)]">{request.title}</h3>
+                        <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Autor: {request.client}</p>
+                        <div className="mt-3 space-y-1 text-xs text-[var(--color-text-muted)]">
+                          <p>{request.chapters} capítulos</p>
+                          {request.wordCount ? <p>{request.wordCount.toLocaleString()} palabras (~{request.durationMinutes} min)</p> : null}
+                          <p>Fecha: {request.request.createdAt.slice(0, 10)}</p>
+                        </div>
+                        <div className="mt-4 border-t border-[var(--color-border)] pt-4">
+                          <div className="flex items-center justify-between">
+                            <span className="font-serif text-xl font-semibold text-[var(--color-premium)]">${request.amount} USD</span>
+                            <span className="text-xs text-[var(--color-text-muted)]">Presupuesto estimado</span>
+                          </div>
+                        </div>
+                        <div className="mt-4 space-y-2">
+                          <label className="text-xs font-medium text-[var(--color-text-secondary)]">Cambiar estado del análisis:</label>
+                          <div className="flex gap-2">
+                            {(["pendiente", "en_revision"] as QuotationRequestStatus[]).map((st) => (
+                              <button key={st} onClick={() => handleQuotationStatus(request.request.id, st)}
+                                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${request.status === st ? "bg-[var(--color-accent)] text-white" : "border border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:border-[var(--color-accent)]/30"}`}>
+                                {st === "pendiente" ? "Pendiente" : "En revisión"}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <button onClick={() => handleConvertQuoteToProject(request)} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent-hover)] cursor-pointer">
+                          <ArrowRightCircle className="h-4 w-4" />Convertir en Obra Activa
+                        </button>
+                        <button onClick={() => handleDeleteQuote(request.request.id)} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--color-error)]/20 px-4 py-2 text-xs font-medium text-[var(--color-error)] transition-colors hover:bg-[var(--color-error-soft)] cursor-pointer">
+                          <Trash2 className="h-3.5 w-3.5" />Eliminar solicitud
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {/* ═════════════════════════════════════════════════════════
+                TAB 3: CREAR — Legacy preserved, restyled
+                ═════════════════════════════════════════════════════════ */}
+            {activeTab === "crear" && (
+              <motion.div key="crear" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }} className="space-y-6">
+                <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-8 shadow-[0_8px_30px_rgba(0,0,0,0.04)] sm:p-10">
+                  <h2 className="font-serif text-2xl font-semibold text-[var(--color-text)]">Registrar Nueva Obra Manualmente</h2>
+                  <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[var(--color-text-secondary)]">
+                    Utiliza este formulario para dar de alta a un autor con el que ya has acordado un límite de revisiones y presupuesto, saltándote el paso de cotización previa.
+                  </p>
+                </div>
+
+                {creationSuccess && (
+                  <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="rounded-2xl border border-[var(--color-success)]/20 bg-[var(--color-success-soft)] p-4 text-sm text-[var(--color-success)]">
+                    <div className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5" />¡Obra registrada exitosamente! Se ha añadido a la pestaña &quot;Proyectos en Curso&quot;.</div>
+                  </motion.div>
+                )}
+
+                <form onSubmit={handleCreateProjectManually} className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)] sm:p-8 lg:max-w-2xl">
+                  <div className="space-y-5">
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-[var(--color-text-secondary)]">Título de la obra</label>
+                      <input type="text" value={newProjTitle} onChange={(e) => setNewProjTitle(e.target.value)} placeholder="Ej: El Último Arcano"
+                        className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-accent)]" required />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-[var(--color-text-secondary)]">Nombre del autor</label>
+                      <input type="text" value={newProjClient} onChange={(e) => setNewProjClient(e.target.value)} placeholder="Ej: María González"
+                        className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-accent)]" required />
+                    </div>
+                    <div className="grid gap-5 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1.5 block text-sm font-medium text-[var(--color-text-secondary)]">Estado inicial</label>
+                        <select value={newProjStatus} onChange={(e) => setNewProjStatus(e.target.value as AdminProjectStatus)}
+                          className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]">
+                          <option value="analisis">Análisis</option>
+                          <option value="produccion">Producción</option>
+                          <option value="revisiones">Revisiones</option>
+                          <option value="completado">Completado</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-sm font-medium text-[var(--color-text-secondary)]">Capítulos estimados</label>
+                        <input type="number" min={1} value={newProjChapters} onChange={(e) => setNewProjChapters(parseInt(e.target.value) || 1)}
+                          className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]" />
+                      </div>
+                    </div>
+                    <div className="grid gap-5 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1.5 block text-sm font-medium text-[var(--color-text-secondary)]">Presupuesto (USD)</label>
+                        <input type="number" min={0} value={newProjAmount} onChange={(e) => setNewProjAmount(parseFloat(e.target.value) || 0)}
+                          className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]" />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-sm font-medium text-[var(--color-text-secondary)]">Revisiones incluidas</label>
+                        <input type="number" min={0} value={newProjMaxRevisions} onChange={(e) => setNewProjMaxRevisions(parseInt(e.target.value) || 0)}
+                          className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]" />
+                      </div>
+                    </div>
+                    <button type="submit" className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent-hover)] sm:w-auto cursor-pointer">
+                      <Plus className="h-4 w-4" />Registrar Obra
                     </button>
                   </div>
                 </form>
               </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            )}
+          </AnimatePresence>
+
+          {/* ═════════════════════════════════════════════════════════
+              CHAT / FEEDBACK SLIDE-OVER (Legacy preserved, restyled)
+              ═════════════════════════════════════════════════════════ */}
+          <AnimatePresence>
+            {selectedProject && selectedDeliverable && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex justify-end">
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setSelectedProject(null); setSelectedDeliverable(null); }} />
+                <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                  className="relative z-10 flex h-full w-full max-w-lg flex-col border-l border-[var(--color-border)] bg-[var(--color-bg-elevated)] shadow-2xl">
+                  {/* Header */}
+                  <div className="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-4">
+                    <div>
+                      <h3 className="font-serif text-lg font-semibold text-[var(--color-text)]">{selectedDeliverable.title}</h3>
+                      <p className="text-xs text-[var(--color-text-muted)]">Obra: {selectedProject.title}</p>
+                    </div>
+                    <button onClick={() => { setSelectedProject(null); setSelectedDeliverable(null); }} className="rounded-lg p-2 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text)]">
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+
+                  {/* Messages */}
+                  <div className="flex-1 space-y-4 overflow-y-auto p-6">
+                    {selectedDeliverable.comments && selectedDeliverable.comments.length > 0 ? (
+                      selectedDeliverable.comments.map((comment) => (
+                        <div key={comment.id} className={`flex gap-3 ${comment.sender === "admin" ? "flex-row-reverse" : ""}`}>
+                          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${comment.sender === "admin" ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)]" : "bg-[var(--color-premium-soft)] text-[var(--color-premium)]"}`}>
+                            {comment.sender === "admin" ? "A" : "U"}
+                          </div>
+                          <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${comment.sender === "admin" ? "bg-[var(--color-accent)] text-white" : "border border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-[var(--color-text)]"}`}>
+                            <p>{comment.text}</p>
+                            <p className={`mt-1 text-[10px] ${comment.sender === "admin" ? "text-white/60" : "text-[var(--color-text-muted)]"}`}>{comment.timestamp}</p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-12 text-center">
+                        <MessageCircle className="h-10 w-10 text-[var(--color-text-muted)]" />
+                        <p className="mt-3 text-sm text-[var(--color-text-secondary)]">No hay mensajes de feedback para este entregable.</p>
+                        <p className="mt-1 text-xs text-[var(--color-text-muted)]">Escribe el primer comentario para iniciar la conversación.</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Input */}
+                  <form onSubmit={handleSendComment} className="border-t border-[var(--color-border)] p-4">
+                    <div className="flex items-center gap-3">
+                      <input type="text" value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Escribe tu respuesta..."
+                        className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-accent)]" />
+                      <button type="submit" disabled={!replyText.trim()}
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--color-accent)] text-white transition-colors hover:bg-[var(--color-accent-hover)] disabled:opacity-40 cursor-pointer">
+                        <Send className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </form>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
-    </div>
+
+      <Footer />
+    </main>
   );
+
 }
