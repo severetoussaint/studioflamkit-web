@@ -13,10 +13,10 @@ import {
   MessageSquareWarning,
   PackageCheck,
 } from 'lucide-react';
-import type { AdminEditorialJourney, AdminEditorialStep, AdminEditorialPhase } from './adminEditorialJourney';
+import type { AdminEditorialJourneyModel, AdminEditorialStep, AdminEditorialPhase } from './adminEditorialJourney.model';
 
-interface AdminEditorialJourneyProps {
-  journey: AdminEditorialJourney | null;
+interface AdminEditorialJourneyViewProps {
+  journey: AdminEditorialJourneyModel | null;
 }
 
 const PHASE_ICONS: Record<AdminEditorialPhase, React.ReactNode> = {
@@ -53,7 +53,7 @@ function StepConnector({ done }: { done: boolean }) {
   );
 }
 
-export function AdminEditorialJourney({ journey }: AdminEditorialJourneyProps) {
+export function AdminEditorialJourneyView({ journey }: AdminEditorialJourneyViewProps) {
   if (!journey) {
     return (
       <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-8 shadow-[0_8px_30px_rgba(0,0,0,0.04)]">

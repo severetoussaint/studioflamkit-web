@@ -27,7 +27,7 @@ export interface AdminEditorialStep {
   adminHint: string; // qué debe hacer el admin en esta etapa
 }
 
-export interface AdminEditorialJourney {
+export interface AdminEditorialJourneyModel {
   currentPhase: AdminEditorialPhase;
   steps: AdminEditorialStep[];
   nextActionTitle: string;
@@ -193,7 +193,7 @@ function deriveNextAction(phase: AdminEditorialPhase, ctx: DeriveContext): { tit
   }
 }
 
-export function deriveAdminEditorialJourney(ctx: DeriveContext): AdminEditorialJourney {
+export function deriveAdminEditorialJourney(ctx: DeriveContext): AdminEditorialJourneyModel {
   const currentPhase = resolvePhase(ctx);
   const steps = buildSteps(currentPhase, ctx);
   const nextAction = deriveNextAction(currentPhase, ctx);
