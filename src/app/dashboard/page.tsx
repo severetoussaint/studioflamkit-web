@@ -232,13 +232,26 @@ export default function DashboardPage() {
   useEffect(() => {
     let isMounted = true;
     async function checkAuth() {
-      const u = await getUser();
-      if (!isMounted) return;
-      if (!u) {
-        router.replace('/login');
-        return;
+      try {
+        const u = await getUser();
+        if (!isMounted) return;
+
+        if (!u) {
+          router.replace('/login');
+          return;
+        }
+
+        setAuthorId(u.id);
+      } catch (error) {
+        console.error('Error al verificar la sesiÃ³n del dashboard:', error);
+        if (isMounted) {
+          router.replace('/login');
+        }
+      } finally {
+        if (isMounted) {
+          setIsChecking(false);
+        }
       }
-      setAuthorId(u.id);
     }
     checkAuth();
     return () => {
@@ -317,8 +330,6 @@ export default function DashboardPage() {
         }
       } catch (err) {
         console.error('Error al cargar datos del proyecto:', err);
-      } finally {
-        if (isMounted) setIsChecking(false);
       }
     }
 
