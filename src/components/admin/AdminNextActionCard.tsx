@@ -2,10 +2,10 @@
 
 import React from "react";
 import { ArrowRight, AlertCircle, CheckCircle2, Info } from "lucide-react";
-import type { AdminEditorialJourneyModel } from "./adminEditorialJourney.model";
+import type { AdminEditorialJourney } from "./adminEditorialJourney";
 
 interface AdminNextActionCardProps {
-  journey: AdminEditorialJourneyModel | null;
+  journey: AdminEditorialJourney | null;
   hasOpenReviews: boolean;
   legacyStatus?: string | null;
   onActionClick?: () => void;
