@@ -53,6 +53,12 @@ import { NextActionCard } from '@/components/dashboard/NextActionCard';
 import { AuthorCarousel } from '@/components/dashboard/AuthorCarousel';
 import { FilesLibraryModal } from '@/components/dashboard/FilesLibraryModal';
 import { ManuscriptSwitcher } from '@/components/dashboard/ManuscriptSwitcher';
+import { StatusPill } from '@/components/dashboard/StatusPill';
+import { ChapterCard } from '@/components/dashboard/ChapterCard';
+import { EmptyStateCard } from '@/components/dashboard/EmptyStateCard';
+import { SidebarNav } from '@/components/dashboard/SidebarNav';
+import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
+import { DeliverableItemRow } from '@/components/dashboard/DeliverableItemRow';
 
 type SectionId = 'resumen' | 'capitulos' | 'entregables' | 'pagos' | 'perfil';
 
@@ -95,29 +101,6 @@ const initialChapters: ChapterItem[] = [];
 const initialComments: Record<string, CommentItem[]> = {};
 
 const deliverables: { title: string; date: string; size: string; format: string }[] = [];
-
-function StatusPill({ status }: { status: string }) {
-  const isDone = status === 'Completado' || status === 'Pagado' || status === 'Aprobado';
-  const isRevision = status === 'Revisiones';
-
-  let style = 'border-edge bg-surface text-ink-muted';
-  if (isDone) {
-    style = 'border-accent/40 bg-accent/15 text-accent font-medium';
-  } else if (isRevision) {
-    style = 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium';
-  }
-
-  return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition ${style}`}>
-      {isDone ? (
-        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-accent" />
-      ) : (
-        <Clock className="h-3.5 w-3.5 shrink-0" />
-      )}
-      {status}
-    </span>
-  );
-}
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -542,182 +525,29 @@ export default function DashboardPage() {
         <div className="grid gap-8 lg:grid-cols-[240px_1fr] xl:grid-cols-[260px_1fr]">
 
           {/* Sidebar de Navegación */}
-          <aside className="space-y-6 lg:sticky lg:top-20 self-start">
-            <div className="rounded-3xl border-edge bg-surface-elevated p-3 shadow-xs">
-              <p className="px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-muted">
-                Navegación
-              </p>
-              <nav className="mt-1 flex gap-1.5 overflow-x-auto lg:flex-col lg:overflow-visible">
-                {sections.map((section) => {
-                  const Icon = section.icon;
-                  const isActive = active === section.id;
-                  return (
-                    <button
-                      key={section.id}
-                      type="button"
-                      onClick={() => setActive(section.id)}
-                      className={`group relative flex shrink-0 items-center justify-between rounded-2xl px-3.5 py-3 text-sm font-medium transition-all cursor-pointer ${
-                        isActive
-                          ? 'border-accent/30 bg-accent/10 text-accent shadow-2xs'
-                          : 'border-transparent text-ink-muted hover:border-edge hover:bg-surface hover:text-ink'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Icon className={`h-4 w-4 transition-transform group-hover:scale-110 ${isActive ? 'text-accent' : 'text-ink-muted'}`} strokeWidth={1.75} />
-                        <span>{section.label}</span>
-                      </div>
-                      {section.badge ? (
-                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                          isActive ? 'bg-accent/20 text-accent' : 'bg-surface border-edge text-ink-muted'
-                        }`}>
-                          {section.badge}
-                        </span>
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </nav>
-            </div>
-
-            {/* Widget informativo de soporte en la columna izquierda */}
-            <div className="hidden rounded-3xl border-edge bg-surface-elevated p-5 shadow-xs lg:block">
-              <div className="flex items-center gap-2 text-accent">
-                <Headphones className="h-4 w-4" />
-                <span className="text-xs font-semibold uppercase tracking-wider">Atención Directa</span>
-              </div>
-              <p className="mt-2 text-xs leading-relaxed text-ink-muted">
-                ¿Tienes alguna consulta sobre la locución o edición? Tu productor asignado está disponible.
-              </p>
-              <Link
-                href="/contacto"
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border-edge bg-surface px-3 py-2.5 text-xs font-medium text-ink transition hover:border-accent/40 hover:text-accent shadow-2xs"
-              >
-                <MessageCircle className="h-3.5 w-3.5" />
-                Contactar Productor
-              </Link>
-            </div>
-          </aside>
+          <SidebarNav
+            sections={sections}
+            activeSection={active}
+            onSectionChange={(sectionId) => setActive(sectionId)}
+          />
 
           {/* Contenido de la Sección Activa */}
           <div className="min-w-0 space-y-8">
             {/* Header unificado de la vista */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-edge/60">
-              <div className="w-full sm:max-w-xl">
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <span className="inline-flex items-center gap-1.5 rounded-full border-accent/30 bg-accent/10 px-3 py-0.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">
-                    Centro del Autor
-                  </span>
-
-                  {requestState === 'active' && (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      Producción Activa
-                    </span>
-                  )}
-
-                  {requestState === 'pending' && (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
-                      <Clock className="h-3.5 w-3.5 shrink-0" />
-                      En Evaluación Editorial
-                    </span>
-                  )}
-
-                  {(hasActiveProject || requestState === 'pending') && (
-                    <span className="inline-flex items-center gap-1 rounded-md bg-surface border-edge/60 px-2.5 py-0.5 text-xs font-mono font-medium text-ink-muted">
-                      ID: {requestContext?.projectId ? `#PROJ-${requestContext.projectId.slice(0, 8).toUpperCase()}` : requestContext?.requestId ? `#REQ-${requestContext.requestId.slice(0, 8).toUpperCase()}` : '#SOLICITUD'}
-                    </span>
-                  )}
-                </div>
-
-                <div className="mt-3 relative inline-block text-left w-full">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-accent/90 mb-1">
-                    Obra Consultada
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsSelectorOpen(!isSelectorOpen)}
-                    className="group inline-flex items-center gap-2.5 rounded-2xl border border-edge bg-surface-elevated px-4 py-2 text-xl sm:text-2xl font-serif font-medium text-ink shadow-2xs hover:bg-surface transition cursor-pointer select-none max-w-full"
-                  >
-                    <span className="truncate">
-                      {requestState === 'active'
-                        ? (projectTitle || requestContext?.title || 'Tu Obra en Grabación')
-                        : requestState === 'pending'
-                        ? (requestContext?.title || 'Manuscrito en Evaluación Editorial')
-                        : 'Bienvenido a Studio Flamkit'}
-                    </span>
-                    <span className="text-xs text-ink-muted/80 transition-transform duration-200 group-hover:translate-y-0.5 shrink-0">▼</span>
-                  </button>
-
-                  {isSelectorOpen && (
-                    <>
-                      {/* Invisible backdrop to capture outside clicks and close the selector safely in iframes */}
-                      <div className="fixed inset-0 z-40 cursor-default" onClick={() => setIsSelectorOpen(false)} />
-
-                      <div className="absolute left-0 mt-2 w-72 sm:w-80 origin-top-left rounded-3xl border border-edge bg-surface-elevated/95 p-3 shadow-xl z-50 backdrop-blur-md">
-                        <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-ink-muted/70 border-b border-edge/40 pb-2 mb-2">
-                          Mis obras
-                        </div>
-                        <div className="space-y-1">
-                          {requestContext?.manuscripts && requestContext.manuscripts.length > 0 ? (
-                            requestContext.manuscripts.map((m) => {
-                              const info = getManuscriptSelectorInfo(m);
-                              const isSelected = m.id === activeManuscriptId;
-                              return (
-                                <button
-                                  key={m.id}
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedManuscriptId(m.id);
-                                    setIsSelectorOpen(false);
-                                  }}
-                                  className={`w-full text-left rounded-2xl p-2.5 transition flex flex-col gap-0.5 cursor-pointer ${
-                                    isSelected
-                                      ? 'bg-accent/10 text-accent font-medium'
-                                      : 'hover:bg-surface text-ink'
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-2 text-sm font-medium">
-                                    <span className={`h-2 w-2 rounded-full ${info.dotColor} shrink-0`} />
-                                    <span className="truncate">{m.title}</span>
-                                  </div>
-                                  <div className="pl-4 text-[11px] text-ink-muted/90 font-light">
-                                    {info.label} {info.progress !== null ? `· ${info.progress}%` : ''}
-                                  </div>
-                                </button>
-                              );
-                            })
-                          ) : (
-                            <div className="px-3 py-2 text-xs text-ink-muted">
-                              No tienes manuscritos registrados.
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setIsLibraryOpen(true)}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-edge/80 bg-surface-elevated px-4 py-2.5 text-xs font-medium text-ink transition hover:border-accent/40 hover:text-accent shadow-2xs cursor-pointer"
-                >
-                  <FolderOpen className="h-4 w-4 text-accent" />
-                  <span>Biblioteca de archivos</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setUploaderModalOpen(true)}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-accent px-4 py-2.5 text-xs font-medium text-surface transition hover:bg-accent-hover shadow-xs cursor-pointer"
-                >
-                  <UploadCloud className="h-4 w-4" />
-                  <span>{requestState === 'none' ? 'Subir Manuscrito' : 'Enviar Nueva Versión'}</span>
-                </button>
-              </div>
-            </div>
+            <DashboardHeader
+              requestState={requestState}
+              hasActiveProject={hasActiveProject}
+              requestContext={requestContext}
+              projectTitle={projectTitle}
+              activeManuscriptId={activeManuscriptId}
+              isSelectorOpen={isSelectorOpen}
+              onToggleSelector={() => setIsSelectorOpen(!isSelectorOpen)}
+              onCloseSelector={() => setIsSelectorOpen(false)}
+              onSelectManuscript={(id) => setSelectedManuscriptId(id)}
+              getManuscriptSelectorInfo={getManuscriptSelectorInfo}
+              onOpenLibrary={() => setIsLibraryOpen(true)}
+              onOpenUploader={() => setUploaderModalOpen(true)}
+            />
             {active === 'resumen' && (
               <div className="space-y-6">
                 {/* Switcher de obras si hay múltiples manuscritos */}
@@ -878,112 +708,34 @@ export default function DashboardPage() {
               >
                 {!hasActiveProject ? (
                   <Card title="Capítulos del Audiolibro" description="Grabación, edición y muestras por capítulo.">
-                    <div className="mt-8 rounded-2xl border-dashed border-edge/50 bg-surface p-8 text-center">
-                      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-elevated text-ink-muted border-edge/50">
-                        <Inbox className="h-6 w-6" />
-                      </div>
-                      <p className="mt-3 font-medium text-ink">No hay capítulos asignados a producción</p>
-                      <p className="mt-1 text-xs text-ink-muted max-w-md mx-auto">
-                        Sube tu manuscrito para recibir el desglose por capítulos y las muestras de locución.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => setUploaderModalOpen(true)}
-                        className="mt-4 inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-xs font-medium text-surface transition hover:bg-accent-hover cursor-pointer"
-                      >
-                        <FileUp className="h-4 w-4" />
-                        <span>Subir Manuscrito</span>
-                      </button>
-                    </div>
+                    <EmptyStateCard
+                      icon={Inbox}
+                      title="No hay capítulos asignados a producción"
+                      description="Sube tu manuscrito para recibir el desglose por capítulos y las muestras de locución."
+                      actionLabel="Subir Manuscrito"
+                      actionIcon={FileUp}
+                      onAction={() => setUploaderModalOpen(true)}
+                    />
                   </Card>
                 ) : chaptersState.length === 0 ? (
                   <Card title="Capítulos del Audiolibro" description="Grabación, edición y muestras por capítulo.">
-                    <div className="mt-8 rounded-2xl border-dashed border-edge/50 bg-surface p-8 text-center">
-                      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-elevated text-accent border-edge/50">
-                        <BookOpen className="h-6 w-6" />
-                      </div>
-                      <p className="mt-3 font-semibold text-ink">Obra Activa en Producción</p>
-                      <p className="mt-1 text-xs text-ink-muted max-w-md mx-auto leading-relaxed">
-                        Tu obra está activa. Tu editor está configurando los capítulos reales en Supabase con la duración y tarifa calculada. En cuanto se agreguen, los verás listados aquí para seguimiento paso a paso.
-                      </p>
-                    </div>
+                    <EmptyStateCard
+                      icon={BookOpen}
+                      title="Obra Activa en Producción"
+                      description="Tu obra está activa. Tu editor está configurando los capítulos reales en Supabase con la duración y tarifa calculada. En cuanto se agreguen, los verás listados aquí para seguimiento paso a paso."
+                      iconClassName="text-accent"
+                    />
                   </Card>
                 ) : (
                   <Card title="Capítulos del Audiolibro" description="Haz clic en cualquier capítulo para escuchar, enviar revisiones en chat, aprobar o realizar el pago.">
                     <div className="mt-6 space-y-4">
                       {chaptersState.map((chapter, index) => (
-                        <motion.div
+                        <ChapterCard
                           key={chapter.id}
-                          initial={{ opacity: 0, y: 16, scale: 0.98 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          transition={{ duration: 0.35, delay: index * 0.08, ease: 'easeOut' }}
-                          whileHover={{ scale: 1.01, transition: { duration: 0.2, ease: 'easeOut' } }}
-                          onClick={() => setSelectedChapter(chapter)}
-                          className="group rounded-2xl border-edge/50 bg-surface-elevated p-5 transition-colors hover:border-accent/40 hover:shadow-md cursor-pointer"
-                        >
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="flex items-start gap-3.5">
-                              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border-edge/50 bg-surface text-accent group-hover:border-accent/30 group-hover:bg-accent/10">
-                                <FileAudio className="h-5 w-5" strokeWidth={1.75} />
-                              </div>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs font-mono text-accent">#0{index + 1}</span>
-                                  <p className="text-base font-semibold text-ink group-hover:text-accent transition-colors">{chapter.title}</p>
-                                </div>
-                                <p className="mt-1 text-xs text-ink-muted">
-                                  {chapter.words} · Duración estimada: {chapter.duration}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="flex flex-wrap items-center gap-2.5 self-end sm:self-auto">
-                              <StatusPill status={chapter.status} />
-
-                              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium border ${
-                                chapter.paymentStatus === 'Pagado'
-                                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                                  : 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                              }`}>
-                                <Wallet className="h-3 w-3" />
-                                {chapter.paymentStatus === 'Pagado' ? 'Pagado' : `$${chapter.price}.00 Pend.`}
-                              </span>
-
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedChapter(chapter);
-                                }}
-                                className="inline-flex items-center gap-1.5 rounded-xl border-edge/50 bg-surface px-3 py-1.5 text-xs font-medium text-ink transition hover:border-accent/40 hover:text-accent cursor-pointer"
-                              >
-                                <Play className="h-3.5 w-3.5 text-accent" />
-                                <span>Abrir Panel</span>
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Barra de progreso del capítulo */}
-                          <div className="mt-4">
-                            <div className="flex items-center justify-between text-xs">
-                              <span className="text-ink-muted">Avance de producción</span>
-                              <span className="font-semibold text-ink">{chapter.progress}%</span>
-                            </div>
-                            <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface border-edge/40">
-                              <div
-                                className="h-full rounded-full bg-accent transition-all duration-300"
-                                style={{ width: `${chapter.progress}%` }}
-                              />
-                            </div>
-                          </div>
-
-                          <div className="mt-3 flex items-center justify-between border-t border-edge/40 pt-3 text-xs text-ink-muted">
-                            <span>Cupo pactado: {chapter.maxRevisions} revisiones</span>
-                            <span className="font-medium text-ink">
-                              {chapter.revisions} de {chapter.maxRevisions} revisiones utilizadas
-                            </span>
-                          </div>
-                        </motion.div>
+                          chapter={chapter}
+                          index={index}
+                          onSelectChapter={setSelectedChapter}
+                        />
                       ))}
                     </div>
                   </Card>
@@ -994,55 +746,15 @@ export default function DashboardPage() {
             {active === 'entregables' && (
               <Card title="Entregables y Muestras de Audio" description="Descarga masters, muestras de evaluación y materiales finales.">
                 {!hasActiveProject ? (
-                  <div className="mt-8 rounded-2xl border-dashed border-edge/50 bg-surface p-8 text-center">
-                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-elevated text-ink-muted border-edge/50">
-                      <Download className="h-6 w-6" />
-                    </div>
-                    <p className="mt-3 font-medium text-ink">Sin entregables disponibles</p>
-                    <p className="mt-1 text-xs text-ink-muted max-w-md mx-auto">
-                      Los archivos procesados, muestras preliminares y masters M4B/WAV/MP3 listos para distribución se publicarán en esta sección.
-                    </p>
-                  </div>
+                  <EmptyStateCard
+                    icon={Download}
+                    title="Sin entregables disponibles"
+                    description="Los archivos procesados, muestras preliminares y masters M4B/WAV/MP3 listos para distribución se publicarán en esta sección."
+                  />
                 ) : (
                   <div className="mt-6 space-y-3">
                     {deliverables.map((item) => (
-                      <div
-                        key={item.title}
-                        className="group flex flex-col gap-3 rounded-2xl border-edge/50 bg-surface-elevated p-4 transition hover:border-accent/40 sm:flex-row sm:items-center sm:justify-between"
-                      >
-                        <div className="flex items-center gap-3.5">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-edge/50 bg-surface text-accent group-hover:border-accent/30">
-                            <Download className="h-5 w-5" strokeWidth={1.75} />
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-ink">{item.title}</p>
-                            <div className="mt-1 flex items-center gap-2 text-xs text-ink-muted">
-                              <span>{item.format}</span>
-                              <span>·</span>
-                              <span>{item.size}</span>
-                              <span>·</span>
-                              <span>{item.date}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 self-end sm:self-auto">
-                          {item.date !== 'Pendiente' ? (
-                            <button
-                              type="button"
-                              className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-xs font-medium text-surface transition hover:bg-accent-hover shadow-sm cursor-pointer"
-                            >
-                              <ArrowDownToLine className="h-3.5 w-3.5" />
-                              <span>Descargar</span>
-                            </button>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 rounded-full border-edge/50 bg-surface px-3 py-1 text-xs text-ink-muted">
-                              <Clock className="h-3.5 w-3.5" />
-                              En proceso
-                            </span>
-                          )}
-                        </div>
-                      </div>
+                      <DeliverableItemRow key={item.title} item={item} />
                     ))}
                   </div>
                 )}

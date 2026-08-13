@@ -1,0 +1,93 @@
+'use client';
+
+import React from 'react';
+import Link from 'next/link';
+import { Headphones, MessageCircle } from 'lucide-react';
+
+export interface NavSection<T extends string = string> {
+  id: T;
+  label: string;
+  icon: React.ElementType;
+  badge?: string;
+}
+
+export interface SidebarNavProps<T extends string = string> {
+  sections: NavSection<T>[];
+  activeSection: T;
+  onSectionChange: (sectionId: T) => void;
+}
+
+export function SidebarNav<T extends string = string>({
+  sections,
+  activeSection,
+  onSectionChange,
+}: SidebarNavProps<T>) {
+  return (
+    <aside className="space-y-6 lg:sticky lg:top-20 self-start">
+      <div className="rounded-3xl border-edge bg-surface-elevated p-3 shadow-xs">
+        <p className="px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-muted">
+          Navegación
+        </p>
+        <nav className="mt-1 flex gap-1.5 overflow-x-auto lg:flex-col lg:overflow-visible">
+          {sections.map((section) => {
+            const Icon = section.icon;
+            const isActive = activeSection === section.id;
+            return (
+              <button
+                key={section.id}
+                type="button"
+                onClick={() => onSectionChange(section.id)}
+                className={`group relative flex shrink-0 items-center justify-between rounded-2xl px-3.5 py-3 text-sm font-medium transition-all cursor-pointer ${
+                  isActive
+                    ? 'border-accent/30 bg-accent/10 text-accent shadow-2xs'
+                    : 'border-transparent text-ink-muted hover:border-edge hover:bg-surface hover:text-ink'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Icon
+                    className={`h-4 w-4 transition-transform group-hover:scale-110 ${
+                      isActive ? 'text-accent' : 'text-ink-muted'
+                    }`}
+                    strokeWidth={1.75}
+                  />
+                  <span>{section.label}</span>
+                </div>
+                {section.badge ? (
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                      isActive
+                        ? 'bg-accent/20 text-accent'
+                        : 'bg-surface border-edge text-ink-muted'
+                    }`}
+                  >
+                    {section.badge}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* Widget informativo de soporte en la columna izquierda */}
+      <div className="hidden rounded-3xl border-edge bg-surface-elevated p-5 shadow-xs lg:block">
+        <div className="flex items-center gap-2 text-accent">
+          <Headphones className="h-4 w-4" />
+          <span className="text-xs font-semibold uppercase tracking-wider">
+            Atención Directa
+          </span>
+        </div>
+        <p className="mt-2 text-xs leading-relaxed text-ink-muted">
+          ¿Tienes alguna consulta sobre la locución o edición? Tu productor asignado está disponible.
+        </p>
+        <Link
+          href="/contacto"
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border-edge bg-surface px-3 py-2.5 text-xs font-medium text-ink transition hover:border-accent/40 hover:text-accent shadow-2xs"
+        >
+          <MessageCircle className="h-3.5 w-3.5" />
+          Contactar Productor
+        </Link>
+      </div>
+    </aside>
+  );
+}
