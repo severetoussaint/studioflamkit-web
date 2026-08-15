@@ -1,5 +1,4 @@
 'use client';
-
 import React from 'react';
 import { motion } from 'motion/react';
 import { FileAudio, Wallet, Play } from 'lucide-react';
@@ -22,7 +21,7 @@ export interface ChapterItemData {
 export interface ChapterCardProps {
   chapter: ChapterItemData;
   index: number;
-  onSelectChapter: (chapter: any) => void;
+  onSelectChapter: (chapter: ChapterItemData) => void;
 }
 
 export function ChapterCard({ chapter, index, onSelectChapter }: ChapterCardProps) {
@@ -77,7 +76,6 @@ export function ChapterCard({ chapter, index, onSelectChapter }: ChapterCardProp
         </div>
       </div>
 
-      {/* Barra de progreso del capítulo */}
       <div className="mt-4">
         <div className="flex items-center justify-between text-xs">
           <span className="text-ink-muted">Avance de producción</span>
