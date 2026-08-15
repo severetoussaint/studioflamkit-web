@@ -47,13 +47,6 @@ export interface ManuscriptWithDetails {
   projects?: ProjectRelation[] | null;
 }
 
-interface ProjectRecord {
-  id: string;
-  manuscript_id?: string | null;
-  created_at?: string | null;
-  manuscripts?: { title?: string | null } | null;
-}
-
 export async function getAuthorRequestContext(authorId: string, selectedManuscriptId?: string | null): Promise<AuthorRequestContext> {
   try {
     // 1. Obtener todos los manuscritos del autor
