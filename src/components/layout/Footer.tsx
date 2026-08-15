@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { routes } from '@/config/routes';
 
@@ -19,12 +20,13 @@ export function Footer() {
           </p>
         </div>
 
-        {/* Center Logo */}
         <div className="flex justify-center items-center py-4 lg:py-0 lg:justify-self-center">
-          <img 
-            src="/logo.svg" 
-            alt="Studio Flamkit & Art Logo" 
-            className="h-28 sm:h-36 w-auto object-contain rounded-lg" 
+          <Image
+            src="/logo.svg"
+            alt="Studio Flamkit & Art Logo"
+            width={144}
+            height={144}
+            className="h-28 sm:h-36 w-auto object-contain rounded-lg"
             referrerPolicy="no-referrer"
           />
         </div>
