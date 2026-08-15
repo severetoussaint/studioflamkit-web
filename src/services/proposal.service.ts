@@ -1,9 +1,8 @@
 import { supabaseClient } from '@/lib/supabase/client';
-import type { Database, Json } from '@/types/database.types';
+import type { Json } from '@/types/database.types';
 import type { Proposal, ProposalStatus } from '@/types/domain.types';
 import { mapProposalRowToDomain } from '@/domain/proposal/mapProposal';
 
-type ProposalRow = Database['public']['Tables']['proposals']['Row'];
 type ProposalRpcName = 'send_proposal' | 'accept_proposal' | 'reject_proposal' | 'expire_proposal';
 
 async function callProposalRpc(name: ProposalRpcName, proposalId: string): Promise<string> {
