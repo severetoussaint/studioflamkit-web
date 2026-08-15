@@ -2,10 +2,7 @@
 
 import React from 'react';
 import {
-  CheckCircle2,
-  Circle,
   AlertTriangle,
-  Radio,
   Inbox,
   Search,
   FileText,
@@ -13,7 +10,7 @@ import {
   MessageSquareWarning,
   PackageCheck,
 } from 'lucide-react';
-import type { AdminEditorialJourneyModel, AdminEditorialStep, AdminEditorialPhase } from './adminEditorialJourney.model';
+import type { AdminEditorialJourneyModel, AdminEditorialPhase } from './adminEditorialJourney.model';
 
 interface AdminEditorialJourneyViewProps {
   journey: AdminEditorialJourneyModel | null;
@@ -27,19 +24,6 @@ const PHASE_ICONS: Record<AdminEditorialPhase, React.ReactNode> = {
   revision: <MessageSquareWarning className="h-4 w-4" />,
   entrega: <PackageCheck className="h-4 w-4" />,
 };
-
-function StepIcon({ status }: { status: AdminEditorialStep['status'] }) {
-  if (status === 'completado') {
-    return <CheckCircle2 className="h-5 w-5 text-[var(--color-premium)]" />;
-  }
-  if (status === 'activo') {
-    return <Radio className="h-5 w-5 text-[var(--color-accent)]" />;
-  }
-  if (status === 'bloqueado') {
-    return <AlertTriangle className="h-5 w-5 text-amber-500" />;
-  }
-  return <Circle className="h-5 w-5 text-[var(--color-text-muted)]" />;
-}
 
 function StepConnector({ done }: { done: boolean }) {
   return (
@@ -82,7 +66,6 @@ export function AdminEditorialJourneyView({ journey }: AdminEditorialJourneyView
         )}
       </div>
 
-      {/* Horizontal Stepper */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
         {journey.steps.map((step, index) => {
           const isLast = index === journey.steps.length - 1;
