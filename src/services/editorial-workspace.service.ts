@@ -1,4 +1,4 @@
-import type { Project, ProjectProgress, Proposal } from '@/types/domain.types';
+import type { Project, ProjectProgress } from '@/types/domain.types';
 import { buildEditorialJourneyContext } from '@/domain/editorial/buildEditorialJourneyContext';
 import { deriveEditorialJourney } from '@/domain/editorial/deriveEditorialJourney';
 import { getCurrentProposalForRequest } from '@/services/proposal.service';
@@ -48,22 +48,27 @@ export async function getEditorialWorkspaceByManuscript(
   }
 
   const context = buildEditorialJourneyContext({
-    hasManuscript: true,
     request,
-    evaluationResult: evaluation?.result ?? null,
-    proposal,
     project,
-    hasOpenReviews,
-  });
-
-  return {
-    request,
+    evaluation,
     proposal,
-    project,
     progress,
     reviews,
     timeline,
     hasOpenReviews,
-    journey: deriveEditorialJourney(context),
+  });
+
+  const journey = deriveEditorialJourney(context);
+
+  return {
+    request,
+    project,
+    proposal,
+    evaluation,
+    progress,
+    reviews,
+    timeline,
+    hasOpenReviews,
+    journey,
   };
 }
