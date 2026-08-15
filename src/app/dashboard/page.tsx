@@ -9,7 +9,6 @@ import { getDashboardFileLibraryData, type DashboardFileLibraryData } from '@/se
 import { useEditorialWorkspace } from '@/hooks/useEditorialWorkspace';
 import { useDashboardWorkspace } from '@/hooks/useDashboardWorkspace';
 import { motion, AnimatePresence } from 'motion/react';
-import Link from 'next/link';
 import {
   LayoutDashboard,
   BookOpen,
@@ -21,15 +20,11 @@ import {
   FileAudio,
   Play,
   Pause,
-  Headphones,
-  ArrowDownToLine,
-  MessageCircle,
   PlusCircle,
   Inbox,
   UploadCloud,
   FileUp,
   FileCheck,
-  FolderOpen,
   X,
   Check,
   CreditCard,
@@ -521,7 +516,7 @@ export default function DashboardPage() {
       <Navbar />
 
       {/* Contenido principal con Sidebar */}
-      <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-8 xl:px-10 py-6 sm:py-8 lg:py-10">
+      <div className="mx-auto w-full max-w-[1440px] px-4 pb-28 pt-6 sm:px-6 sm:pb-8 sm:pt-8 lg:px-8 lg:pb-12 xl:px-10">
         <div className="grid gap-8 lg:grid-cols-[240px_1fr] xl:grid-cols-[260px_1fr]">
 
           {/* Sidebar de Navegación */}
@@ -619,7 +614,7 @@ export default function DashboardPage() {
 
                 {/* KPIs Compactos de la Obra (Métricas Reales) */}
                 {(hasActiveProject || requestState === 'pending') && (
-                  <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     <KpiCard
                       icon={BookOpen}
                       label="Capítulos de la Obra"
@@ -645,8 +640,8 @@ export default function DashboardPage() {
                 )}
 
                 {/* Archivos Guardados & Soporte Editorial */}
-                <div className="grid gap-6 lg:grid-cols-12">
-                  <div className="lg:col-span-8">
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+                  <div className="xl:col-span-2">
                     <FilePanel
                       projectTitle={projectTitle || requestContext?.title}
                       acceptedPaymentAmount={realProject?.chapters?.reduce((acc, c) => acc + (c.price || 0), 0) || 0}
@@ -689,7 +684,7 @@ export default function DashboardPage() {
                     />
                   </div>
 
-                  <div className="lg:col-span-4">
+                  <div>
                     <SupportPanel
                       onOpenMessageModal={() => {
                         router.push('/contacto');
@@ -847,7 +842,8 @@ export default function DashboardPage() {
                     <div className="grid gap-4 sm:grid-cols-2">
                       {/* Opción PayPal */}
                       <label
-                        className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${
+                        htmlFor="payment-method-paypal"
+                        className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition has-[:checked]:border-accent/40 has-[:checked]:bg-accent/5 ${
                           paymentMethod === 'paypal'
                             ? 'border-accent bg-accent/5 shadow-sm'
                             : 'border-edge/50 bg-surface hover:border-accent/30'
@@ -855,11 +851,12 @@ export default function DashboardPage() {
                       >
                         <input
                           type="radio"
+                          id="payment-method-paypal"
                           name="paymentMethod"
                           value="paypal"
                           checked={paymentMethod === 'paypal'}
                           onChange={() => setPaymentMethod('paypal')}
-                          className="mt-1 accent-accent"
+                          className="mt-1 h-4 w-4 accent-accent"
                         />
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
@@ -874,7 +871,8 @@ export default function DashboardPage() {
 
                       {/* Opción Banco / Transferencia */}
                       <label
-                        className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${
+                        htmlFor="payment-method-bank"
+                        className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition has-[:checked]:border-accent/40 has-[:checked]:bg-accent/5 ${
                           paymentMethod === 'bank'
                             ? 'border-accent bg-accent/5 shadow-sm'
                             : 'border-edge/50 bg-surface hover:border-accent/30'
@@ -882,11 +880,12 @@ export default function DashboardPage() {
                       >
                         <input
                           type="radio"
+                          id="payment-method-bank"
                           name="paymentMethod"
                           value="bank"
                           checked={paymentMethod === 'bank'}
                           onChange={() => setPaymentMethod('bank')}
-                          className="mt-1 accent-accent"
+                          className="mt-1 h-4 w-4 accent-accent"
                         />
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
@@ -903,32 +902,35 @@ export default function DashboardPage() {
                     {/* Campos de configuración del método elegido */}
                     {paymentMethod === 'paypal' ? (
                       <div className="rounded-2xl border-edge/50 bg-surface/50 p-4 space-y-2">
-                        <label className="text-xs font-medium text-ink-muted">Correo electrónico registrado en PayPal</label>
+                        <label htmlFor="paypal-email-input" className="block text-xs font-medium text-ink-muted mb-1.5">Correo electrónico registrado en PayPal</label>
                         <input
                           type="email"
+                          id="paypal-email-input"
                           value={paypalEmail}
                           onChange={(e) => setPaypalEmail(e.target.value)}
-                          className="w-full rounded-xl border-edge/50 bg-surface px-3.5 py-2 text-xs font-mono text-ink focus:border-accent focus:outline-none"
+                          className="w-full rounded-xl border-edge/50 bg-surface px-3.5 py-2 text-xs font-mono text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
                         />
                       </div>
                     ) : (
                       <div className="rounded-2xl border-edge/50 bg-surface/50 p-4 space-y-3">
                         <div>
-                          <label className="text-xs font-medium text-ink-muted">Titular de la cuenta</label>
+                          <label htmlFor="bank-holder-input" className="block text-xs font-medium text-ink-muted mb-1.5">Titular de la cuenta</label>
                           <input
                             type="text"
+                            id="bank-holder-input"
                             value={bankHolder}
                             onChange={(e) => setBankHolder(e.target.value)}
-                            className="w-full rounded-xl border-edge/50 bg-surface px-3.5 py-2 text-xs text-ink focus:border-accent focus:outline-none mt-1"
+                            className="w-full rounded-xl border-edge/50 bg-surface px-3.5 py-2 text-xs text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 mt-1"
                           />
                         </div>
                         <div>
-                          <label className="text-xs font-medium text-ink-muted">IBAN / Número de Cuenta Bancaria</label>
+                          <label htmlFor="bank-iban-input" className="block text-xs font-medium text-ink-muted mb-1.5">IBAN / Número de Cuenta Bancaria</label>
                           <input
                             type="text"
+                            id="bank-iban-input"
                             value={bankIban}
                             onChange={(e) => setBankIban(e.target.value)}
-                            className="w-full rounded-xl border-edge/50 bg-surface px-3.5 py-2 text-xs font-mono text-ink focus:border-accent focus:outline-none mt-1"
+                            className="w-full rounded-xl border-edge/50 bg-surface px-3.5 py-2 text-xs font-mono text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 mt-1"
                           />
                         </div>
                       </div>
@@ -945,7 +947,8 @@ export default function DashboardPage() {
                     <div className="space-y-3">
                       {/* Opción 1: MP3 Estándar */}
                       <label
-                        className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${
+                        htmlFor="format-mp3"
+                        className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition has-[:checked]:border-accent/40 has-[:checked]:bg-accent/5 ${
                           deliveryFormat === 'mp3'
                             ? 'border-accent bg-accent/5 shadow-sm'
                             : 'border-edge/50 bg-surface hover:border-accent/30'
@@ -953,11 +956,12 @@ export default function DashboardPage() {
                       >
                         <input
                           type="radio"
+                          id="format-mp3"
                           name="deliveryFormat"
                           value="mp3"
                           checked={deliveryFormat === 'mp3'}
                           onChange={() => setDeliveryFormat('mp3')}
-                          className="mt-1 accent-accent"
+                          className="mt-1 h-4 w-4 accent-accent"
                         />
                         <div>
                           <p className="text-sm font-semibold text-ink">Opción 1: MP3 Alta Calidad (320 kbps)</p>
@@ -969,7 +973,8 @@ export default function DashboardPage() {
 
                       {/* Opción 2: El Formato Nativo de Audiolibro Premium (.M4B) */}
                       <label
-                        className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${
+                        htmlFor="format-m4b"
+                        className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition has-[:checked]:border-accent/40 has-[:checked]:bg-accent/5 ${
                           deliveryFormat === 'm4b'
                             ? 'border-accent bg-accent/5 shadow-sm'
                             : 'border-edge/50 bg-surface hover:border-accent/30'
@@ -977,11 +982,12 @@ export default function DashboardPage() {
                       >
                         <input
                           type="radio"
+                          id="format-m4b"
                           name="deliveryFormat"
                           value="m4b"
                           checked={deliveryFormat === 'm4b'}
                           onChange={() => setDeliveryFormat('m4b')}
-                          className="mt-1 accent-accent"
+                          className="mt-1 h-4 w-4 accent-accent"
                         />
                         <div className="space-y-1.5">
                           <div className="flex items-center gap-2">
@@ -1001,7 +1007,8 @@ export default function DashboardPage() {
 
                       {/* Opción 3: El Máster de Preservación Editorial (WAV de 24 bits / 44.1 kHz o 48 kHz) */}
                       <label
-                        className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${
+                        htmlFor="format-wav"
+                        className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition has-[:checked]:border-accent/40 has-[:checked]:bg-accent/5 ${
                           deliveryFormat === 'wav'
                             ? 'border-accent bg-accent/5 shadow-sm'
                             : 'border-edge/50 bg-surface hover:border-accent/30'
@@ -1009,11 +1016,12 @@ export default function DashboardPage() {
                       >
                         <input
                           type="radio"
+                          id="format-wav"
                           name="deliveryFormat"
                           value="wav"
                           checked={deliveryFormat === 'wav'}
                           onChange={() => setDeliveryFormat('wav')}
-                          className="mt-1 accent-accent"
+                          className="mt-1 h-4 w-4 accent-accent"
                         />
                         <div className="space-y-1.5">
                           <p className="text-sm font-semibold text-ink">Opción 3: El Máster de Preservación Editorial (WAV 24 bits / 44.1 kHz o 48 kHz)</p>
@@ -1047,533 +1055,592 @@ export default function DashboardPage() {
       {/* MODAL 1: Uploader de Manuscritos para Presupuesto (.docx, .odt, .pdf) */}
       <AnimatePresence>
         {uploaderModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <>
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative w-full max-w-lg rounded-3xl border-edge/50 bg-surface p-6 shadow-2xl"
-            >
-              <button
-                type="button"
-                onClick={() => setUploaderModalOpen(false)}
-                className="absolute top-5 right-5 rounded-full p-1 text-ink-muted hover:bg-surface-elevated hover:text-ink transition cursor-pointer"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setUploaderModalOpen(false)}
+              aria-hidden="true"
+              className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm cursor-pointer"
+            />
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="uploader-modal-title"
+                className="pointer-events-auto relative w-full max-w-lg max-h-[calc(100vh-2rem)] overflow-y-auto rounded-3xl border border-edge/60 bg-surface-elevated p-6 shadow-2xl"
               >
-                <X className="h-5 w-5" />
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setUploaderModalOpen(false)}
+                  aria-label="Cerrar ventana de subida de manuscrito"
+                  className="absolute top-5 right-5 flex h-10 w-10 items-center justify-center rounded-xl text-ink-muted transition-colors hover:bg-surface hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 cursor-pointer"
+                >
+                  <X className="h-5 w-5" aria-hidden="true" />
+                </button>
 
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border-accent/30 bg-accent/10 text-accent">
-                  <UploadCloud className="h-5 w-5" />
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border-accent/30 bg-accent/10 text-accent">
+                    <UploadCloud className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 id="uploader-modal-title" className="font-serif text-xl font-semibold text-ink">Subir Manuscrito para Cotización</h3>
+                    <p className="text-xs text-ink-muted">Admite formatos .DOCX, .ODT y .PDF</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-serif text-xl font-semibold text-ink">Subir Manuscrito para Cotización</h3>
-                  <p className="text-xs text-ink-muted">Admite formatos .DOCX, .ODT y .PDF</p>
-                </div>
-              </div>
 
-              {!uploadSubmitted ? (
-                <div className="mt-6 space-y-4">
-                  {/* Zona de Dropzone */}
-                  <div
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      setDragOver(true);
-                    }}
-                    onDragLeave={() => setDragOver(false)}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      setDragOver(false);
-                      const file = e.dataTransfer.files[0];
-                      if (file) handleFileSelect(file.name, `${(file.size / 1024 / 1024).toFixed(1)} MB`, file);
-                    }}
-                    className={`flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center transition ${
-                      dragOver
-                        ? 'border-accent bg-accent/10'
-                        : 'border-edge/50 bg-surface-elevated hover:border-accent/40'
-                    }`}
-                  >
-                    <FileUp className="h-10 w-10 text-accent animate-bounce" />
-                    <p className="mt-3 text-sm font-medium text-ink">
-                      Arrastra tu manuscrito aquí o explora tus archivos
-                    </p>
-                    <p className="mt-1 text-xs text-ink-muted">
-                      Formatos compatibles: Microsoft Word (.docx), OpenDocument (.odt), PDF (.pdf)
-                    </p>
-
-                    <input
-                      type="file"
-                      accept=".docx,.odt,.pdf"
-                      id="manuscript-upload-input"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
+                {!uploadSubmitted ? (
+                  <div className="mt-6 space-y-4">
+                    {/* Zona de Dropzone */}
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setDragOver(true);
+                      }}
+                      onDragLeave={() => setDragOver(false)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setDragOver(false);
+                        const file = e.dataTransfer.files[0];
                         if (file) handleFileSelect(file.name, `${(file.size / 1024 / 1024).toFixed(1)} MB`, file);
                       }}
-                    />
-
-                    <label
-                      htmlFor="manuscript-upload-input"
-                      className="mt-4 inline-flex items-center gap-2 rounded-xl border-edge/50 bg-surface px-4 py-2 text-xs font-medium text-ink transition hover:border-accent/40 hover:text-accent cursor-pointer"
-                    >
-                      <PlusCircle className="h-3.5 w-3.5" />
-                      <span>Seleccionar Archivo</span>
-                    </label>
-                  </div>
-
-                  {/* Estado de Carga / Archivo subido */}
-                  {uploadingState && (
-                    <div className="rounded-2xl border-edge/50 bg-surface-elevated p-4">
-                      <div className="flex items-center justify-between text-xs text-ink-muted">
-                        <span>Analizando estructura del archivo...</span>
-                        <span className="font-medium text-accent">{uploadProgress}%</span>
-                      </div>
-                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface border-edge/40">
-                        <div
-                          className="h-full bg-accent transition-all duration-200"
-                          style={{ width: `${uploadProgress}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {uploadedFile && (
-                    <div className="rounded-2xl border-accent/30 bg-accent/5 p-4 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <FileCheck className="h-6 w-6 text-accent" />
-                        <div>
-                          <p className="text-xs font-semibold text-ink">{uploadedFile.name}</p>
-                          <p className="text-[11px] text-ink-muted">{uploadedFile.size} · {uploadedFile.wordCount}</p>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setUploadedFile(null)}
-                        className="text-xs text-ink-muted hover:text-amber-500"
-                      >
-                        Quitar
-                      </button>
-                    </div>
-                  )}
-
-                  {uploadedFile && !uploadSubmitted && (
-                    <div className="mt-4 space-y-3">
-                      <div>
-                        <label className="text-xs uppercase tracking-wider text-ink-muted">Titulo de la obra</label>
-                        <input
-                          type="text"
-                          value={manuscriptTitle}
-                          onChange={(e) => setManuscriptTitle(e.target.value)}
-                          placeholder="El titulo de tu libro"
-                          className="mt-1 w-full rounded-xl border-edge/50 bg-surface px-3 py-2 text-sm text-ink"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs uppercase tracking-wider text-ink-muted">Numero de palabras aproximado</label>
-                        <input
-                          type="number"
-                          value={manuscriptWordCount}
-                          onChange={(e) => setManuscriptWordCount(e.target.value)}
-                          placeholder="Ej. 45000"
-                          className="mt-1 w-full rounded-xl border-edge/50 bg-surface px-3 py-2 text-sm text-ink"
-                        />
-                      </div>
-                      {submitError && <p className="text-xs text-red-400">{submitError}</p>}
-                    </div>
-                  )}
-
-                  <div className="flex justify-end gap-3 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setUploaderModalOpen(false)}
-                      className="rounded-xl border-edge/50 bg-surface px-4 py-2.5 text-xs font-medium text-ink hover:bg-surface-elevated cursor-pointer"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!uploadedFile}
-                      onClick={handleSubmitManuscript}
-                      className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-medium transition cursor-pointer ${
-                        uploadedFile
-                          ? 'bg-accent text-surface hover:bg-accent-hover shadow-sm'
-                          : 'bg-surface-elevated border-edge/50 text-ink-muted cursor-not-allowed'
+                      className={`flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center transition ${
+                        dragOver
+                          ? 'border-accent bg-accent/10'
+                          : 'border-edge/50 bg-surface hover:border-accent/40'
                       }`}
                     >
-                      <Send className="h-3.5 w-3.5" />
-                      <span>Enviar para Presupuesto</span>
-                    </button>
+                      <FileUp className="h-10 w-10 text-accent animate-bounce" />
+                      <p className="mt-3 text-sm font-medium text-ink">
+                        Arrastra tu manuscrito aquí o explora tus archivos
+                      </p>
+                      <p className="mt-1 text-xs text-ink-muted">
+                        Formatos compatibles: Microsoft Word (.docx), OpenDocument (.odt), PDF (.pdf)
+                      </p>
+
+                      <input
+                        type="file"
+                        accept=".docx,.odt,.pdf"
+                        id="manuscript-upload-input"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleFileSelect(file.name, `${(file.size / 1024 / 1024).toFixed(1)} MB`, file);
+                        }}
+                      />
+
+                      <label
+                        htmlFor="manuscript-upload-input"
+                        className="mt-4 inline-flex items-center gap-2 rounded-xl border-edge/50 bg-surface px-4 py-2 text-xs font-medium text-ink transition hover:border-accent/40 hover:text-accent cursor-pointer"
+                      >
+                        <PlusCircle className="h-3.5 w-3.5" />
+                        <span>Seleccionar Archivo</span>
+                      </label>
+                    </div>
+
+                    {/* Estado de Carga / Archivo subido */}
+                    {uploadingState && (
+                      <div className="rounded-2xl border-edge/50 bg-surface p-4">
+                        <div className="flex items-center justify-between text-xs text-ink-muted">
+                          <span>Analizando estructura del archivo...</span>
+                          <span className="font-medium text-accent">{uploadProgress}%</span>
+                        </div>
+                        <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface border-edge/40">
+                          <div
+                            className="h-full bg-accent transition-all duration-200"
+                            style={{ width: `${uploadProgress}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {uploadedFile && (
+                      <div className="rounded-2xl border-accent/30 bg-accent/5 p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <FileCheck className="h-6 w-6 text-accent" />
+                          <div>
+                            <p className="text-xs font-semibold text-ink">{uploadedFile.name}</p>
+                            <p className="text-[11px] text-ink-muted">{uploadedFile.size} · {uploadedFile.wordCount}</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setUploadedFile(null)}
+                          className="text-xs text-ink-muted hover:text-amber-500"
+                        >
+                          Quitar
+                        </button>
+                      </div>
+                    )}
+
+                    {uploadedFile && !uploadSubmitted && (
+                      <div className="mt-4 space-y-3">
+                        <div>
+                          <label className="text-xs uppercase tracking-wider text-ink-muted">Titulo de la obra</label>
+                          <input
+                            type="text"
+                            value={manuscriptTitle}
+                            onChange={(e) => setManuscriptTitle(e.target.value)}
+                            placeholder="El titulo de tu libro"
+                            className="mt-1 w-full rounded-xl border-edge/50 bg-surface px-3 py-2 text-sm text-ink"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs uppercase tracking-wider text-ink-muted">Numero de palabras aproximado</label>
+                          <input
+                            type="number"
+                            value={manuscriptWordCount}
+                            onChange={(e) => setManuscriptWordCount(e.target.value)}
+                            placeholder="Ej. 45000"
+                            className="mt-1 w-full rounded-xl border-edge/50 bg-surface px-3 py-2 text-sm text-ink"
+                          />
+                        </div>
+                        {submitError && <p className="text-xs text-red-400">{submitError}</p>}
+                      </div>
+                    )}
+
+                    <div className="flex justify-end gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setUploaderModalOpen(false)}
+                        className="rounded-xl border-edge/50 bg-surface px-4 py-2.5 text-xs font-medium text-ink hover:bg-surface-elevated cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!uploadedFile}
+                        onClick={handleSubmitManuscript}
+                        className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-medium transition cursor-pointer ${
+                          uploadedFile
+                            ? 'bg-accent text-surface hover:bg-accent-hover shadow-sm'
+                            : 'bg-surface-elevated border-edge/50 text-ink-muted cursor-not-allowed'
+                        }`}
+                      >
+                        <Send className="h-3.5 w-3.5" />
+                        <span>Enviar para Presupuesto</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="py-8 text-center space-y-3">
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent/20 text-accent">
-                    <CheckCircle2 className="h-8 w-8" />
+                ) : (
+                  <div className="py-8 text-center space-y-3">
+                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent/20 text-accent">
+                      <CheckCircle2 className="h-8 w-8" />
+                    </div>
+                    <h4 className="text-lg font-medium text-ink">¡Manuscrito Recibido!</h4>
+                    <p className="text-xs text-ink-muted max-w-xs mx-auto">
+                      Tu manuscrito ha sido registrado en el sistema. El director técnico procesará el deslose en breve.
+                    </p>
                   </div>
-                  <h4 className="text-lg font-medium text-ink">¡Manuscrito Recibido!</h4>
-                  <p className="text-xs text-ink-muted max-w-xs mx-auto">
-                    Tu manuscrito ha sido registrado en el sistema. El director técnico procesará el deslose en breve.
-                  </p>
-                </div>
-              )}
-            </motion.div>
-          </div>
+                )}
+              </motion.div>
+            </div>
+          </>
         )}
       </AnimatePresence>
 
       {/* MODAL 2: Panel de Revisión, Chat/Comentarios, Aprobación y Pago por Capítulo */}
       <AnimatePresence>
         {selectedChapter && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <>
             <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 15 }}
-              className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl border-edge/50 bg-surface p-6 shadow-2xl space-y-6"
-            >
-              {/* Header del modal */}
-              <div className="flex items-start justify-between border-b border-edge/60 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border-accent/30 bg-accent/10 text-accent">
-                    <FileAudio className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono text-accent">ID: {selectedChapter.id}</span>
-                      <StatusPill status={selectedChapter.status} />
-                    </div>
-                    <h3 className="mt-1 font-serif text-xl font-semibold text-ink">{selectedChapter.title}</h3>
-                    <p className="text-xs text-ink-muted">
-                      {selectedChapter.words} · Duración: {selectedChapter.duration}
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedChapter(null)}
-                  className="rounded-full p-1 text-ink-muted hover:bg-surface-elevated hover:text-ink transition cursor-pointer"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              {/* Reproductor interactivo de audio dentro del modal */}
-              <div className="rounded-2xl border-accent/30 bg-surface-elevated p-4 shadow-sm">
-                <div className="flex items-center justify-between">
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedChapter(null)}
+              aria-hidden="true"
+              className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm cursor-pointer"
+            />
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.96, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.96, y: 15 }}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="chapter-review-title"
+                className="pointer-events-auto relative w-full max-w-3xl max-h-[calc(100vh-2rem)] overflow-y-auto rounded-3xl border border-edge/60 bg-surface-elevated p-6 shadow-2xl space-y-6"
+              >
+                {/* Header del modal */}
+                <div className="flex items-start justify-between border-b border-edge/60 pb-4">
                   <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={togglePlay}
-                      className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent text-surface shadow-sm hover:bg-accent-hover transition cursor-pointer"
-                    >
-                      {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" fill="currentColor" />}
-                    </button>
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border-accent/30 bg-accent/10 text-accent">
+                      <FileAudio className="h-6 w-6" />
+                    </div>
                     <div>
-                      <p className="text-xs font-semibold text-ink">Muestra de Audio Oficial</p>
-                      <p className="text-[11px] text-ink-muted font-mono">03:45 / {selectedChapter.duration}</p>
-                    </div>
-                  </div>
-                  <span className="rounded-full border-edge/50 bg-surface px-3 py-1 text-[11px] text-ink-muted">
-                    {selectedChapter.revisions} de {selectedChapter.maxRevisions} revisiones utilizadas
-                  </span>
-                </div>
-
-                {/* Barra de progreso interactiva */}
-                <div
-                  className="relative mt-3 h-2.5 w-full cursor-pointer overflow-hidden rounded-full bg-surface border-edge/60"
-                  onClick={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const clickX = e.clientX - rect.left;
-                    const pct = Math.round((clickX / rect.width) * 100);
-                    setAudioProgress(Math.max(0, Math.min(100, pct)));
-                  }}
-                >
-                  <div
-                    className="h-full bg-accent transition-all duration-150 rounded-full"
-                    style={{ width: `${audioProgress}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Hilo de Comentarios / Chat de Revisión */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-ink flex items-center gap-2">
-                    <MessageSquare className="h-4 w-4 text-accent" />
-                    Chat de Revisión con el Productor Asignado
-                  </h4>
-                  <span className="text-[11px] text-ink-muted">
-                    Límite pactado en contrato: {selectedChapter.maxRevisions} revisiones
-                  </span>
-                </div>
-
-                <div className="space-y-3 max-h-56 overflow-y-auto rounded-2xl border-edge/50 bg-surface-elevated p-4">
-                  {(commentsState[selectedChapter.id] || []).map((comm) => (
-                    <div
-                      key={comm.id}
-                      className={`flex flex-col gap-1 rounded-xl p-3 text-xs ${
-                        comm.author === 'Autor'
-                          ? 'ml-auto max-w-[85%] border-accent/30 bg-accent/10 text-ink'
-                          : 'mr-auto max-w-[85%] border-edge/50 bg-surface text-ink'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-4 text-[10px] text-ink-muted font-medium">
-                        <span className="text-accent font-semibold">{comm.author}</span>
-                        <div className="flex items-center gap-2">
-                          {comm.timecode && (
-                            <span className="rounded-md bg-surface px-1.5 py-0.5 font-mono text-ink">
-                              ⏱️ {comm.timecode}
-                            </span>
-                          )}
-                          <span>{comm.date}</span>
-                        </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono text-accent">ID: {selectedChapter.id}</span>
+                        <StatusPill status={selectedChapter.status} />
                       </div>
-                      <p className="mt-1 leading-relaxed">{comm.text}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Caja para redactar observación/comentario */}
-                <div className="flex flex-col gap-2.5 rounded-2xl border-edge/50 bg-surface p-3">
-                  <div className="flex items-center justify-between text-xs text-ink-muted">
-                    <label className="font-medium text-ink">Escribir observación o solicitud de cambio:</label>
-                    <div className="flex items-center gap-1.5">
-                      <span>Marca de tiempo (min):</span>
-                      <input
-                        type="text"
-                        value={newCommentTime}
-                        onChange={(e) => setNewCommentTime(e.target.value)}
-                        className="w-16 rounded-md border-edge/50 bg-surface-elevated px-2 py-0.5 font-mono text-center text-xs text-ink focus:border-accent focus:outline-none"
-                      />
+                      <h3 id="chapter-review-title" className="mt-1 font-serif text-xl font-semibold text-ink">{selectedChapter.title}</h3>
+                      <p className="text-xs text-ink-muted">
+                        {selectedChapter.words} · Duración: {selectedChapter.duration}
+                      </p>
                     </div>
                   </div>
-                  <textarea
-                    rows={2}
-                    value={newCommentText}
-                    onChange={(e) => setNewCommentText(e.target.value)}
-                    placeholder="Describe los detalles de locución, ruido o música a corregir..."
-                    className="w-full rounded-xl border-edge/50 bg-surface-elevated p-3 text-xs text-ink focus:border-accent focus:outline-none resize-none"
-                  />
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => handleAddComment(selectedChapter.id)}
-                      disabled={selectedChapter.revisions >= selectedChapter.maxRevisions}
-                      className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-medium transition cursor-pointer ${
-                        selectedChapter.revisions < selectedChapter.maxRevisions
-                          ? 'bg-accent text-surface hover:bg-accent-hover'
-                          : 'bg-surface-elevated border-edge/50 text-ink-muted cursor-not-allowed'
-                      }`}
-                    >
-                      <Send className="h-3.5 w-3.5" />
-                      <span>
-                        {selectedChapter.revisions < selectedChapter.maxRevisions
-                          ? 'Enviar Nota de Revisión'
-                          : 'Límite de Revisiones Alcanzado'}
-                      </span>
-                    </button>
-                  </div>
-                </div>
-              </div>
 
-              {/* TRES ACCIONES PRINCIPALES DEL CAPÍTULO */}
-              <div className="pt-4 border-t border-edge/60 flex flex-wrap items-center justify-between gap-3">
-                <div className="text-xs text-ink-muted">
-                  Estado de pago: {' '}
-                  <span className={`font-semibold ${selectedChapter.paymentStatus === 'Pagado' ? 'text-accent' : 'text-amber-600 dark:text-amber-400'}`}>
-                    {selectedChapter.paymentStatus === 'Pagado' ? 'Saldado' : `$${selectedChapter.price}.00 Pendiente`}
-                  </span>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  {/* Accion 1: Aprobar capitulo */}
                   <button
                     type="button"
-                    onClick={() => handleApproveChapter(selectedChapter.id)}
-                    disabled={selectedChapter.status === 'Aprobado'}
-                    className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-medium transition cursor-pointer ${
-                      selectedChapter.status === 'Aprobado'
-                        ? 'border-accent/40 bg-accent/20 text-accent cursor-default'
-                        : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
-                    }`}
+                    onClick={() => setSelectedChapter(null)}
+                    aria-label="Cerrar modal de revisión de capítulo"
+                    className="flex h-10 w-10 items-center justify-center rounded-xl text-ink-muted transition-colors hover:bg-surface hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 cursor-pointer"
                   >
-                    <CheckCircle2 className="h-4 w-4" />
-                    <span>{selectedChapter.status === 'Aprobado' ? 'Capítulo Aprobado' : 'Aprobar Capítulo'}</span>
+                    <X className="h-5 w-5" aria-hidden="true" />
                   </button>
+                </div>
 
-                  {/* Accion 2: Pagar capitulo */}
-                  {selectedChapter.paymentStatus === 'Pendiente' && (
+                {/* Reproductor interactivo de audio dentro del modal */}
+                <div className="rounded-2xl border-accent/30 bg-surface p-4 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={togglePlay}
+                        aria-label={isPlaying ? "Pausar audio" : "Reproducir audio"}
+                        className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent text-surface shadow-sm hover:bg-accent-hover transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                      >
+                        {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" fill="currentColor" />}
+                      </button>
+                      <div>
+                        <p className="text-xs font-semibold text-ink">Muestra de Audio Oficial</p>
+                        <p className="text-[11px] text-ink-muted font-mono">03:45 / {selectedChapter.duration}</p>
+                      </div>
+                    </div>
+                    <span className="rounded-full border-edge/50 bg-surface-elevated px-3 py-1 text-[11px] text-ink-muted">
+                      {selectedChapter.revisions} de {selectedChapter.maxRevisions} revisiones utilizadas
+                    </span>
+                  </div>
+
+                  {/* Barra de progreso interactiva */}
+                  <div
+                    className="relative mt-3 h-2.5 w-full cursor-pointer overflow-hidden rounded-full bg-surface-elevated border-edge/60"
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const clickX = e.clientX - rect.left;
+                      const pct = Math.round((clickX / rect.width) * 100);
+                      setAudioProgress(Math.max(0, Math.min(100, pct)));
+                    }}
+                  >
+                    <div
+                      className="h-full bg-accent transition-all duration-150 rounded-full"
+                      style={{ width: `${audioProgress}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Hilo de Comentarios / Chat de Revisión */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-ink flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4 text-accent" />
+                      Chat de Revisión con el Productor Asignado
+                    </h4>
+                    <span className="text-[11px] text-ink-muted">
+                      Límite pactado en contrato: {selectedChapter.maxRevisions} revisiones
+                    </span>
+                  </div>
+
+                  <div className="space-y-3 max-h-56 overflow-y-auto rounded-2xl border-edge/50 bg-surface p-4">
+                    {(commentsState[selectedChapter.id] || []).map((comm) => (
+                      <div
+                        key={comm.id}
+                        className={`flex flex-col gap-1 rounded-xl p-3 text-xs ${
+                          comm.author === 'Autor'
+                            ? 'ml-auto max-w-[85%] border-accent/30 bg-accent/10 text-ink'
+                            : 'mr-auto max-w-[85%] border-edge/50 bg-surface-elevated text-ink'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-4 text-[10px] text-ink-muted font-medium">
+                          <span className="text-accent font-semibold">{comm.author}</span>
+                          <div className="flex items-center gap-2">
+                            {comm.timecode && (
+                              <span className="rounded-md bg-surface px-1.5 py-0.5 font-mono text-ink">
+                                ⏱️ {comm.timecode}
+                              </span>
+                            )}
+                            <span>{comm.date}</span>
+                          </div>
+                        </div>
+                        <p className="mt-1 leading-relaxed">{comm.text}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Caja para redactar observación/comentario */}
+                  <div className="flex flex-col gap-2.5 rounded-2xl border-edge/50 bg-surface p-3">
+                    <div className="flex items-center justify-between text-xs text-ink-muted">
+                      <label htmlFor="comment-time-input" className="font-medium text-ink">Escribir observación o solicitud de cambio:</label>
+                      <div className="flex items-center gap-1.5">
+                        <span id="timecode-label">Marca de tiempo (min):</span>
+                        <input
+                          id="comment-time-input"
+                          aria-labelledby="timecode-label"
+                          type="text"
+                          value={newCommentTime}
+                          onChange={(e) => setNewCommentTime(e.target.value)}
+                          className="w-16 rounded-md border-edge/50 bg-surface-elevated px-2 py-0.5 font-mono text-center text-xs text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                        />
+                      </div>
+                    </div>
+                    <textarea
+                      rows={2}
+                      value={newCommentText}
+                      onChange={(e) => setNewCommentText(e.target.value)}
+                      placeholder="Describe los detalles de locución, ruido o música a corregir..."
+                      className="w-full rounded-xl border-edge/50 bg-surface-elevated p-3 text-xs text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 resize-none"
+                    />
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => handleAddComment(selectedChapter.id)}
+                        disabled={selectedChapter.revisions >= selectedChapter.maxRevisions}
+                        className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-medium transition cursor-pointer ${
+                          selectedChapter.revisions < selectedChapter.maxRevisions
+                            ? 'bg-accent text-surface hover:bg-accent-hover'
+                            : 'bg-surface-elevated border-edge/50 text-ink-muted cursor-not-allowed'
+                        }`}
+                      >
+                        <Send className="h-3.5 w-3.5" />
+                        <span>
+                          {selectedChapter.revisions < selectedChapter.maxRevisions
+                            ? 'Enviar Nota de Revisión'
+                            : 'Límite de Revisiones Alcanzado'}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* TRES ACCIONES PRINCIPALES DEL CAPÍTULO */}
+                <div className="pt-4 border-t border-edge/60 flex flex-wrap items-center justify-between gap-3">
+                  <div className="text-xs text-ink-muted">
+                    Estado de pago: {' '}
+                    <span className={`font-semibold ${selectedChapter.paymentStatus === 'Pagado' ? 'text-accent' : 'text-amber-600 dark:text-amber-400'}`}>
+                      {selectedChapter.paymentStatus === 'Pagado' ? 'Saldado' : `$${selectedChapter.price}.00 Pendiente`}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Accion 1: Aprobar capitulo */}
                     <button
                       type="button"
-                      onClick={() => {
-                        setPayingChapter(selectedChapter);
-                        setSelectedChapter(null);
-                      }}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-accent px-5 py-2.5 text-xs font-medium text-surface transition hover:bg-accent-hover shadow-sm cursor-pointer"
+                      onClick={() => handleApproveChapter(selectedChapter.id)}
+                      disabled={selectedChapter.status === 'Aprobado'}
+                      className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-medium transition cursor-pointer ${
+                        selectedChapter.status === 'Aprobado'
+                          ? 'border-accent/40 bg-accent/20 text-accent cursor-default'
+                          : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
+                      }`}
                     >
-                      <DollarSign className="h-4 w-4" />
-                      <span>Pagar Monto (${selectedChapter.price}.00)</span>
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span>{selectedChapter.status === 'Aprobado' ? 'Capítulo Aprobado' : 'Aprobar Capítulo'}</span>
                     </button>
-                  )}
+
+                    {/* Accion 2: Pagar capitulo */}
+                    {selectedChapter.paymentStatus === 'Pendiente' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPayingChapter(selectedChapter);
+                          setSelectedChapter(null);
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-accent px-5 py-2.5 text-xs font-medium text-surface transition hover:bg-accent-hover shadow-sm cursor-pointer"
+                      >
+                        <DollarSign className="h-4 w-4" />
+                        <span>Pagar Monto (${selectedChapter.price}.00)</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-          </div>
+              </motion.div>
+            </div>
+          </>
         )}
       </AnimatePresence>
 
       {/* MODAL 3: Pasarela Simulada de Pago de Capítulo */}
       <AnimatePresence>
         {payingChapter && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <>
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative w-full max-w-md rounded-3xl border-edge/50 bg-surface p-6 shadow-2xl space-y-5"
-            >
-              <button
-                type="button"
-                onClick={() => setPayingChapter(null)}
-                className="absolute top-5 right-5 rounded-full p-1 text-ink-muted hover:bg-surface-elevated hover:text-ink transition cursor-pointer"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setPayingChapter(null)}
+              aria-hidden="true"
+              className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm cursor-pointer"
+            />
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="payment-modal-title"
+                className="pointer-events-auto relative w-full max-w-md max-h-[calc(100vh-2rem)] overflow-y-auto rounded-3xl border border-edge/60 bg-surface-elevated p-6 shadow-2xl space-y-5"
               >
-                <X className="h-5 w-5" />
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setPayingChapter(null)}
+                  aria-label="Cerrar pasarela de pago"
+                  className="absolute top-5 right-5 flex h-10 w-10 items-center justify-center rounded-xl text-ink-muted transition-colors hover:bg-surface hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 cursor-pointer"
+                >
+                  <X className="h-5 w-5" aria-hidden="true" />
+                </button>
 
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-accent/10 text-accent border-accent/30">
-                  <Wallet className="h-5 w-5" />
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-accent/10 text-accent border-accent/30">
+                    <Wallet className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 id="payment-modal-title" className="font-serif text-xl font-semibold text-ink">Pagar Capítulo</h3>
+                    <p className="text-xs text-ink-muted">{payingChapter.title}</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-serif text-xl font-semibold text-ink">Pagar Capítulo</h3>
-                  <p className="text-xs text-ink-muted">{payingChapter.title}</p>
-                </div>
-              </div>
 
-              <div className="rounded-2xl border-edge/50 bg-surface-elevated p-4 space-y-2 text-xs">
-                <div className="flex justify-between text-ink-muted">
-                  <span>Concepto:</span>
-                  <span className="font-medium text-ink">Grabación & Edición Master</span>
+                <div className="rounded-2xl border-edge/50 bg-surface p-4 space-y-2 text-xs">
+                  <div className="flex justify-between text-ink-muted">
+                    <span>Concepto:</span>
+                    <span className="font-medium text-ink">Grabación & Edición Master</span>
+                  </div>
+                  <div className="flex justify-between text-ink-muted">
+                    <span>Método Seleccionado:</span>
+                    <span className="font-medium text-ink capitalize">
+                      {paymentMethod === 'paypal' ? `PayPal (${paypalEmail})` : 'Transferencia Bancaria'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between border-t border-edge/60 pt-2 text-sm font-semibold text-ink">
+                    <span>Monto a abonar:</span>
+                    <span className="text-accent">${payingChapter.price}.00 USD</span>
+                  </div>
                 </div>
-                <div className="flex justify-between text-ink-muted">
-                  <span>Método Seleccionado:</span>
-                  <span className="font-medium text-ink capitalize">
-                    {paymentMethod === 'paypal' ? `PayPal (${paypalEmail})` : 'Transferencia Bancaria'}
-                  </span>
-                </div>
-                <div className="flex justify-between border-t border-edge/60 pt-2 text-sm font-semibold text-ink">
-                  <span>Monto a abonar:</span>
-                  <span className="text-accent">${payingChapter.price}.00 USD</span>
-                </div>
-              </div>
 
-              {!paymentProcessing ? (
-                <div className="flex justify-end gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setPayingChapter(null)}
-                    className="rounded-xl border-edge/50 bg-surface px-4 py-2.5 text-xs font-medium text-ink hover:bg-surface-elevated cursor-pointer"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleConfirmChapterPayment(payingChapter.id)}
-                    className="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-xs font-medium text-surface transition hover:bg-accent-hover shadow-sm cursor-pointer"
-                  >
-                    <Lock className="h-3.5 w-3.5" />
-                    <span>Confirmar Pago (${payingChapter.price}.00)</span>
-                  </button>
-                </div>
-              ) : (
-                <div className="py-6 text-center space-y-3">
-                  <div className="mx-auto h-8 w-8 rounded-full border-2 border-accent border-t-transparent animate-spin" />
-                  <p className="text-xs font-medium text-ink">Procesando pago seguro...</p>
-                </div>
-              )}
-            </motion.div>
-          </div>
+                {!paymentProcessing ? (
+                  <div className="flex justify-end gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setPayingChapter(null)}
+                      className="rounded-xl border-edge/50 bg-surface px-4 py-2.5 text-xs font-medium text-ink hover:bg-surface-elevated cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleConfirmChapterPayment(payingChapter.id)}
+                      className="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-xs font-medium text-surface transition hover:bg-accent-hover shadow-sm cursor-pointer"
+                    >
+                      <Lock className="h-3.5 w-3.5" />
+                      <span>Confirmar Pago (${payingChapter.price}.00)</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="py-6 text-center space-y-3">
+                    <div className="mx-auto h-8 w-8 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+                    <p className="text-xs font-medium text-ink">Procesando pago seguro...</p>
+                  </div>
+                )}
+              </motion.div>
+            </div>
+          </>
         )}
       </AnimatePresence>
 
       {/* MODAL 4: Visualizador de Factura Emitida */}
       <AnimatePresence>
         {viewInvoice && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <>
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative w-full max-w-lg rounded-3xl border-edge/50 bg-surface p-6 shadow-2xl space-y-5"
-            >
-              <button
-                type="button"
-                onClick={() => setViewInvoice(null)}
-                className="absolute top-5 right-5 rounded-full p-1 text-ink-muted hover:bg-surface-elevated hover:text-ink transition cursor-pointer"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setViewInvoice(null)}
+              aria-hidden="true"
+              className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm cursor-pointer"
+            />
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="invoice-modal-title"
+                className="pointer-events-auto relative w-full max-w-lg max-h-[calc(100vh-2rem)] overflow-y-auto rounded-3xl border border-edge/60 bg-surface-elevated p-6 shadow-2xl space-y-5"
               >
-                <X className="h-5 w-5" />
-              </button>
-
-              <div className="border-b border-edge/60 pb-4 flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-accent">Studio Flamkit</span>
-                  <h3 className="font-serif text-2xl font-semibold text-ink">Comprobante Oficial</h3>
-                  <p className="text-xs text-ink-muted font-mono">{viewInvoice.id}</p>
-                </div>
-                <span className={`rounded-full px-3 py-1 text-xs font-medium ${
-                  viewInvoice.status === 'Pagado' ? 'bg-accent/15 text-accent border-accent/30' : 'bg-amber-500/15 text-amber-600'
-                }`}>
-                  {viewInvoice.status}
-                </span>
-              </div>
-
-              <div className="space-y-3 text-xs">
-                <div className="grid grid-cols-2 gap-4 rounded-xl border-edge/50 bg-surface-elevated p-3.5">
-                  <div>
-                    <span className="text-[11px] text-ink-muted uppercase">Fecha de emisión</span>
-                    <p className="font-medium text-ink mt-0.5">{viewInvoice.date}</p>
-                  </div>
-                  <div>
-                    <span className="text-[11px] text-ink-muted uppercase">Cliente / Autor</span>
-                    <p className="font-medium text-ink mt-0.5">{bankHolder}</p>
-                  </div>
-                </div>
-
-                <div className="rounded-xl border-edge/50 bg-surface-elevated p-3.5 space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-ink-muted">Concepto:</span>
-                    <span className="font-medium text-ink">{viewInvoice.concept}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-ink-muted">Método:</span>
-                    <span className="font-medium text-ink">{viewInvoice.method}</span>
-                  </div>
-                  <div className="flex justify-between border-t border-edge/60 pt-2 font-semibold text-sm">
-                    <span className="text-ink">Total Facturado:</span>
-                    <span className="text-accent">{viewInvoice.amount}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setViewInvoice(null)}
-                  className="rounded-xl border-edge/50 bg-surface px-4 py-2 text-xs font-medium text-ink hover:bg-surface-elevated cursor-pointer"
+                  aria-label="Cerrar comprobante oficial"
+                  className="absolute top-5 right-5 flex h-10 w-10 items-center justify-center rounded-xl text-ink-muted transition-colors hover:bg-surface hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 cursor-pointer"
                 >
-                  Cerrar
+                  <X className="h-5 w-5" aria-hidden="true" />
                 </button>
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2 text-xs font-medium text-surface transition hover:bg-accent-hover shadow-sm cursor-pointer"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  <span>Descargar PDF</span>
-                </button>
-              </div>
-            </motion.div>
-          </div>
+
+                <div className="border-b border-edge/60 pb-4 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-accent">Studio Flamkit</span>
+                    <h3 id="invoice-modal-title" className="font-serif text-2xl font-semibold text-ink">Comprobante Oficial</h3>
+                    <p className="text-xs text-ink-muted font-mono">{viewInvoice.id}</p>
+                  </div>
+                  <span className={`rounded-full px-3 py-1 text-xs font-medium ${
+                    viewInvoice.status === 'Pagado' ? 'bg-accent/15 text-accent border-accent/30' : 'bg-amber-500/15 text-amber-600'
+                  }`}>
+                    {viewInvoice.status}
+                  </span>
+                </div>
+
+                <div className="space-y-3 text-xs">
+                  <div className="grid grid-cols-2 gap-4 rounded-xl border-edge/50 bg-surface p-3.5">
+                    <div>
+                      <span className="text-[11px] text-ink-muted uppercase">Fecha de emisión</span>
+                      <p className="font-medium text-ink mt-0.5">{viewInvoice.date}</p>
+                    </div>
+                    <div>
+                      <span className="text-[11px] text-ink-muted uppercase">Cliente / Autor</span>
+                      <p className="font-medium text-ink mt-0.5">{bankHolder}</p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border-edge/50 bg-surface p-3.5 space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-ink-muted">Concepto:</span>
+                      <span className="font-medium text-ink">{viewInvoice.concept}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-ink-muted">Método:</span>
+                      <span className="font-medium text-ink">{viewInvoice.method}</span>
+                    </div>
+                    <div className="flex justify-between border-t border-edge/60 pt-2 font-semibold text-sm">
+                      <span className="text-ink">Total Facturado:</span>
+                      <span className="text-accent">{viewInvoice.amount}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setViewInvoice(null)}
+                    className="rounded-xl border-edge/50 bg-surface px-4 py-2 text-xs font-medium text-ink hover:bg-surface-elevated cursor-pointer"
+                  >
+                    Cerrar
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2 text-xs font-medium text-surface transition hover:bg-accent-hover shadow-sm cursor-pointer"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    <span>Descargar PDF</span>
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          </>
         )}
       </AnimatePresence>
 
