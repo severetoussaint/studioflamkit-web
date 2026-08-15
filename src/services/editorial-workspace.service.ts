@@ -48,27 +48,22 @@ export async function getEditorialWorkspaceByManuscript(
   }
 
   const context = buildEditorialJourneyContext({
+    hasManuscript: true,
     request,
-    project,
-    evaluation,
+    evaluationResult: evaluation?.result ?? null,
     proposal,
-    progress,
-    reviews,
-    timeline,
+    project,
     hasOpenReviews,
   });
 
-  const journey = deriveEditorialJourney(context);
-
   return {
     request,
-    project,
     proposal,
-    evaluation,
+    project,
     progress,
     reviews,
     timeline,
     hasOpenReviews,
-    journey,
+    journey: deriveEditorialJourney(context),
   };
 }
