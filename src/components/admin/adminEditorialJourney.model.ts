@@ -7,7 +7,7 @@
  * Fuente de verdad: project_requests, projects (domain), proposals (domain), production_stages, reviews.
  */
 
-import type { Project, ProjectStatus, ProjectProgress } from '@/types/domain.types';
+import type { Project, ProjectProgress } from '@/types/domain.types';
 
 export type AdminEditorialPhase =
   | 'recibido'
@@ -24,7 +24,7 @@ export interface AdminEditorialStep {
   title: string;
   description: string;
   status: AdminEditorialStepStatus;
-  adminHint: string; // qué debe hacer el admin en esta etapa
+  adminHint: string;
 }
 
 export interface AdminEditorialJourneyModel {
@@ -81,33 +81,25 @@ interface DeriveContext {
   project: Project | null;
   progress: ProjectProgress | null;
   hasOpenReviews: boolean;
-  // Legacy bridge — si no hay dominio nuevo, usamos estos para no romper la experiencia
   legacyStatus: 'analisis' | 'produccion' | 'revisiones' | 'completado' | null;
   hasRequest: boolean;
-  hasProposal: boolean; // si existe proposalId en el project domain
+  hasProposal: boolean;
 }
 
 function resolvePhase(ctx: DeriveContext): AdminEditorialPhase {
-  // 1. Si hay proyecto de dominio real, usamos su status
   if (ctx.project) {
     const status = ctx.project.status;
 
     if (status === 'completed' || status === 'archived') return 'entrega';
     if (status === 'review') return 'revision';
-    if (status === 'production') {
-      // Si hay reviews abiertas, podríamos estar en revisión aunque el status sea production
-      // Pero por regla de dominio: status production = producción activa
-      return 'produccion';
-    }
+    if (status === 'production') return 'produccion';
     if (status === 'planning') {
-      // En planning: podemos estar en análisis o propuesta según proposal
       if (ctx.hasProposal || ctx.project.proposalId) return 'propuesta';
       if (ctx.hasRequest) return 'analisis';
       return 'recibido';
     }
   }
 
-  // 2. Fallback a legacy status mapping
   if (ctx.legacyStatus) {
     const map: Record<string, AdminEditorialPhase> = {
       analisis: 'analisis',
@@ -118,9 +110,7 @@ function resolvePhase(ctx: DeriveContext): AdminEditorialPhase {
     return map[ctx.legacyStatus] ?? 'recibido';
   }
 
-  // 3. Si solo hay request, estamos en recibido/análisis
   if (ctx.hasRequest) return 'recibido';
-
   return 'recibido';
 }
 
@@ -133,12 +123,7 @@ function buildSteps(phase: AdminEditorialPhase, ctx: DeriveContext): AdminEditor
     if (index < activeIndex) {
       status = 'completado';
     } else if (index === activeIndex) {
-      // Bloqueado solo si hay reviews abiertas y estamos en produccion (inconsistencia que admin debe resolver)
-      if (id === 'produccion' && ctx.hasOpenReviews) {
-        status = 'bloqueado';
-      } else {
-        status = 'activo';
-      }
+      status = id === 'produccion' && ctx.hasOpenReviews ? 'bloqueado' : 'activo';
     } else {
       status = 'pendiente';
     }
