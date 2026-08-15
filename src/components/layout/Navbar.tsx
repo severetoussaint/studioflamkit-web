@@ -15,10 +15,9 @@ import {
   Compass,
   Bell,
   CheckCircle2,
-  CheckCheck
+  CheckCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { routes } from '@/config/routes';
 import { getUser, getUserRole, signOut, type AuthUser } from '@/services/auth.service';
 import { getUserNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '@/services/notification.service';
@@ -50,55 +49,59 @@ export function Navbar() {
   useEffect(() => {
     let isMounted = true;
 
-    async function loadSession() {
-      const currentUser = await getUser();
-      if (!isMounted) return;
-      if (currentUser) {
+    async function checkAuth() {
+      try {
+        const currentUser = await getUser();
+        if (!isMounted) return;
         setUser(currentUser);
-        setRole(getUserRole(currentUser));
+
+        if (currentUser) {
+          const userRole = getUserRole(currentUser);
+          if (isMounted) setRole(userRole);
+
+          // Fetch notifications
+          try {
+            const notifs = await getUserNotifications(currentUser.id);
+            if (isMounted) setNotifications(notifs);
+          } catch (notifErr) {
+            console.error('Error fetching notifications:', notifErr);
+          }
+        }
+      } catch (err) {
+        console.error('Error checking auth in Navbar:', err);
+      } finally {
+        if (isMounted) setLoading(false);
       }
-      setLoading(false);
     }
 
-    loadSession();
+    checkAuth();
 
-    // Listen to real-time auth state updates
-    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(async (event, session) => {
-      if (!isMounted) return;
+    // Setup Supabase Realtime subscription for notifications if user is logged in
+    let subscription: ReturnType<typeof supabaseClient.channel> | null = null;
+
+    supabaseClient.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        const u = session.user as AuthUser;
-        setUser(u);
-        setRole(getUserRole(u));
-      } else {
-        setUser(null);
-        setRole(null);
+        subscription = supabaseClient
+          .channel(`public:notifications:${session.user.id}`)
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'notifications',
+              filter: `user_id=eq.${session.user.id}`,
+            },
+            (payload) => {
+              if (payload.new && isMounted) {
+                setNotifications((prev) => [payload.new as Notification, ...prev]);
+              }
+            }
+          )
+          .subscribe();
       }
-      setLoading(false);
     });
 
-    return () => {
-      isMounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  // Fetch real notifications from Supabase when on dashboard routes and authenticated
-  useEffect(() => {
-    let active = true;
-    if (user && isDashboardRoute) {
-      getUserNotifications(user.id).then((items) => {
-        if (active) {
-          setNotifications(items);
-        }
-      });
-    }
-    return () => {
-      active = false;
-    };
-  }, [user, isDashboardRoute]);
-
-  // Close dropdown on click outside
-  useEffect(() => {
+    // Close popups on click outside
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setDropdownOpen(false);
@@ -107,24 +110,44 @@ export function Navbar() {
         setNotificationsOpen(false);
       }
     }
+
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      isMounted = false;
+      document.removeEventListener('mousedown', handleClickOutside);
+      if (subscription) {
+        supabaseClient.removeChannel(subscription);
+      }
+    };
   }, []);
 
-  const activeNotifications = user && isDashboardRoute ? notifications : [];
-  const unreadCount = activeNotifications.filter((n) => n.status === 'pending' || n.status === 'sent').length;
+  const unreadCount = notifications.filter(
+    (n) => n.status === 'pending' || n.status === 'sent'
+  ).length;
+
+  const activeNotifications = notifications.slice(0, 8);
 
   const handleMarkAsRead = async (id: string) => {
-    await markNotificationAsRead(id);
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, status: 'read' } : n))
-    );
+    try {
+      await markNotificationAsRead(id);
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, status: 'read' as const } : n))
+      );
+    } catch (err) {
+      console.error('Error marking notification as read:', err);
+    }
   };
 
   const handleMarkAllRead = async () => {
     if (!user) return;
-    await markAllNotificationsAsRead(user.id);
-    setNotifications((prev) => prev.map((n) => ({ ...n, status: 'read' })));
+    try {
+      await markAllNotificationsAsRead(user.id);
+      setNotifications((prev) =>
+        prev.map((n) => ({ ...n, status: 'read' as const }))
+      );
+    } catch (err) {
+      console.error('Error marking all notifications as read:', err);
+    }
   };
 
   const handleLogout = async () => {
@@ -142,7 +165,7 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-20 border-b border-edge bg-surface/85 backdrop-blur-md">
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
+      <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 lg:px-8">
         
         {/* Brand Identity logo */}
         <Link 
@@ -152,10 +175,10 @@ export function Navbar() {
           <img 
             src="/logo.svg" 
             alt="Studio Flamkit & Art" 
-            className="h-12 sm:h-16 w-auto object-contain rounded-md" 
+            className="h-10 sm:h-14 w-auto object-contain rounded-md" 
             referrerPolicy="no-referrer"
           />
-          <span>Studio Flamkit & Art</span>
+          <span className="hidden sm:inline">Studio Flamkit & Art</span>
         </Link>
 
         {/* Navigation - Hidden when user is logged in */}
@@ -170,20 +193,19 @@ export function Navbar() {
         )}
 
         {/* Right side actions */}
-        <div className="flex items-center gap-3 sm:gap-4">
-          <ThemeToggle />
-
+        <div className="flex items-center gap-2.5 sm:gap-4">
           {/* Notification Bell Icon - EXCLUSIVELY available on Dashboard & Admin routes for logged-in user */}
           {user && isDashboardRoute && (
             <div className="relative" ref={notifRef}>
               <button
                 type="button"
                 onClick={() => setNotificationsOpen(!notificationsOpen)}
-                className="relative flex h-9 w-9 items-center justify-center rounded-full border-edge bg-surface-elevated text-ink-muted hover:border-accent hover:text-accent transition cursor-pointer"
+                className="relative flex h-9 w-9 items-center justify-center rounded-full border border-edge bg-surface-elevated text-ink-muted hover:border-accent hover:text-accent transition cursor-pointer active:scale-95"
                 title="Notificaciones de la obra"
+                aria-label="Abrir notificaciones"
               >
                 <Bell className="h-4 w-4" />
-                {/* Unread badge appears strictly when there are unread notifications in database */}
+                {/* Unread badge */}
                 {unreadCount > 0 && (
                   <span className="absolute top-1 right-1 flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75" />
@@ -199,7 +221,7 @@ export function Navbar() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 8, scale: 0.95 }}
                     transition={{ duration: 0.15, ease: 'easeOut' }}
-                    className="absolute right-0 mt-2 w-80 origin-top-right rounded-2xl border-edge/80 bg-surface-elevated p-4 shadow-xl ring-1 ring-black/5 z-30"
+                    className="fixed left-3 right-3 top-16 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80 origin-top-right rounded-2xl border border-edge/80 bg-surface-elevated p-4 shadow-xl ring-1 ring-black/5 z-50 max-w-sm sm:max-w-none mx-auto sm:mx-0"
                   >
                     <div className="flex items-center justify-between border-b border-edge/60 pb-3">
                       <div className="flex items-center gap-2">
@@ -212,7 +234,7 @@ export function Navbar() {
                         <button
                           type="button"
                           onClick={handleMarkAllRead}
-                          className="flex items-center gap-1 text-[10px] font-medium text-accent hover:underline"
+                          className="flex items-center gap-1 text-[10px] font-medium text-accent hover:underline cursor-pointer"
                         >
                           <CheckCheck className="h-3 w-3" />
                           <span>Marcar leídas</span>
@@ -294,22 +316,23 @@ export function Navbar() {
           )}
 
           {loading ? (
-            <div className="h-8 w-8 rounded-full border-edge/50 animate-pulse bg-surface-elevated" />
+            <div className="h-9 w-9 rounded-full border-edge/50 animate-pulse bg-surface-elevated" />
           ) : user ? (
             /* Logged In Dropdown Menu */
             <div className="relative" ref={dropdownRef}>
               <button
                 type="button"
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="flex items-center gap-2 rounded-full border-edge/50 bg-surface-elevated py-1.5 px-3.5 text-xs font-medium text-ink hover:border-accent hover:bg-surface transition cursor-pointer select-none"
+                className="flex items-center gap-2 rounded-full border border-edge/50 bg-surface-elevated py-1.5 px-3 sm:px-3.5 text-xs font-medium text-ink hover:border-accent hover:bg-surface transition cursor-pointer select-none active:scale-95"
+                aria-label="Menú de perfil"
               >
-                <div className="flex h-5.5 w-5.5 items-center justify-center rounded-full bg-accent/15 text-accent">
-                  <User className="h-3 w-3" />
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/15 text-accent">
+                  <User className="h-3.5 w-3.5" />
                 </div>
                 <span className="hidden sm:inline max-w-[120px] truncate">
                   {displayName}
                 </span>
-                <ChevronDown className={`h-3 w-3 text-ink-muted transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`h-3.5 w-3.5 text-ink-muted transition-transform duration-200 ${dropdownOpen ? 'rotate-180 text-accent' : ''}`} />
               </button>
 
               <AnimatePresence>
@@ -319,7 +342,7 @@ export function Navbar() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 8, scale: 0.95 }}
                     transition={{ duration: 0.15, ease: 'easeOut' }}
-                    className="absolute right-0 mt-2 w-64 origin-top-right rounded-2xl border-edge/50 bg-surface-elevated p-2 shadow-xl ring-1 ring-black/5 z-30"
+                    className="absolute right-0 mt-2 w-64 origin-top-right rounded-2xl border border-edge/60 bg-surface-elevated p-2 shadow-xl ring-1 ring-black/5 z-50"
                   >
                     {/* Header profile info */}
                     <div className="px-3 py-2.5 mb-1.5 border-b border-edge/60 text-left">
@@ -378,7 +401,7 @@ export function Navbar() {
                       {/* Divider */}
                       <div className="h-px bg-edge/60 my-1.5" />
 
-                      {/* Repeated options hidden from navbar but visible here */}
+                      {/* Studio links */}
                       <div className="px-3 py-1 text-[10px] uppercase font-bold tracking-wider text-ink-muted select-none">
                         Explorar Estudio
                       </div>

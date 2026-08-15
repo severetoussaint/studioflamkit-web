@@ -23,7 +23,7 @@ export function SidebarNav<T extends string = string>({
   onSectionChange,
 }: SidebarNavProps<T>) {
   return (
-    <aside className="space-y-6 lg:sticky lg:top-20 self-start">
+    <aside className="hidden lg:block space-y-6 lg:sticky lg:top-20 self-start">
       <div className="rounded-3xl border-edge bg-surface-elevated p-3 shadow-xs">
         <p className="px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-muted">
           Navegación

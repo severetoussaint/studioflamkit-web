@@ -37,7 +37,7 @@ export function StatusHero({
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-        className="relative overflow-hidden rounded-3xl border-edge/50 bg-surface-elevated/90 p-8 sm:p-12 shadow-[0_12px_40px_rgba(0,0,0,0.03)] backdrop-blur-xs"
+        className="relative overflow-hidden rounded-3xl border-edge/50 bg-surface-elevated/90 p-5 sm:p-8 md:p-12 shadow-[0_12px_40px_rgba(0,0,0,0.03)] backdrop-blur-xs"
       >
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_90%_10%,_var(--color-accent)_0%,_transparent_45%)] opacity-[0.07]" />
 
@@ -90,7 +90,7 @@ export function StatusHero({
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-        className="relative overflow-hidden rounded-3xl border-amber-500/25 bg-surface-elevated/95 p-8 sm:p-12 shadow-[0_12px_40px_rgba(0,0,0,0.03)]"
+        className="relative overflow-hidden rounded-3xl border-amber-500/25 bg-surface-elevated/95 p-5 sm:p-8 md:p-12 shadow-[0_12px_40px_rgba(0,0,0,0.03)]"
       >
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_90%_10%,_#f59e0b_0%,_transparent_40%)] opacity-[0.05]" />
 
@@ -100,11 +100,11 @@ export function StatusHero({
             <span className="uppercase tracking-[0.16em]">{effectiveLabel === 'Sin manuscrito' ? 'Manuscrito Recibido' : effectiveLabel}</span>
           </div>
 
-          <h1 className="font-serif text-3xl font-normal tracking-tight text-ink sm:text-4xl lg:text-5xl leading-[1.15]">
+          <h1 className="font-serif text-2xl font-normal tracking-tight text-ink sm:text-4xl lg:text-5xl leading-[1.15]">
             {projectTitle ? `«${projectTitle}» está en proceso de lectura.` : 'Tu obra está en lectura por nuestro equipo artístico.'}
           </h1>
 
-          <p className="mt-4 text-base leading-relaxed text-ink-muted font-light">
+          <p className="mt-4 text-sm sm:text-base leading-relaxed text-ink-muted font-light">
             {submittedDate ? `Registrado el ${submittedDate}. ` : ''}
             {presentation.nextActionDescription}
           </p>
@@ -146,7 +146,7 @@ export function StatusHero({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-      className="relative overflow-hidden rounded-3xl border-edge/50 bg-surface-elevated/95 p-8 sm:p-12 shadow-[0_12px_40px_rgba(0,0,0,0.03)]"
+      className="relative overflow-hidden rounded-3xl border-edge/50 bg-surface-elevated/95 p-5 sm:p-8 md:p-12 shadow-[0_12px_40px_rgba(0,0,0,0.03)]"
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_90%_10%,_var(--color-accent)_0%,_transparent_35%)] opacity-[0.07]" />
 

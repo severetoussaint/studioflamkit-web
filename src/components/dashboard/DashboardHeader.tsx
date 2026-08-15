@@ -85,9 +85,6 @@ export function DashboardHeader({
         </div>
 
         <div className="mt-3 relative inline-block text-left w-full">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-accent/90 mb-1">
-            Obra Consultada
-          </div>
           <button
             type="button"
             onClick={onToggleSelector}

@@ -134,9 +134,100 @@ export function ProgressTimeline({ steps, currentState, journey = null }: Progre
         </span>
       </div>
 
-      {/* Horizontal Stepper Line Layout */}
-      <div className="relative pt-2 pb-1">
-        <div className="hidden md:block absolute top-[22px] left-[3%] right-[3%] h-[2px] bg-edge/60 z-0" />
+      {/* Layout Móvil: Línea de tiempo vertical (Panel 3 del diseño de referencia) */}
+      <div className="block md:hidden relative pt-2">
+        <div className="relative border-l-2 border-edge/60 ml-4 pl-6 space-y-6 my-2">
+          {activeSteps.map((step, index) => {
+            const isDone = step.status === 'completado';
+            const isActive = step.status === 'activo';
+            const isBlocked = step.status === 'bloqueado';
+
+            return (
+              <motion.div
+                key={step.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.25, delay: index * 0.04 }}
+                className="relative group"
+              >
+                {/* Indicador de nodo sobre la línea vertical */}
+                <div
+                  className={`absolute -left-[35px] top-0 flex h-7 w-7 items-center justify-center rounded-full text-xs transition-all duration-300 ${
+                    isDone
+                      ? 'bg-accent text-white shadow-xs'
+                      : isActive
+                      ? 'border-2 border-accent bg-surface text-accent ring-4 ring-accent/15'
+                      : isBlocked
+                      ? 'border border-edge/70 bg-surface-elevated text-ink-muted/50'
+                      : 'border border-edge/80 bg-surface text-ink-muted/60'
+                  }`}
+                >
+                  {isDone ? (
+                    <Check className="h-3.5 w-3.5 stroke-[2.5]" />
+                  ) : isActive ? (
+                    <span className="h-2 w-2 rounded-full bg-accent animate-ping" />
+                  ) : isBlocked ? (
+                    <Lock className="h-3 w-3" />
+                  ) : (
+                    <Clock className="h-3 w-3" />
+                  )}
+                </div>
+
+                {/* Contenido del paso en móvil */}
+                <div
+                  className={`rounded-2xl border p-4 transition-all ${
+                    isActive
+                      ? 'border-accent/40 bg-accent/8 shadow-xs'
+                      : isDone
+                      ? 'border-edge/60 bg-surface/70'
+                      : 'border-edge/30 bg-surface/30 opacity-75'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-mono text-xs font-semibold text-accent shrink-0">
+                        0{index + 1}
+                      </span>
+                      <h4 className="font-serif text-base font-medium text-ink truncate">
+                        {step.title}
+                      </h4>
+                    </div>
+
+                    {isDone ? (
+                      <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-accent">
+                        Completado
+                      </span>
+                    ) : isActive ? (
+                      <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-accent">
+                        <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+                        En Curso
+                      </span>
+                    ) : isBlocked ? (
+                      <span className="shrink-0 text-[10px] font-medium uppercase tracking-wider text-ink-muted/50">
+                        Bloqueado
+                      </span>
+                    ) : (
+                      <span className="shrink-0 text-[10px] font-medium uppercase tracking-wider text-ink-muted/60">
+                        Pendiente
+                      </span>
+                    )}
+                  </div>
+
+                  {step.description && (
+                    <p className="mt-1.5 text-xs text-ink-muted leading-relaxed font-light">
+                      {step.description}
+                    </p>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Horizontal Stepper Line Layout (Desktop & Tablet) */}
+      <div className="hidden md:block relative pt-2 pb-1">
+        <div className="absolute top-[22px] left-[3%] right-[3%] h-[2px] bg-edge/60 z-0" />
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 sm:gap-2 relative z-10">
           {activeSteps.map((step, index) => {

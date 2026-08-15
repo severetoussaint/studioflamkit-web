@@ -21,7 +21,6 @@ import {
   Play,
   Pause,
   PlusCircle,
-  Inbox,
   UploadCloud,
   FileUp,
   FileCheck,
@@ -35,6 +34,7 @@ import {
   Lock,
   Disc,
 } from 'lucide-react';
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { Footer } from '@/components/layout/Footer';
 import { Navbar } from '@/components/layout/Navbar';
 import { Card } from '@/components/ui/Card';
@@ -54,6 +54,9 @@ import { EmptyStateCard } from '@/components/dashboard/EmptyStateCard';
 import { SidebarNav } from '@/components/dashboard/SidebarNav';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DeliverableItemRow } from '@/components/dashboard/DeliverableItemRow';
+import { BottomNav } from '@/components/dashboard/BottomNav';
+import { RevisionesModal } from '@/components/dashboard/RevisionesModal';
+import { AcompanamientoModal } from '@/components/dashboard/AcompanamientoModal';
 
 type SectionId = 'resumen' | 'capitulos' | 'entregables' | 'pagos' | 'perfil';
 
@@ -202,6 +205,10 @@ export default function DashboardPage() {
   const [manuscriptTitle, setManuscriptTitle] = useState('');
   const [manuscriptWordCount, setManuscriptWordCount] = useState('');
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [revisionesModalOpen, setRevisionesModalOpen] = useState(false);
+  const [acompanamientoModalOpen, setAcompanamientoModalOpen] = useState(false);
+  const [chapterFilter, setChapterFilter] = useState<'all' | 'in_progress' | 'pending'>('all');
+  const [paymentsTab, setPaymentsTab] = useState<'resumen' | 'historial'>('resumen');
   const [showPostSubmitCarousel, setShowPostSubmitCarousel] = useState(false);
 
   const hasActiveProject = requestState === 'active';
@@ -700,31 +707,106 @@ export default function DashboardPage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
+                className="space-y-6"
               >
-                {!hasActiveProject ? (
-                  <Card title="Capítulos del Audiolibro" description="Grabación, edición y muestras por capítulo.">
-                    <EmptyStateCard
-                      icon={Inbox}
-                      title="No hay capítulos asignados a producción"
-                      description="Sube tu manuscrito para recibir el desglose por capítulos y las muestras de locución."
-                      actionLabel="Subir Manuscrito"
-                      actionIcon={FileUp}
-                      onAction={() => setUploaderModalOpen(true)}
-                    />
-                  </Card>
-                ) : chaptersState.length === 0 ? (
-                  <Card title="Capítulos del Audiolibro" description="Grabación, edición y muestras por capítulo.">
-                    <EmptyStateCard
-                      icon={BookOpen}
-                      title="Obra Activa en Producción"
-                      description="Tu obra está activa. Tu editor está configurando los capítulos reales en Supabase con la duración y tarifa calculada. En cuanto se agreguen, los verás listados aquí para seguimiento paso a paso."
-                      iconClassName="text-accent"
-                    />
-                  </Card>
+                {/* Header de Capítulos con Contador y Estado (Panel 4) */}
+                <div className="flex flex-col gap-4 rounded-3xl border border-edge/60 bg-surface-elevated/90 p-5 sm:p-6 shadow-xs sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-serif text-3xl font-medium text-ink">
+                        {chaptersState.length}
+                      </span>
+                      <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
+                        Capítulos Registrados
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-ink-muted font-light">
+                      {chaptersState.filter(c => c.paymentStatus === 'Pagado').length} pagados / en producción
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                      {hasActiveProject ? 'Activo' : 'Evaluación'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Filtros de Capítulos */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                  <button
+                    type="button"
+                    onClick={() => setChapterFilter('all')}
+                    className={`rounded-xl px-4 py-2 text-xs font-medium transition cursor-pointer ${
+                      chapterFilter === 'all'
+                        ? 'bg-accent text-surface shadow-xs'
+                        : 'border border-edge bg-surface text-ink-muted hover:text-ink'
+                    }`}
+                  >
+                    Todos
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setChapterFilter('in_progress')}
+                    className={`rounded-xl px-4 py-2 text-xs font-medium transition cursor-pointer ${
+                      chapterFilter === 'in_progress'
+                        ? 'bg-accent text-surface shadow-xs'
+                        : 'border border-edge bg-surface text-ink-muted hover:text-ink'
+                    }`}
+                  >
+                    En curso
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setChapterFilter('pending')}
+                    className={`rounded-xl px-4 py-2 text-xs font-medium transition cursor-pointer ${
+                      chapterFilter === 'pending'
+                        ? 'bg-accent text-surface shadow-xs'
+                        : 'border border-edge bg-surface text-ink-muted hover:text-ink'
+                    }`}
+                  >
+                    Pendientes
+                  </button>
+                </div>
+
+                {/* Lista de Capítulos o Estado Vacío */}
+                {chaptersState.length === 0 ? (
+                  <div className="rounded-3xl border border-edge/60 bg-surface-elevated p-8 text-center sm:p-12 shadow-xs">
+                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-edge bg-surface text-accent">
+                      <BookOpen className="h-7 w-7" />
+                    </div>
+                    <h3 className="mt-4 font-serif text-xl font-medium text-ink">
+                      Aún no hay capítulos registrados
+                    </h3>
+                    <p className="mt-2 text-xs text-ink-muted max-w-md mx-auto leading-relaxed font-light">
+                      Los capítulos aparecerán aquí una vez que comience la producción y tu editor asigne el desglose sonoro.
+                    </p>
+                    <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setActive('resumen')}
+                        className="rounded-2xl border border-edge bg-surface px-5 py-2.5 text-xs font-semibold uppercase tracking-wider text-ink hover:border-accent/40 hover:text-accent transition cursor-pointer"
+                      >
+                        Ver ruta editorial
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setUploaderModalOpen(true)}
+                        className="rounded-2xl bg-accent px-5 py-2.5 text-xs font-semibold uppercase tracking-wider text-surface hover:bg-accent-hover transition cursor-pointer shadow-xs"
+                      >
+                        Subir Manuscrito
+                      </button>
+                    </div>
+                  </div>
                 ) : (
-                  <Card title="Capítulos del Audiolibro" description="Haz clic en cualquier capítulo para escuchar, enviar revisiones en chat, aprobar o realizar el pago.">
-                    <div className="mt-6 space-y-4">
-                      {chaptersState.map((chapter, index) => (
+                  <div className="space-y-4">
+                    {chaptersState
+                      .filter((c) => {
+                        if (chapterFilter === 'in_progress') return c.status === 'En Grabación' || c.status === 'Produccion' || c.status === 'Revisiones';
+                        if (chapterFilter === 'pending') return c.status === 'Pendiente' || c.status === 'Cotizado';
+                        return true;
+                      })
+                      .map((chapter, index) => (
                         <ChapterCard
                           key={chapter.id}
                           chapter={chapter}
@@ -732,8 +814,7 @@ export default function DashboardPage() {
                           onSelectChapter={setSelectedChapter}
                         />
                       ))}
-                    </div>
-                  </Card>
+                  </div>
                 )}
               </motion.div>
             )}
@@ -757,54 +838,138 @@ export default function DashboardPage() {
             )}
 
             {active === 'pagos' && (
-              <div className="space-y-6">
-                <Card title="Pagos por Capítulo" description="Registro transparente de costos por fragmento y opción de pago directo.">
-                  {!hasActiveProject ? (
-                    <div className="mt-6 space-y-6">
-                      <div className="grid gap-4 sm:grid-cols-3">
-                        <div className="rounded-2xl border-edge/50 bg-surface p-4">
-                          <p className="text-xs uppercase tracking-wider text-ink-muted">Inversión Total</p>
-                          <p className="mt-1 text-xl font-semibold text-ink">$0.00</p>
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-6"
+              >
+                {/* Pestañas Resumen / Historial (Panel 5) */}
+                <div className="flex items-center gap-2 border-b border-edge/60 pb-3">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentsTab('resumen')}
+                    className={`rounded-2xl px-5 py-2 text-xs font-semibold uppercase tracking-wider transition cursor-pointer ${
+                      paymentsTab === 'resumen'
+                        ? 'bg-accent text-surface shadow-xs'
+                        : 'border border-edge bg-surface text-ink-muted hover:text-ink'
+                    }`}
+                  >
+                    Resumen
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentsTab('historial')}
+                    className={`rounded-2xl px-5 py-2 text-xs font-semibold uppercase tracking-wider transition cursor-pointer ${
+                      paymentsTab === 'historial'
+                        ? 'bg-accent text-surface shadow-xs'
+                        : 'border border-edge bg-surface text-ink-muted hover:text-ink'
+                    }`}
+                  >
+                    Historial
+                  </button>
+                </div>
+
+                {paymentsTab === 'resumen' ? (
+                  <div className="space-y-4">
+                    {/* Tarjetas KPI de Pagos */}
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                      <div className="rounded-3xl border border-edge/60 bg-surface-elevated p-5 shadow-xs">
+                        <div className="flex items-center justify-between">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-ink-muted">
+                            Estado de Producción
+                          </p>
+                          <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-mono font-medium text-accent">
+                            Avance
+                          </span>
                         </div>
-                        <div className="rounded-2xl border-edge/50 bg-surface p-4">
-                          <p className="text-xs uppercase tracking-wider text-ink-muted">Total Pagado</p>
-                          <p className="mt-1 text-xl font-semibold text-ink">$0.00</p>
-                        </div>
-                        <div className="rounded-2xl border-edge/50 bg-surface p-4">
-                          <p className="text-xs uppercase tracking-wider text-ink-muted">Pendiente</p>
-                          <p className="mt-1 text-xl font-semibold text-ink">$0.00</p>
-                        </div>
+                        <p className="mt-3 font-serif text-3xl font-normal text-ink">
+                          {editorialProgress ?? 0}%
+                        </p>
+                        <p className="mt-1 text-xs text-ink-muted font-light">
+                          Seguimiento por capítulos
+                        </p>
                       </div>
-                      <div className="rounded-2xl border-dashed border-edge/50 bg-surface p-8 text-center">
-                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-elevated text-ink-muted border-edge/50">
-                          <Wallet className="h-6 w-6" />
+
+                      <div className="rounded-3xl border border-edge/60 bg-surface-elevated p-5 shadow-xs">
+                        <div className="flex items-center justify-between">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-ink-muted">
+                            Pagos Realizados
+                          </p>
+                          <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-mono font-medium text-emerald-600 dark:text-emerald-400">
+                            Confirmados
+                          </span>
                         </div>
-                        <p className="mt-3 font-medium text-ink">No hay facturas ni pagos pendientes</p>
-                        <p className="mt-1 text-xs text-ink-muted max-w-md mx-auto">
-                          Al aprobar una cotización, el plan de pagos por capítulos aparecerá desglosado aquí.
+                        <p className="mt-3 font-serif text-3xl font-normal text-ink">
+                          {chaptersState.filter(c => c.paymentStatus === 'Pagado').length}
+                        </p>
+                        <p className="mt-1 text-xs text-ink-muted font-light">
+                          Hasta el momento
+                        </p>
+                      </div>
+
+                      <div className="rounded-3xl border border-edge/60 bg-surface-elevated p-5 shadow-xs">
+                        <div className="flex items-center justify-between">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-ink-muted">
+                            Saldo Pendiente
+                          </p>
+                          <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-mono font-medium text-amber-600 dark:text-amber-400">
+                            Por liquidar
+                          </span>
+                        </div>
+                        <p className="mt-3 font-serif text-3xl font-normal text-ink">
+                          $0.00 USD
+                        </p>
+                        <p className="mt-1 text-xs text-ink-muted font-light">
+                          Liquidación por entregables
                         </p>
                       </div>
                     </div>
-                  ) : (
-                    <>
-                      {/* Resumen financiero en la parte superior */}
-                {/* Aquí se cargarán los datos financieros reales del proyecto */}
 
-                <div className="space-y-3">
-                  {/* Aquí se listarán los capítulos con su estado de pago real */}
-                </div>
-              </>
+                    {/* Tarjeta Próximo Pago */}
+                    <div className="rounded-3xl border border-edge/60 bg-surface-elevated p-6 shadow-xs">
+                      <div className="flex items-center gap-2">
+                        <Wallet className="h-5 w-5 text-accent" />
+                        <h4 className="font-serif text-lg font-medium text-ink">Próximo Pago</h4>
+                      </div>
+                      <p className="mt-2 text-sm text-ink-muted font-light">
+                        No hay pagos programados en este momento. Los pagos se generan por aprobación de capítulos.
+                      </p>
+                      <div className="mt-5">
+                        <button
+                          type="button"
+                          onClick={() => setPaymentsTab('historial')}
+                          className="rounded-2xl border border-edge bg-surface px-5 py-2.5 text-xs font-semibold uppercase tracking-wider text-ink hover:border-accent/40 hover:text-accent transition cursor-pointer"
+                        >
+                          Ver historial de pagos
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Vista de Historial de Facturación */
+                  <div className="rounded-3xl border border-edge/60 bg-surface-elevated p-6 shadow-xs">
+                    <div className="flex items-center justify-between border-b border-edge/60 pb-4">
+                      <div>
+                        <h4 className="font-serif text-lg font-medium text-ink">Historial de Facturación</h4>
+                        <p className="text-xs text-ink-muted font-light">Comprobantes y recibos oficiales</p>
+                      </div>
+                      <span className="rounded-full bg-surface border border-edge px-3 py-1 text-[11px] font-mono text-ink-muted">
+                        0 comprobantes
+                      </span>
+                    </div>
+
+                    <div className="mt-8 py-8 text-center">
+                      <Wallet className="mx-auto h-10 w-10 text-ink-muted/50" />
+                      <p className="mt-3 text-sm font-medium text-ink">No hay facturas emitidas aún</p>
+                      <p className="mt-1 text-xs text-ink-muted max-w-sm mx-auto font-light">
+                        Los recibos fiscales y órdenes de pago completadas aparecerán listados aquí para descarga directa.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
             )}
-          </Card>
-
-          {/* TABLA DE HISTORIAL DE FACTURAS */}
-          <Card title="Historial de Facturación" description="Tabla completa de comprobantes, recibos y facturas oficiales emitidas.">
-            <div className="mt-4 overflow-x-auto">
-              {/* Aquí se listará el historial de facturas reales */}
-            </div>
-          </Card>
-        </div>
-      )}
 
             {active === 'perfil' && (
               <Card title="Perfil de Autor & Configuración" description="Gestiona tu método de pago preferido y el formato de entregables finales para tu obra.">
@@ -1033,6 +1198,27 @@ export default function DashboardPage() {
                           </p>
                         </div>
                       </label>
+                    </div>
+                  </div>
+
+                  {/* SECCIÓN 3: APARIENCIA Y TEMA VISUAL */}
+                  <div className="space-y-4 pt-4 border-t border-edge/60">
+                    <div className="flex items-center justify-between border-b border-edge/60 pb-2">
+                      <div className="flex items-center gap-2">
+                        <Settings className="h-4 w-4 text-accent" />
+                        <h4 className="text-sm font-semibold uppercase tracking-wider text-ink">Apariencia del Sistema</h4>
+                      </div>
+                      <span className="text-xs text-ink-muted">Modo Claro / Oscuro</span>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-edge/60 bg-surface p-4">
+                      <div>
+                        <p className="text-sm font-semibold text-ink">Tema Visual del Estudio</p>
+                        <p className="text-xs text-ink-muted leading-relaxed mt-0.5">
+                          Alterna entre la interfaz clara de lectura diurna y la interfaz oscura de estudio nocturno.
+                        </p>
+                      </div>
+                      <ThemeToggle />
                     </div>
                   </div>
 
@@ -1645,6 +1831,15 @@ export default function DashboardPage() {
       </AnimatePresence>
 
       <FilesLibraryModal open={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} data={libraryData} />
+      <RevisionesModal open={revisionesModalOpen} onClose={() => setRevisionesModalOpen(false)} maxRevisions={realProject?.maxRevisions || 3} />
+      <AcompanamientoModal open={acompanamientoModalOpen} onClose={() => setAcompanamientoModalOpen(false)} />
+
+      {/* Barra fija inferior exclusiva para dispositivos móviles */}
+      <BottomNav
+        activeSection={active}
+        onSectionChange={(section) => setActive(section)}
+        chaptersCount={chaptersState.length}
+      />
 
       <Footer />
     </main>
