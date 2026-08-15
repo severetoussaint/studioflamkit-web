@@ -12,7 +12,6 @@ interface AdminFeedbackReviewPanelProps {
 
 export function AdminFeedbackReviewPanel({ deliverables, hasOpenReviews, onOpenFeedback }: AdminFeedbackReviewPanelProps) {
   const deliverablesWithComments = deliverables.filter((d) => d.comments && d.comments.length > 0);
-  const totalComments = deliverablesWithComments.reduce((sum, d) => sum + (d.comments?.length ?? 0), 0);
 
   return (
     <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)] sm:p-8">
