@@ -12,6 +12,10 @@ import { createNotification } from '@/services/notification.service';
 export type ConversationRow = Database['public']['Tables']['conversations']['Row'];
 export type MessageRow = Database['public']['Tables']['messages']['Row'];
 
+type MessageRowWithClientId = MessageRow & {
+  client_message_id?: string | null;
+};
+
 interface ConversationJoinedRow extends ConversationRow {
   authors?: { full_name?: string; email?: string } | null;
   projects?: { manuscripts?: { title?: string } | null } | null;
@@ -32,6 +36,7 @@ export interface SendMessageInput {
   senderType: MessageSenderType;
   senderId: string;
   body: string;
+  clientMessageId?: string;
 }
 
 export interface ListConversationsParams {
@@ -41,7 +46,10 @@ export interface ListConversationsParams {
   type?: ConversationType;
 }
 
-function mapMessageRowToDomain(row: MessageRow): Message {
+const retryKeyCache = new Map<string, { clientMessageId: string; expiresAt: number }>();
+const RETRY_KEY_TTL_MS = 10 * 60 * 1000;
+
+function mapMessageRowToDomain(row: MessageRowWithClientId): Message {
   return {
     id: row.id,
     conversationId: row.conversation_id,
@@ -78,6 +86,34 @@ function mapConversationRowToDomain(
     projectTitle: extra?.projectTitle,
     unreadCount: extra?.unreadCount ?? 0,
   };
+}
+
+function getRetryCacheKey(input: SendMessageInput): string {
+  return `${input.conversationId}:${input.senderType}:${input.senderId}:${input.body.trim()}`;
+}
+
+function getClientMessageId(input: SendMessageInput): string {
+  const supplied = input.clientMessageId?.trim();
+  if (supplied) return supplied;
+
+  const key = getRetryCacheKey(input);
+  const now = Date.now();
+  const cached = retryKeyCache.get(key);
+
+  if (cached && cached.expiresAt > now) {
+    return cached.clientMessageId;
+  }
+
+  const generated = crypto.randomUUID();
+  retryKeyCache.set(key, {
+    clientMessageId: generated,
+    expiresAt: now + RETRY_KEY_TTL_MS,
+  });
+  return generated;
+}
+
+function clearRetryKey(input: SendMessageInput): void {
+  retryKeyCache.delete(getRetryCacheKey(input));
 }
 
 export async function listConversations(params?: ListConversationsParams): Promise<Conversation[]> {
@@ -121,7 +157,6 @@ export async function listConversations(params?: ListConversationsParams): Promi
 
     const conversationIds = data.map((c) => c.id);
 
-    // Fetch latest message and unread count for each conversation
     const { data: messagesData } = await supabaseClient
       .from('messages')
       .select('*')
@@ -130,7 +165,7 @@ export async function listConversations(params?: ListConversationsParams): Promi
 
     const messagesByConv: Record<string, Message[]> = {};
     (messagesData ?? []).forEach((m) => {
-      const msg = mapMessageRowToDomain(m as MessageRow);
+      const msg = mapMessageRowToDomain(m as MessageRowWithClientId);
       if (!messagesByConv[msg.conversationId]) {
         messagesByConv[msg.conversationId] = [];
       }
@@ -143,15 +178,11 @@ export async function listConversations(params?: ListConversationsParams): Promi
       const lastMsg = convMessages.length > 0 ? convMessages[convMessages.length - 1] : null;
       const unreadCount = convMessages.filter((m) => !m.readAt).length;
 
-      const authorName = row.authors?.full_name ?? undefined;
-      const authorEmail = row.authors?.email ?? undefined;
-      const projectTitle = row.projects?.manuscripts?.title ?? undefined;
-
       return mapConversationRowToDomain(row, {
         lastMessage: lastMsg,
-        authorName,
-        authorEmail,
-        projectTitle,
+        authorName: row.authors?.full_name ?? undefined,
+        authorEmail: row.authors?.email ?? undefined,
+        projectTitle: row.projects?.manuscripts?.title ?? undefined,
         unreadCount,
       });
     });
@@ -187,14 +218,10 @@ export async function getConversation(conversationId: string): Promise<Conversat
     }
 
     const row = data as unknown as ConversationJoinedRow;
-    const authorName = row.authors?.full_name ?? undefined;
-    const authorEmail = row.authors?.email ?? undefined;
-    const projectTitle = row.projects?.manuscripts?.title ?? undefined;
-
     return mapConversationRowToDomain(row, {
-      authorName,
-      authorEmail,
-      projectTitle,
+      authorName: row.authors?.full_name ?? undefined,
+      authorEmail: row.authors?.email ?? undefined,
+      projectTitle: row.projects?.manuscripts?.title ?? undefined,
     });
   } catch (err) {
     console.error('Unexpected error in getConversation:', err);
@@ -246,13 +273,13 @@ export async function createConversation(input: CreateConversationInput): Promis
     if (msgError) {
       console.warn('Error creating initial message for conversation:', msgError);
     } else if (msgRow) {
-      createdInitialMessage = mapMessageRowToDomain(msgRow as MessageRow);
+      createdInitialMessage = mapMessageRowToDomain(msgRow as MessageRowWithClientId);
 
-      // If admin initiated the conversation with an initial message, notify author
       if (senderType === 'admin') {
         try {
           await createNotification({
             authorId: input.authorId,
+            conversationId: convRow.id,
             title: `Nuevo mensaje editorial: ${input.subject}`,
             message: input.initialMessage.trim(),
             status: 'pending',
@@ -264,12 +291,10 @@ export async function createConversation(input: CreateConversationInput): Promis
     }
   }
 
-  const domainConv = mapConversationRowToDomain(convRow as ConversationRow, {
-    lastMessage: createdInitialMessage,
-  });
-
   return {
-    conversation: domainConv,
+    conversation: mapConversationRowToDomain(convRow as ConversationRow, {
+      lastMessage: createdInitialMessage,
+    }),
     initialMessage: createdInitialMessage,
   };
 }
@@ -288,7 +313,7 @@ export async function getConversationMessages(conversationId: string): Promise<M
       return [];
     }
 
-    return ((data ?? []) as MessageRow[]).map(mapMessageRowToDomain);
+    return ((data ?? []) as MessageRowWithClientId[]).map(mapMessageRowToDomain);
   } catch (err) {
     console.error('Unexpected error in getConversationMessages:', err);
     return [];
@@ -300,56 +325,86 @@ export async function sendMessage(input: SendMessageInput): Promise<Message> {
   if (!input.body.trim()) throw new Error('Message body cannot be empty.');
   if (!input.senderId) throw new Error('senderId is required.');
 
-  // 1. Insert message
-  const { data: msgRow, error: msgError } = await supabaseClient
-    .from('messages')
-    .insert({
+  const clientMessageId = getClientMessageId(input);
+
+  try {
+    const { data: existingRow, error: existingError } = await supabaseClient
+      .from('messages')
+      .select('*')
+      .eq('client_message_id' as never, clientMessageId)
+      .maybeSingle();
+
+    if (!existingError && existingRow) {
+      clearRetryKey(input);
+      return mapMessageRowToDomain(existingRow as MessageRowWithClientId);
+    }
+
+    const insertPayload = {
       conversation_id: input.conversationId,
+      client_message_id: clientMessageId,
       sender_type: input.senderType,
       sender_id: input.senderId,
       body: input.body.trim(),
-    })
-    .select('*')
-    .single();
+    };
 
-  if (msgError || !msgRow) {
-    console.error('Error inserting message:', msgError);
-    throw msgError || new Error('Failed to send message');
-  }
+    const { data: msgRow, error: msgError } = await supabaseClient
+      .from('messages')
+      .insert(insertPayload as never)
+      .select('*')
+      .single();
 
-  // 2. Touch conversation updated_at
-  await supabaseClient
-    .from('conversations')
-    .update({ updated_at: new Date().toISOString() })
-    .eq('id', input.conversationId);
-
-  const domainMessage = mapMessageRowToDomain(msgRow as MessageRow);
-
-  // 3. Notification generation:
-  // If admin sent the message -> notify the author
-  if (input.senderType === 'admin') {
-    try {
-      const { data: conv } = await supabaseClient
-        .from('conversations')
-        .select('author_id, subject')
-        .eq('id', input.conversationId)
+    if (msgError || !msgRow) {
+      const duplicateLookup = await supabaseClient
+        .from('messages')
+        .select('*')
+        .eq('client_message_id' as never, clientMessageId)
         .maybeSingle();
 
-      if (conv?.author_id) {
-        const preview = input.body.length > 120 ? `${input.body.slice(0, 117)}...` : input.body;
-        await createNotification({
-          authorId: conv.author_id,
-          title: `Respuesta del equipo editorial: ${conv.subject || 'Consulta'}`,
-          message: preview,
-          status: 'pending',
-        });
+      if (!duplicateLookup.error && duplicateLookup.data) {
+        clearRetryKey(input);
+        return mapMessageRowToDomain(duplicateLookup.data as MessageRowWithClientId);
       }
-    } catch (notifErr) {
-      console.warn('Failed to send notification for admin message:', notifErr);
-    }
-  }
 
-  return domainMessage;
+      throw msgError || new Error('Failed to send message');
+    }
+
+    await supabaseClient
+      .from('conversations')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', input.conversationId);
+
+    const domainMessage = mapMessageRowToDomain(msgRow as MessageRowWithClientId);
+
+    if (input.senderType === 'admin') {
+      try {
+        const { data: conv } = await supabaseClient
+          .from('conversations')
+          .select('author_id, subject')
+          .eq('id', input.conversationId)
+          .maybeSingle();
+
+        if (conv?.author_id) {
+          const preview = input.body.length > 120 ? `${input.body.slice(0, 117)}...` : input.body;
+          await createNotification({
+            authorId: conv.author_id,
+            conversationId: input.conversationId,
+            title: `Respuesta del equipo editorial: ${conv.subject || 'Consulta'}`,
+            message: preview,
+            status: 'pending',
+          });
+        }
+      } catch (notifErr) {
+        console.warn('Failed to send notification for admin message:', notifErr);
+      }
+    }
+
+    clearRetryKey(input);
+    return domainMessage;
+  } catch (error) {
+    // Keep the generated client key in the short-lived retry cache so a
+    // network failure after INSERT does not create a duplicate on retry.
+    throw error;
+  }
 }
 
 export async function markMessagesRead(
@@ -358,8 +413,6 @@ export async function markMessagesRead(
 ): Promise<boolean> {
   if (!conversationId) return false;
   try {
-    // If reader is 'author', mark all messages from 'admin' as read
-    // If reader is 'admin', mark all messages from 'author' as read
     const senderTypeToMark = readerType === 'author' ? 'admin' : 'author';
 
     const { error } = await supabaseClient
