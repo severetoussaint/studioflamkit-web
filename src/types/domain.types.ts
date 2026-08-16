@@ -138,6 +138,7 @@ export interface TimelineEntry {
 export interface Notification {
   id: string;
   authorId: string;
+  conversationId: string | null;
   title: string;
   message: string;
   status: NotificationStatus;
@@ -212,4 +213,3 @@ export interface Conversation {
   projectTitle?: string;
   unreadCount?: number;
 }
-
