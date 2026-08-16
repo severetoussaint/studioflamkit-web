@@ -12,10 +12,6 @@ import { createNotification } from '@/services/notification.service';
 export type ConversationRow = Database['public']['Tables']['conversations']['Row'];
 export type MessageRow = Database['public']['Tables']['messages']['Row'];
 
-type MessageRowWithClientId = MessageRow & {
-  client_message_id?: string | null;
-};
-
 interface ConversationJoinedRow extends ConversationRow {
   authors?: { full_name?: string; email?: string } | null;
   projects?: { manuscripts?: { title?: string } | null } | null;
@@ -36,7 +32,6 @@ export interface SendMessageInput {
   senderType: MessageSenderType;
   senderId: string;
   body: string;
-  clientMessageId?: string;
 }
 
 export interface ListConversationsParams {
@@ -46,10 +41,7 @@ export interface ListConversationsParams {
   type?: ConversationType;
 }
 
-const retryKeyCache = new Map<string, { clientMessageId: string; expiresAt: number }>();
-const RETRY_KEY_TTL_MS = 10 * 60 * 1000;
-
-function mapMessageRowToDomain(row: MessageRowWithClientId): Message {
+function mapMessageRowToDomain(row: MessageRow & { client_message_id?: string | null }): Message {
   return {
     id: row.id,
     conversationId: row.conversation_id,
@@ -88,32 +80,19 @@ function mapConversationRowToDomain(
   };
 }
 
-function getRetryCacheKey(input: SendMessageInput): string {
-  return `${input.conversationId}:${input.senderType}:${input.senderId}:${input.body.trim()}`;
-}
-
 function getClientMessageId(input: SendMessageInput): string {
-  const supplied = input.clientMessageId?.trim();
-  if (supplied) return supplied;
-
-  const key = getRetryCacheKey(input);
-  const now = Date.now();
-  const cached = retryKeyCache.get(key);
-
-  if (cached && cached.expiresAt > now) {
-    return cached.clientMessageId;
-  }
-
-  const generated = crypto.randomUUID();
-  retryKeyCache.set(key, {
-    clientMessageId: generated,
-    expiresAt: now + RETRY_KEY_TTL_MS,
-  });
-  return generated;
+  if (typeof window === 'undefined') return `${input.conversationId}:${input.senderId}:${input.body.trim()}`;
+  const storageKey = `flamkit-message-retry:${input.conversationId}:${input.senderId}`;
+  const existing = window.sessionStorage.getItem(storageKey);
+  if (existing) return existing;
+  const id = crypto.randomUUID();
+  window.sessionStorage.setItem(storageKey, id);
+  return id;
 }
 
 function clearRetryKey(input: SendMessageInput): void {
-  retryKeyCache.delete(getRetryCacheKey(input));
+  if (typeof window === 'undefined') return;
+  window.sessionStorage.removeItem(`flamkit-message-retry:${input.conversationId}:${input.senderId}`);
 }
 
 export async function listConversations(params?: ListConversationsParams): Promise<Conversation[]> {
@@ -134,29 +113,15 @@ export async function listConversations(params?: ListConversationsParams): Promi
       `)
       .order('updated_at', { ascending: false });
 
-    if (params?.authorId) {
-      query = query.eq('author_id', params.authorId);
-    }
-    if (params?.projectId) {
-      query = query.eq('project_id', params.projectId);
-    }
-    if (params?.status) {
-      query = query.eq('status', params.status);
-    }
-    if (params?.type) {
-      query = query.eq('type', params.type);
-    }
+    if (params?.authorId) query = query.eq('author_id', params.authorId);
+    if (params?.projectId) query = query.eq('project_id', params.projectId);
+    if (params?.status) query = query.eq('status', params.status);
+    if (params?.type) query = query.eq('type', params.type);
 
     const { data, error } = await query;
-    if (error) {
-      console.warn('Error fetching conversations from Supabase:', error);
-      return [];
-    }
-
-    if (!data || data.length === 0) return [];
+    if (error || !data) return [];
 
     const conversationIds = data.map((c) => c.id);
-
     const { data: messagesData } = await supabaseClient
       .from('messages')
       .select('*')
@@ -165,19 +130,15 @@ export async function listConversations(params?: ListConversationsParams): Promi
 
     const messagesByConv: Record<string, Message[]> = {};
     (messagesData ?? []).forEach((m) => {
-      const msg = mapMessageRowToDomain(m as MessageRowWithClientId);
-      if (!messagesByConv[msg.conversationId]) {
-        messagesByConv[msg.conversationId] = [];
-      }
-      messagesByConv[msg.conversationId].push(msg);
+      const msg = mapMessageRowToDomain(m);
+      (messagesByConv[msg.conversationId] ??= []).push(msg);
     });
 
     return data.map((item) => {
       const row = item as unknown as ConversationJoinedRow;
       const convMessages = messagesByConv[row.id] ?? [];
-      const lastMsg = convMessages.length > 0 ? convMessages[convMessages.length - 1] : null;
+      const lastMsg = convMessages.at(-1) ?? null;
       const unreadCount = convMessages.filter((m) => !m.readAt).length;
-
       return mapConversationRowToDomain(row, {
         lastMessage: lastMsg,
         authorName: row.authors?.full_name ?? undefined,
@@ -211,12 +172,7 @@ export async function getConversation(conversationId: string): Promise<Conversat
       `)
       .eq('id', conversationId)
       .maybeSingle();
-
-    if (error || !data) {
-      if (error) console.warn('Error fetching conversation:', error);
-      return null;
-    }
-
+    if (error || !data) return null;
     const row = data as unknown as ConversationJoinedRow;
     return mapConversationRowToDomain(row, {
       authorName: row.authors?.full_name ?? undefined,
@@ -229,10 +185,7 @@ export async function getConversation(conversationId: string): Promise<Conversat
   }
 }
 
-export async function createConversation(input: CreateConversationInput): Promise<{
-  conversation: Conversation;
-  initialMessage?: Message;
-}> {
+export async function createConversation(input: CreateConversationInput): Promise<{ conversation: Conversation; initialMessage?: Message }> {
   if (!input.authorId) throw new Error('authorId is required to create a conversation.');
   if (!input.subject.trim()) throw new Error('Subject is required.');
 
@@ -247,54 +200,23 @@ export async function createConversation(input: CreateConversationInput): Promis
     })
     .select('*')
     .single();
-
-  if (convError || !convRow) {
-    console.error('Error inserting conversation:', convError);
-    throw convError || new Error('Failed to create conversation');
-  }
+  if (convError || !convRow) throw convError || new Error('Failed to create conversation');
 
   let createdInitialMessage: Message | undefined;
-
-  if (input.initialMessage && input.initialMessage.trim()) {
+  if (input.initialMessage?.trim()) {
     const senderType = input.senderType ?? 'author';
     const senderId = input.senderId ?? input.authorId;
-
-    const { data: msgRow, error: msgError } = await supabaseClient
-      .from('messages')
-      .insert({
-        conversation_id: convRow.id,
-        sender_type: senderType,
-        sender_id: senderId,
-        body: input.initialMessage.trim(),
-      })
-      .select('*')
-      .single();
-
-    if (msgError) {
-      console.warn('Error creating initial message for conversation:', msgError);
-    } else if (msgRow) {
-      createdInitialMessage = mapMessageRowToDomain(msgRow as MessageRowWithClientId);
-
-      if (senderType === 'admin') {
-        try {
-          await createNotification({
-            authorId: input.authorId,
-            conversationId: convRow.id,
-            title: `Nuevo mensaje editorial: ${input.subject}`,
-            message: input.initialMessage.trim(),
-            status: 'pending',
-          });
-        } catch (notifErr) {
-          console.warn('Failed to send notification for initial message:', notifErr);
-        }
-      }
-    }
+    const sent = await sendMessage({
+      conversationId: convRow.id,
+      senderType,
+      senderId,
+      body: input.initialMessage.trim(),
+    });
+    createdInitialMessage = sent;
   }
 
   return {
-    conversation: mapConversationRowToDomain(convRow as ConversationRow, {
-      lastMessage: createdInitialMessage,
-    }),
+    conversation: mapConversationRowToDomain(convRow as ConversationRow, { lastMessage: createdInitialMessage }),
     initialMessage: createdInitialMessage,
   };
 }
@@ -307,13 +229,11 @@ export async function getConversationMessages(conversationId: string): Promise<M
       .select('*')
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: true });
-
     if (error) {
       console.warn('Error getting conversation messages:', error);
       return [];
     }
-
-    return ((data ?? []) as MessageRowWithClientId[]).map(mapMessageRowToDomain);
+    return (data ?? []).map(mapMessageRowToDomain);
   } catch (err) {
     console.error('Unexpected error in getConversationMessages:', err);
     return [];
@@ -326,102 +246,89 @@ export async function sendMessage(input: SendMessageInput): Promise<Message> {
   if (!input.senderId) throw new Error('senderId is required.');
 
   const clientMessageId = getClientMessageId(input);
+  const { data: existingRow, error: existingError } = await supabaseClient
+    .from('messages')
+    .select('*')
+    .eq('client_message_id' as never, clientMessageId)
+    .maybeSingle();
 
-  try {
-    const { data: existingRow, error: existingError } = await supabaseClient
+  if (!existingError && existingRow) {
+    clearRetryKey(input);
+    return mapMessageRowToDomain(existingRow as MessageRow & { client_message_id?: string | null });
+  }
+
+  const insertPayload = {
+    conversation_id: input.conversationId,
+    client_message_id: clientMessageId,
+    sender_type: input.senderType,
+    sender_id: input.senderId,
+    body: input.body.trim(),
+  };
+
+  const { data: msgRow, error: msgError } = await supabaseClient
+    .from('messages')
+    .insert(insertPayload as never)
+    .select('*')
+    .single();
+
+  if (msgError || !msgRow) {
+    const duplicateLookup = await supabaseClient
       .from('messages')
       .select('*')
       .eq('client_message_id' as never, clientMessageId)
       .maybeSingle();
 
-    if (!existingError && existingRow) {
+    if (!duplicateLookup.error && duplicateLookup.data) {
       clearRetryKey(input);
-      return mapMessageRowToDomain(existingRow as MessageRowWithClientId);
+      return mapMessageRowToDomain(duplicateLookup.data as MessageRow & { client_message_id?: string | null });
     }
 
-    const insertPayload = {
-      conversation_id: input.conversationId,
-      client_message_id: clientMessageId,
-      sender_type: input.senderType,
-      sender_id: input.senderId,
-      body: input.body.trim(),
-    };
-
-    const { data: msgRow, error: msgError } = await supabaseClient
-      .from('messages')
-      .insert(insertPayload as never)
-      .select('*')
-      .single();
-
-    if (msgError || !msgRow) {
-      const duplicateLookup = await supabaseClient
-        .from('messages')
-        .select('*')
-        .eq('client_message_id' as never, clientMessageId)
-        .maybeSingle();
-
-      if (!duplicateLookup.error && duplicateLookup.data) {
-        clearRetryKey(input);
-        return mapMessageRowToDomain(duplicateLookup.data as MessageRowWithClientId);
-      }
-
-      throw msgError || new Error('Failed to send message');
-    }
-
-    await supabaseClient
-      .from('conversations')
-      .update({ updated_at: new Date().toISOString() })
-      .eq('id', input.conversationId);
-
-    const domainMessage = mapMessageRowToDomain(msgRow as MessageRowWithClientId);
-
-    if (input.senderType === 'admin') {
-      try {
-        const { data: conv } = await supabaseClient
-          .from('conversations')
-          .select('author_id, subject')
-          .eq('id', input.conversationId)
-          .maybeSingle();
-
-        if (conv?.author_id) {
-          const preview = input.body.length > 120 ? `${input.body.slice(0, 117)}...` : input.body;
-          await createNotification({
-            authorId: conv.author_id,
-            conversationId: input.conversationId,
-            title: `Respuesta del equipo editorial: ${conv.subject || 'Consulta'}`,
-            message: preview,
-            status: 'pending',
-          });
-        }
-      } catch (notifErr) {
-        console.warn('Failed to send notification for admin message:', notifErr);
-      }
-    }
-
-    clearRetryKey(input);
-    return domainMessage;
-  } catch (error) {
-    // Keep the generated client key in the short-lived retry cache so a
-    // network failure after INSERT does not create a duplicate on retry.
-    throw error;
+    throw msgError || new Error('Failed to send message');
   }
+
+  await supabaseClient
+    .from('conversations')
+    .update({ updated_at: new Date().toISOString() })
+    .eq('id', input.conversationId);
+
+  const domainMessage = mapMessageRowToDomain(msgRow as MessageRow & { client_message_id?: string | null });
+
+  if (input.senderType === 'admin') {
+    try {
+      const { data: conv } = await supabaseClient
+        .from('conversations')
+        .select('author_id, subject')
+        .eq('id', input.conversationId)
+        .maybeSingle();
+      if (conv?.author_id) {
+        const preview = input.body.length > 120 ? `${input.body.slice(0, 117)}...` : input.body;
+        await createNotification({
+          authorId: conv.author_id,
+          conversationId: input.conversationId,
+          title: `Respuesta del equipo editorial: ${conv.subject || 'Consulta'}`,
+          message: preview,
+          status: 'pending',
+        });
+      }
+    } catch (notifErr) {
+      console.warn('Failed to send notification for admin message:', notifErr);
+    }
+  }
+
+  clearRetryKey(input);
+  return domainMessage;
 }
 
-export async function markMessagesRead(
-  conversationId: string,
-  readerType: MessageSenderType
-): Promise<boolean> {
+export async function markMessagesRead(conversationId: string, readerType: MessageSenderType): Promise<boolean> {
   if (!conversationId) return false;
   try {
     const senderTypeToMark = readerType === 'author' ? 'admin' : 'author';
-
     const { error } = await supabaseClient
       .from('messages')
       .update({ read_at: new Date().toISOString() })
       .eq('conversation_id', conversationId)
       .eq('sender_type', senderTypeToMark)
       .is('read_at', null);
-
     if (error) {
       console.warn('Error marking messages as read:', error);
       return false;
@@ -433,20 +340,13 @@ export async function markMessagesRead(
   }
 }
 
-export async function updateConversationStatus(
-  conversationId: string,
-  status: ConversationStatus
-): Promise<boolean> {
+export async function updateConversationStatus(conversationId: string, status: ConversationStatus): Promise<boolean> {
   if (!conversationId) return false;
   try {
     const { error } = await supabaseClient
       .from('conversations')
-      .update({
-        status,
-        updated_at: new Date().toISOString(),
-      })
+      .update({ status, updated_at: new Date().toISOString() })
       .eq('id', conversationId);
-
     if (error) {
       console.warn('Error updating conversation status:', error);
       return false;
