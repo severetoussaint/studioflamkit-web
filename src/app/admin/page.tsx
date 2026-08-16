@@ -26,6 +26,7 @@ import { AdminNextActionCard } from "@/components/admin/AdminNextActionCard";
 import { AdminRequestProposalPanel } from "@/components/admin/AdminRequestProposalPanel";
 import { AdminChaptersDeliverablesPanel } from "@/components/admin/AdminChaptersDeliverablesPanel";
 import { AdminFeedbackReviewPanel } from "@/components/admin/AdminFeedbackReviewPanel";
+import { AdminSupportMessagingPanel } from "@/components/admin/AdminSupportMessagingPanel";
 
 /* ────────────────────────────
    Legacy status presentation map
@@ -60,7 +61,8 @@ export default function AdminPage() {
   const router = useRouter();
 
   /* ─── Tabs ─── */
-  const [activeTab, setActiveTab] = useState<"proyectos" | "cotizaciones" | "crear">("proyectos");
+  const [activeTab, setActiveTab] = useState<"proyectos" | "cotizaciones" | "soporte" | "crear">("proyectos");
+  const [adminUserId, setAdminUserId] = useState<string>("");
 
   /* ─── Data states (legacy preserved) ─── */
   const [requests, setRequests] = useState<QuotationRequest[]>([]);
@@ -225,6 +227,7 @@ export default function AdminPage() {
         if (!isMounted) return;
         if (user && role === "admin") {
           setIsAuthorized(true);
+          setAdminUserId(user.id);
           await loadAllData();
         } else {
           console.warn("Unauthorized access attempt to admin page.", { email: user?.email, role });
@@ -456,7 +459,12 @@ export default function AdminPage() {
 
           {/* ─── Tabs Navigation ─── */}
           <div className="mb-8 flex items-center gap-2 border-b border-[var(--color-border)] pb-1">
-            {([{ id: "proyectos", label: "Proyectos en Curso" }, { id: "cotizaciones", label: "Cotizaciones" }, { id: "crear", label: "Registrar Obra" }] as const).map((tab) => (
+            {([
+              { id: "proyectos", label: "Proyectos en Curso" },
+              { id: "cotizaciones", label: "Cotizaciones" },
+              { id: "soporte", label: "Soporte & Mensajería" },
+              { id: "crear", label: "Registrar Obra" },
+            ] as const).map((tab) => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                 className={`relative px-4 py-2.5 text-sm font-medium transition-colors cursor-pointer ${activeTab === tab.id ? "text-[var(--color-accent)]" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"}`}>
                 {tab.label}
@@ -719,7 +727,16 @@ export default function AdminPage() {
             )}
 
             {/* ═════════════════════════════════════════════════════════
-                TAB 3: CREAR — Legacy preserved, restyled
+                TAB 3: SOPORTE & MENSAJERÍA
+                ═════════════════════════════════════════════════════════ */}
+            {activeTab === "soporte" && (
+              <motion.div key="soporte" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }}>
+                <AdminSupportMessagingPanel adminUserId={adminUserId} />
+              </motion.div>
+            )}
+
+            {/* ═════════════════════════════════════════════════════════
+                TAB 4: CREAR — Legacy preserved, restyled
                 ═════════════════════════════════════════════════════════ */}
             {activeTab === "crear" && (
               <motion.div key="crear" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }} className="space-y-6">

@@ -145,6 +145,54 @@ export type Database = {
           },
         ]
       }
+      conversations: {
+        Row: {
+          author_id: string
+          created_at: string | null
+          id: string
+          project_id: string | null
+          status: string
+          subject: string
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          author_id: string
+          created_at?: string | null
+          id?: string
+          project_id?: string | null
+          status?: string
+          subject: string
+          type?: string
+          updated_at?: string | null
+        }
+        Update: {
+          author_id?: string
+          created_at?: string | null
+          id?: string
+          project_id?: string | null
+          status?: string
+          subject?: string
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "authors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deliverables: {
         Row: {
           created_at: string | null
@@ -392,6 +440,44 @@ export type Database = {
             columns: ["author_id"]
             isOneToOne: false
             referencedRelation: "authors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          body: string
+          conversation_id: string
+          created_at: string | null
+          id: string
+          read_at: string | null
+          sender_id: string
+          sender_type: string
+        }
+        Insert: {
+          body: string
+          conversation_id: string
+          created_at?: string | null
+          id?: string
+          read_at?: string | null
+          sender_id: string
+          sender_type: string
+        }
+        Update: {
+          body?: string
+          conversation_id?: string
+          created_at?: string | null
+          id?: string
+          read_at?: string | null
+          sender_id?: string
+          sender_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
             referencedColumns: ["id"]
           },
         ]

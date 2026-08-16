@@ -16,6 +16,7 @@ import { useRouter } from 'next/navigation';
 export interface AcompanamientoModalProps {
   open: boolean;
   onClose: () => void;
+  onOpenChat?: () => void;
   producerName?: string;
   producerRole?: string;
   responseSLA?: string;
@@ -24,6 +25,7 @@ export interface AcompanamientoModalProps {
 export function AcompanamientoModal({
   open,
   onClose,
+  onOpenChat,
   producerName = 'Equipo Editorial Flamkit',
   producerRole = 'Dirección de Arte & Sonido',
   responseSLA = 'Atención directa < 24 hrs',
@@ -32,7 +34,11 @@ export function AcompanamientoModal({
 
   const handleContact = () => {
     onClose();
-    router.push('/contacto');
+    if (onOpenChat) {
+      onOpenChat();
+    } else {
+      router.push('/contacto');
+    }
   };
 
   return (

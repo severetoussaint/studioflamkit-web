@@ -3,6 +3,7 @@ import { calculateManuscriptPrice, calculateChapterPrice } from '@/features/quot
 import { isProjectStatus } from '@/domain/project/projectStatus';
 import { mapProjectRequestRowToDomain } from '@/domain/request/mapProjectRequest';
 import { getProjectsProgress } from '@/services/production-stage.service';
+import { createNotification } from '@/services/notification.service';
 import type { ProjectRequest, ProjectStatus } from '@/types/domain.types';
 
 // ─── Tipos (mismos nombres que antes para no tocar admin/page.tsx) ────────────
@@ -504,7 +505,22 @@ export async function updateProjectStatus(
     }
 
     const projects = await listAdminProjects();
-    return projects.find((p) => p.id === id);
+    const project = projects.find((p) => p.id === id);
+
+    if (project?.author_id) {
+      try {
+        await createNotification({
+          authorId: project.author_id,
+          title: `Actualización de proyecto: ${project.title}`,
+          message: `El estado de tu proyecto ha cambiado a "${status}".`,
+          status: 'pending',
+        });
+      } catch (err) {
+        console.warn('Failed to send status update notification:', err);
+      }
+    }
+
+    return project;
   });
 }
 
@@ -681,7 +697,22 @@ export async function addAudioDeliverable(
     throw error;
   }
   const projects = await listAdminProjects();
-  return projects.find((p) => p.id === id);
+  const project = projects.find((p) => p.id === id);
+
+  if (project?.author_id) {
+    try {
+      await createNotification({
+        authorId: project.author_id,
+        title: `Nuevo entregable disponible: ${title}`,
+        message: `Se ha publicado un nuevo entregable de audio para "${project.title}".`,
+        status: 'pending',
+      });
+    } catch (err) {
+      console.warn('Failed to send deliverable notification:', err);
+    }
+  }
+
+  return project;
 }
 
 export async function toggleAudioDeliverable(

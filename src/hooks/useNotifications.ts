@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Notification } from '@/types/domain.types';
+import { supabaseClient } from '@/lib/supabase/client';
 import {
   getUserNotifications,
   markAllNotificationsAsRead,
@@ -43,10 +44,56 @@ export function useNotifications(userId: string | null): UseNotificationsState {
   }, [userId]);
 
   useEffect(() => {
-    // Async workspace synchronization intentionally updates local state after the fetch resolves.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void reload();
-  }, [reload]);
+    let ignore = false;
+
+    async function fetchNotifs() {
+      if (!userId) {
+        setData([]);
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      try {
+        const notifs = await getUserNotifications(userId);
+        if (!ignore) setData(notifs);
+      } catch (cause) {
+        const nextError = cause instanceof Error ? cause : new Error(String(cause));
+        if (!ignore) setError(nextError);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    }
+
+    void fetchNotifs();
+
+    if (!userId) {
+      return () => {
+        ignore = true;
+      };
+    }
+
+    // Realtime channel listener for live notifications
+    const channel = supabaseClient
+      .channel(`user-notifications-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `author_id=eq.${userId}`,
+        },
+        () => {
+          void fetchNotifs();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      ignore = true;
+      void supabaseClient.removeChannel(channel);
+    };
+  }, [userId]);
 
   const markAsRead = useCallback(async (notificationId: string) => {
     const success = await markNotificationAsRead(notificationId);

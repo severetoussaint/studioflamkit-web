@@ -45,6 +45,21 @@ export type NotificationStatus =
   | 'sent'
   | 'read';
 
+export type ConversationType =
+  | 'general'
+  | 'project'
+  | 'editorial'
+  | 'proposal'
+  | 'support';
+
+export type ConversationStatus =
+  | 'open'
+  | 'closed';
+
+export type MessageSenderType =
+  | 'author'
+  | 'admin';
+
 export type EditorialPhase =
   | 'received'
   | 'analysis'
@@ -171,3 +186,30 @@ export interface Review {
   status: ReviewStatus;
   createdAt: string;
 }
+
+export interface Message {
+  id: string;
+  conversationId: string;
+  senderType: MessageSenderType;
+  senderId: string;
+  body: string;
+  createdAt: string;
+  readAt: string | null;
+}
+
+export interface Conversation {
+  id: string;
+  authorId: string;
+  projectId: string | null;
+  type: ConversationType;
+  subject: string;
+  status: ConversationStatus;
+  createdAt: string;
+  updatedAt: string;
+  lastMessage?: Message | null;
+  authorName?: string;
+  authorEmail?: string;
+  projectTitle?: string;
+  unreadCount?: number;
+}
+

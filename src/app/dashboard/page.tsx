@@ -57,6 +57,7 @@ import { DeliverableItemRow } from '@/components/dashboard/DeliverableItemRow';
 import { BottomNav } from '@/components/dashboard/BottomNav';
 import { RevisionesModal } from '@/components/dashboard/RevisionesModal';
 import { AcompanamientoModal } from '@/components/dashboard/AcompanamientoModal';
+import { SupportChatModal } from '@/components/dashboard/SupportChatModal';
 
 type SectionId = 'resumen' | 'capitulos' | 'entregables' | 'pagos' | 'perfil';
 
@@ -207,6 +208,7 @@ export default function DashboardPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [revisionesModalOpen, setRevisionesModalOpen] = useState(false);
   const [acompanamientoModalOpen, setAcompanamientoModalOpen] = useState(false);
+  const [supportChatOpen, setSupportChatOpen] = useState(false);
   const [chapterFilter, setChapterFilter] = useState<'all' | 'in_progress' | 'pending'>('all');
   const [paymentsTab, setPaymentsTab] = useState<'resumen' | 'historial'>('resumen');
   const [showPostSubmitCarousel, setShowPostSubmitCarousel] = useState(false);
@@ -694,7 +696,7 @@ export default function DashboardPage() {
                   <div>
                     <SupportPanel
                       onOpenMessageModal={() => {
-                        router.push('/contacto');
+                        setSupportChatOpen(true);
                       }}
                     />
                   </div>
@@ -811,7 +813,7 @@ export default function DashboardPage() {
                           key={chapter.id}
                           chapter={chapter}
                           index={index}
-                          onSelectChapter={setSelectedChapter}
+                          onSelectChapter={() => setSelectedChapter(chapter)}
                         />
                       ))}
                   </div>
@@ -1832,7 +1834,18 @@ export default function DashboardPage() {
 
       <FilesLibraryModal open={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} data={libraryData} />
       <RevisionesModal open={revisionesModalOpen} onClose={() => setRevisionesModalOpen(false)} maxRevisions={realProject?.maxRevisions || 3} />
-      <AcompanamientoModal open={acompanamientoModalOpen} onClose={() => setAcompanamientoModalOpen(false)} />
+      <AcompanamientoModal
+        open={acompanamientoModalOpen}
+        onClose={() => setAcompanamientoModalOpen(false)}
+        onOpenChat={() => setSupportChatOpen(true)}
+      />
+      <SupportChatModal
+        open={supportChatOpen}
+        onClose={() => setSupportChatOpen(false)}
+        authorId={authorId}
+        projectId={realProject?.id || undefined}
+        projectTitle={projectTitle || requestContext?.title || undefined}
+      />
 
       {/* Barra fija inferior exclusiva para dispositivos móviles */}
       <BottomNav

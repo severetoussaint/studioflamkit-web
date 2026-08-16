@@ -2,6 +2,7 @@ import { supabaseClient } from '@/lib/supabase/client';
 import type { Json } from '@/types/database.types';
 import type { Proposal, ProposalStatus } from '@/types/domain.types';
 import { mapProposalRowToDomain } from '@/domain/proposal/mapProposal';
+import { createNotification } from '@/services/notification.service';
 
 type ProposalRpcName = 'send_proposal' | 'accept_proposal' | 'reject_proposal' | 'expire_proposal';
 
@@ -102,6 +103,36 @@ export async function sendProposal(proposalId: string): Promise<Proposal> {
   const persistedProposalId = await callProposalRpc('send_proposal', proposalId);
   const proposal = await getProposal(persistedProposalId);
   if (!proposal) throw new Error(`Proposal ${persistedProposalId} not found after sending.`);
+
+  // Notify author that proposal is ready
+  try {
+    const { data: propData } = await supabaseClient
+      .from('proposals')
+      .select('project_requests(manuscripts(author_id))')
+      .eq('id', persistedProposalId)
+      .maybeSingle();
+
+    interface ProposalAuthorQueryResult {
+      project_requests?: {
+        manuscripts?: {
+          author_id?: string;
+        } | null;
+      } | null;
+    }
+
+    const authorId = (propData as unknown as ProposalAuthorQueryResult | null)?.project_requests?.manuscripts?.author_id;
+    if (authorId) {
+      await createNotification({
+        authorId,
+        title: 'Propuesta editorial disponible',
+        message: 'Tu propuesta editorial y cotización detallada ya está lista para su revisión.',
+        status: 'pending',
+      });
+    }
+  } catch (err) {
+    console.warn('Failed to create notification for sent proposal:', err);
+  }
+
   return proposal;
 }
 
@@ -111,6 +142,35 @@ export async function acceptProposal(proposalId: string): Promise<Proposal> {
 
   const proposal = await getProposal(proposalId);
   if (!proposal) throw new Error(`Proposal ${proposalId} not found after acceptance.`);
+
+  try {
+    const { data: propData } = await supabaseClient
+      .from('proposals')
+      .select('project_requests(manuscripts(author_id))')
+      .eq('id', proposalId)
+      .maybeSingle();
+
+    interface ProposalAuthorQueryResult {
+      project_requests?: {
+        manuscripts?: {
+          author_id?: string;
+        } | null;
+      } | null;
+    }
+
+    const authorId = (propData as unknown as ProposalAuthorQueryResult | null)?.project_requests?.manuscripts?.author_id;
+    if (authorId) {
+      await createNotification({
+        authorId,
+        title: 'Propuesta aceptada con éxito',
+        message: 'Has aprobado la propuesta editorial. Tu obra ha entrado formalmente en el plan de producción.',
+        status: 'pending',
+      });
+    }
+  } catch (err) {
+    console.warn('Failed to create notification for accepted proposal:', err);
+  }
+
   return proposal;
 }
 
