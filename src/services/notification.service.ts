@@ -5,11 +5,16 @@ import { isNotificationStatus } from '@/domain/notification/notificationStatus';
 
 export type NotificationRow = Database['public']['Tables']['notifications']['Row'];
 
+type NotificationRowWithConversation = NotificationRow & {
+  conversation_id?: string | null;
+};
+
 export interface CreateNotificationInput {
   authorId: string;
   title: string;
   message: string;
   status?: NotificationStatus;
+  conversationId?: string | null;
 }
 
 function mapNotificationStatus(value: string | null) {
@@ -23,10 +28,11 @@ function requireNotificationString(value: string | null, field: string): string 
   return value;
 }
 
-function mapNotificationRowToDomain(row: NotificationRow): Notification {
+function mapNotificationRowToDomain(row: NotificationRowWithConversation): Notification {
   return {
     id: row.id,
     authorId: requireNotificationString(row.author_id, 'author_id'),
+    conversationId: row.conversation_id ?? null,
     title: requireNotificationString(row.title, 'title'),
     message: requireNotificationString(row.message, 'message'),
     status: mapNotificationStatus(row.status),
@@ -49,7 +55,7 @@ export async function getUserNotifications(userId: string): Promise<Notification
       return [];
     }
 
-    return (data ?? []).map(mapNotificationRowToDomain);
+    return (data ?? []).map((row) => mapNotificationRowToDomain(row as NotificationRowWithConversation));
   } catch (err) {
     console.error('Unexpected error in getUserNotifications:', err);
     return [];
@@ -61,19 +67,24 @@ export async function createNotification(input: CreateNotificationInput): Promis
   if (!input.title.trim()) throw new Error('Notification title is required.');
   if (!input.message.trim()) throw new Error('Notification message is required.');
 
+  const payload = {
+    author_id: input.authorId,
+    conversation_id: input.conversationId ?? null,
+    title: input.title.trim(),
+    message: input.message.trim(),
+    status: input.status ?? 'pending',
+  };
+
   const { data, error } = await supabaseClient
     .from('notifications')
-    .insert({
-      author_id: input.authorId,
-      title: input.title,
-      message: input.message,
-      status: input.status ?? 'pending',
-    })
+    // database.types.ts predates the communication v2 migration; the payload is
+    // kept aligned with the live schema until the generated types are refreshed.
+    .insert(payload as never)
     .select('*')
     .single();
 
   if (error) throw error;
-  return mapNotificationRowToDomain(data);
+  return mapNotificationRowToDomain(data as NotificationRowWithConversation);
 }
 
 export async function markNotificationAsRead(id: string): Promise<boolean> {
