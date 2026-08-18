@@ -8,6 +8,10 @@ import type {
 } from '@/types/project-brief.types';
 
 function mapRow(row: Record<string, unknown>): ProjectBrief {
+  const rawSocialProfiles = Array.isArray(row.social_profiles)
+    ? (row.social_profiles as Array<Record<string, unknown>>)
+    : [];
+
   return {
     id: String(row.id),
     manuscriptId: String(row.manuscript_id),
@@ -25,13 +29,20 @@ function mapRow(row: Record<string, unknown>): ProjectBrief {
     additionalNotes: (row.additional_notes as string | null) ?? null,
     creatorStatus: (row.creator_status as ProjectBriefCreatorStatus) ?? 'none',
     socialPlatforms: Array.isArray(row.social_platforms) ? (row.social_platforms as string[]) : [],
+    socialProfiles: rawSocialProfiles
+      .filter((item) => typeof item.platform === 'string')
+      .map((item) => ({
+        platform: String(item.platform),
+        url: typeof item.url === 'string' && item.url.trim() ? item.url : null,
+        audienceSizeBand: (item.audienceSizeBand as ProjectBriefAudienceSizeBand) ?? '0',
+      })),
     creatorContentType: (row.creator_content_type as string | null) ?? null,
     audienceSizeBand: (row.audience_size_band as ProjectBriefAudienceSizeBand | null) ?? null,
     primarySocialUrl: (row.primary_social_url as string | null) ?? null,
     projectGoal: (row.project_goal as string | null) ?? null,
     distributionPlatforms: Array.isArray(row.distribution_platforms) ? (row.distribution_platforms as string[]) : [],
     promotionPlatforms: Array.isArray(row.promotion_platforms) ? (row.promotion_platforms as string[]) : [],
-    rightsStatus: (row.rights_status as ProjectBriefRightsStatus) ?? 'unknown',
+    rightsStatus: (row.rights_status as ProjectBriefRightsStatus) ?? 'needs_guidance',
     budgetBand: (row.budget_band as string | null) ?? null,
     futureDistributionInterest: Boolean(row.future_distribution_interest),
     createdAt: String(row.created_at),
@@ -40,11 +51,13 @@ function mapRow(row: Record<string, unknown>): ProjectBrief {
 }
 
 export async function getProjectBrief(manuscriptId: string): Promise<ProjectBrief | null> {
-  if (!manuscriptId) return null;
+  const id = manuscriptId?.trim();
+  if (!id) return null;
+
   const { data, error } = await supabaseClient
     .from('project_briefs' as never)
     .select('*')
-    .eq('manuscript_id' as never, manuscriptId)
+    .eq('manuscript_id' as never, id)
     .maybeSingle();
 
   if (error) {
@@ -56,12 +69,15 @@ export async function getProjectBrief(manuscriptId: string): Promise<ProjectBrie
 }
 
 export async function saveProjectBrief(input: SaveProjectBriefInput): Promise<ProjectBrief> {
-  if (!input.manuscriptId) throw new Error('manuscriptId is required.');
-  if (!input.authorId) throw new Error('authorId is required.');
+  const manuscriptId = input.manuscriptId?.trim();
+  const authorId = input.authorId?.trim();
+
+  if (!manuscriptId) throw new Error('No se pudo identificar el manuscrito enviado.');
+  if (!authorId) throw new Error('No se pudo identificar la sesión del autor.');
 
   const payload = {
-    manuscript_id: input.manuscriptId,
-    author_id: input.authorId,
+    manuscript_id: manuscriptId,
+    author_id: authorId,
     genre: input.genre,
     target_audience: input.targetAudience,
     creative_vision: input.creativeVision,
@@ -75,6 +91,7 @@ export async function saveProjectBrief(input: SaveProjectBriefInput): Promise<Pr
     additional_notes: input.additionalNotes,
     creator_status: input.creatorStatus,
     social_platforms: input.socialPlatforms,
+    social_profiles: input.socialProfiles,
     creator_content_type: input.creatorContentType,
     audience_size_band: input.audienceSizeBand,
     primary_social_url: input.primarySocialUrl,
