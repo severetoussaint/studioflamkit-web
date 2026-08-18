@@ -28,7 +28,7 @@ export function AcompanamientoModal({
   onOpenChat,
   producerName = 'Equipo Editorial Flamkit',
   producerRole = 'Dirección de Arte & Sonido',
-  responseSLA = 'Atención directa < 24 hrs',
+  responseSLA = 'Atención directa 24 hrs',
 }: AcompanamientoModalProps) {
   const router = useRouter();
 

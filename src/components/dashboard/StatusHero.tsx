@@ -18,6 +18,7 @@ interface StatusHeroProps {
   onUploadClick: () => void;
   onViewFilesClick?: () => void;
   onToggleCarousel?: () => void;
+  onOpenBriefClick?: () => void;
 }
 
 export function StatusHero({
@@ -30,6 +31,7 @@ export function StatusHero({
   onUploadClick,
   onViewFilesClick,
   onToggleCarousel,
+  onOpenBriefClick,
 }: StatusHeroProps) {
   if (state === 'none') {
     return (
@@ -110,13 +112,23 @@ export function StatusHero({
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-4">
-            {onToggleCarousel && (
+            {onOpenBriefClick && (
               <Button
                 variant="primary"
+                className="group/btn flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] bg-accent hover:bg-accent-hover text-surface shadow-xs transition-all duration-200 ease-out active:scale-[0.98]"
+                onClick={onOpenBriefClick}
+              >
+                <Sparkles className="h-4 w-4 transition-transform duration-200 group-hover/btn:scale-110" />
+                <span>Completar / Editar Brief Editorial</span>
+              </Button>
+            )}
+            {onToggleCarousel && (
+              <Button
+                variant="secondary"
                 className="group/btn flex items-center gap-2 text-xs font-medium uppercase tracking-[0.12em] transition-all duration-200 ease-out active:scale-[0.98]"
                 onClick={onToggleCarousel}
               >
-                <Sparkles className="h-4 w-4 transition-transform duration-200 group-hover/btn:scale-110 text-amber-200" />
+                <Clock className="h-4 w-4 transition-transform duration-200 group-hover/btn:scale-110 text-accent" />
                 <span>Ver Ruta Editorial (3 Pasos)</span>
               </Button>
             )}

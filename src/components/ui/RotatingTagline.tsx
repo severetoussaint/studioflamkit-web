@@ -21,7 +21,7 @@ const PHRASES = [
   "Tu lector más fiel todavía no te ha leído. Pero pronto te escuchará.",
 ];
 
-const INTERVAL = 15000;
+const INTERVAL = 8000;
 
 export function RotatingTagline({ className = '' }: { className?: string }) {
   const [index, setIndex] = useState(0);

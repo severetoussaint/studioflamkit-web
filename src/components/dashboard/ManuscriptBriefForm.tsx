@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from 'react';
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Globe2, Instagram, PlaySquare } from 'lucide-react';
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Globe2, Share2, PlaySquare } from 'lucide-react';
 import type {
   ProjectBriefAudienceSizeBand,
   ProjectBriefCreatorStatus,
@@ -58,7 +58,7 @@ export function ManuscriptBriefForm({ manuscriptId, authorId, manuscriptTitle, i
     projectGoal: initialValues?.projectGoal ?? null,
     distributionPlatforms: initialValues?.distributionPlatforms ?? [],
     promotionPlatforms: initialValues?.promotionPlatforms ?? [],
-    rightsStatus: initialValues?.rightsStatus ?? 'unknown',
+    rightsStatus: initialValues?.rightsStatus ?? 'unsure',
     budgetBand: initialValues?.budgetBand ?? null,
     futureDistributionInterest: initialValues?.futureDistributionInterest ?? false,
   });
@@ -76,6 +76,7 @@ export function ManuscriptBriefForm({ manuscriptId, authorId, manuscriptTitle, i
     { title: 'Tu visión', subtitle: 'Qué quieres transmitir y cómo imaginas el resultado.' },
     { title: 'Audiencia y presencia', subtitle: 'Ayúdanos a entender tu alcance como autor.' },
     { title: 'Distribución y entrega', subtitle: 'Dónde imaginas llevar la obra y cómo quieres recibirla.' },
+    { title: 'Resumen y confirmación', subtitle: 'Revisión final antes de enviar.' },
   ], []);
 
   const submit = async () => {
@@ -175,7 +176,7 @@ export function ManuscriptBriefForm({ manuscriptId, authorId, manuscriptTitle, i
             <div>
               <p className="text-xs font-medium text-ink">Plataformas donde tienes presencia</p>
               <div className="mt-2 flex flex-wrap gap-2">
-                {socialOptions.map((item) => <button type="button" key={item} onClick={() => toggleArray('socialPlatforms', item)} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] transition ${form.socialPlatforms.includes(item) ? 'border-accent bg-accent/10 text-accent' : 'border-edge bg-surface text-ink-muted hover:text-ink'}`}>{item === 'YouTube' ? <PlaySquare className="h-3.5 w-3.5" /> : item === 'Instagram' ? <Instagram className="h-3.5 w-3.5" /> : <Globe2 className="h-3.5 w-3.5" />}{item}</button>)}
+                {socialOptions.map((item) => <button type="button" key={item} onClick={() => toggleArray('socialPlatforms', item)} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] transition ${form.socialPlatforms.includes(item) ? 'border-accent bg-accent/10 text-accent' : 'border-edge bg-surface text-ink-muted hover:text-ink'}`}>{item === 'YouTube' ? <PlaySquare className="h-3.5 w-3.5" /> : item === 'Instagram' ? <Share2 className="h-3.5 w-3.5" /> : <Globe2 className="h-3.5 w-3.5" />}{item}</button>)}
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -233,6 +234,49 @@ export function ManuscriptBriefForm({ manuscriptId, authorId, manuscriptTitle, i
             <input type="checkbox" checked={form.futureDistributionInterest} onChange={(e) => update('futureDistributionInterest', e.target.checked)} className="mt-0.5 h-4 w-4 accent-accent" />
             <span>Me interesa conocer futuras opciones de distribución del audiolibro cuando Studio FLAMKIT las incorpore.</span>
           </label>
+        </section>
+      )}
+
+      {step === 4 && (
+        <section className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2 text-xs">
+            <div className="rounded-2xl border border-edge bg-surface p-4 space-y-1.5">
+              <div className="flex justify-between items-center border-b border-edge/40 pb-1.5 font-semibold text-accent uppercase">
+                <span>1. La Obra</span>
+                <button type="button" onClick={() => setStep(0)} className="text-[10px] text-ink-muted hover:text-accent">Editar</button>
+              </div>
+              <p><strong className="text-ink">Género:</strong> <span className="text-ink-muted">{form.genre || 'No especificado'}</span></p>
+              <p><strong className="text-ink">Público:</strong> <span className="text-ink-muted">{form.targetAudience || 'General'}</span></p>
+              <p><strong className="text-ink">Objetivo:</strong> <span className="text-ink-muted">{form.projectGoal || 'No especificado'}</span></p>
+            </div>
+            <div className="rounded-2xl border border-edge bg-surface p-4 space-y-1.5">
+              <div className="flex justify-between items-center border-b border-edge/40 pb-1.5 font-semibold text-accent uppercase">
+                <span>2. Tu Visión</span>
+                <button type="button" onClick={() => setStep(1)} className="text-[10px] text-ink-muted hover:text-accent">Editar</button>
+              </div>
+              <p><strong className="text-ink">Sensaciones:</strong> <span className="text-ink-muted">{form.desiredSensations.join(', ') || 'Ninguna'}</span></p>
+              <p className="line-clamp-2"><strong className="text-ink">Intención:</strong> <span className="text-ink-muted">{form.creativeVision || 'Sin notas'}</span></p>
+            </div>
+            <div className="rounded-2xl border border-edge bg-surface p-4 space-y-1.5">
+              <div className="flex justify-between items-center border-b border-edge/40 pb-1.5 font-semibold text-accent uppercase">
+                <span>3. Presencia</span>
+                <button type="button" onClick={() => setStep(2)} className="text-[10px] text-ink-muted hover:text-accent">Editar</button>
+              </div>
+              <p><strong className="text-ink">Perfil:</strong> <span className="text-ink-muted">{form.creatorStatus}</span></p>
+              <p><strong className="text-ink">Plataformas:</strong> <span className="text-ink-muted">{form.socialPlatforms.join(', ') || 'Ninguna'}</span></p>
+            </div>
+            <div className="rounded-2xl border border-edge bg-surface p-4 space-y-1.5">
+              <div className="flex justify-between items-center border-b border-edge/40 pb-1.5 font-semibold text-accent uppercase">
+                <span>4. Distribución</span>
+                <button type="button" onClick={() => setStep(3)} className="text-[10px] text-ink-muted hover:text-accent">Editar</button>
+              </div>
+              <p><strong className="text-ink">Formato:</strong> <span className="text-ink-muted">{form.desiredDeliveryFormat || 'M4B'}</span></p>
+              <p><strong className="text-ink">Derechos:</strong> <span className="text-ink-muted">{form.rightsStatus}</span></p>
+            </div>
+          </div>
+          <p className="text-[11px] text-ink-muted text-center pt-2">
+            Revisa tus respuestas antes de enviar el brief a la Dirección Artística.
+          </p>
         </section>
       )}
 

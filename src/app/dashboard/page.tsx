@@ -58,6 +58,7 @@ import { BottomNav } from '@/components/dashboard/BottomNav';
 import { RevisionesModal } from '@/components/dashboard/RevisionesModal';
 import { AcompanamientoModal } from '@/components/dashboard/AcompanamientoModal';
 import { SupportChatModal } from '@/components/dashboard/SupportChatModal';
+import { ProjectBriefModal } from '@/components/dashboard/ProjectBriefModal';
 
 type SectionId = 'resumen' | 'capitulos' | 'entregables' | 'pagos' | 'perfil';
 
@@ -212,6 +213,9 @@ export default function DashboardPage() {
   const [chapterFilter, setChapterFilter] = useState<'all' | 'in_progress' | 'pending'>('all');
   const [paymentsTab, setPaymentsTab] = useState<'resumen' | 'historial'>('resumen');
   const [showPostSubmitCarousel, setShowPostSubmitCarousel] = useState(false);
+  const [projectBriefModalOpen, setProjectBriefModalOpen] = useState(false);
+  const [briefManuscriptId, setBriefManuscriptId] = useState<string | null>(null);
+  const [briefManuscriptTitle, setBriefManuscriptTitle] = useState<string | null>(null);
 
   const hasActiveProject = requestState === 'active';
 
@@ -395,9 +399,10 @@ export default function DashboardPage() {
     setUploadProgress(50);
 
     try {
+      const currentTitle = manuscriptTitle.trim();
       const res = await submitManuscript({
         authorId,
-        title: manuscriptTitle.trim(),
+        title: currentTitle,
         wordCount: wordCountNumber,
         file: pendingFile,
       });
@@ -411,12 +416,15 @@ export default function DashboardPage() {
         setManuscriptWordCount('');
         if (authorId && res && res.id) {
           setSelectedManuscriptId(res.id);
+          setBriefManuscriptId(res.id);
+          setBriefManuscriptTitle(currentTitle);
           await dashboardWorkspace.reload();
-          setShowPostSubmitCarousel(true);
+          // Abrir directamente la experiencia inmersiva del Project Brief
+          setProjectBriefModalOpen(true);
         } else {
           setShowPostSubmitCarousel(true);
         }
-      }, 1500);
+      }, 1200);
     } catch (err) {
       console.error('Error al enviar el manuscrito:', JSON.stringify(err, null, 2));
       if (err && typeof err === 'object' && 'message' in err) {
@@ -578,22 +586,34 @@ export default function DashboardPage() {
                       state={requestState}
                       pendingActionTitle={
                         requestState === 'pending'
-                          ? 'Análisis Técnico y Desglose Editorial'
+                          ? 'Completar Brief Editorial de la Obra'
                           : requestState === 'active'
                           ? 'Revisión y Aprobación de Capítulos'
                           : undefined
                       }
                       pendingActionDesc={
                         requestState === 'pending'
-                          ? 'Nuestro equipo está evaluando la obra. Recibirás el desglose y la cotización en tu cabina.'
+                          ? 'Cuéntanos cómo imaginas la voz, el ritmo y la atmósfera de tu obra para orientar la propuesta artística.'
                           : requestState === 'active'
                           ? 'Escucha las muestras de audio grabadas, deja comentarios o aprueba los capítulos.'
                           : undefined
                       }
-                      buttonLabel={requestState === 'active' ? 'Ver Capítulos Registrados' : undefined}
+                      buttonLabel={
+                        requestState === 'pending'
+                          ? 'Completar / Ver Brief'
+                          : requestState === 'active'
+                          ? 'Ver Capítulos Registrados'
+                          : undefined
+                      }
                       onActionClick={
                         requestState === 'none'
                           ? () => setUploaderModalOpen(true)
+                          : requestState === 'pending'
+                          ? () => {
+                              setBriefManuscriptId(activeManuscriptId);
+                              setBriefManuscriptTitle(projectTitle || requestContext?.title || 'Mi Obra');
+                              setProjectBriefModalOpen(true);
+                            }
                           : requestState === 'active'
                           ? () => setActive('capitulos')
                           : undefined
@@ -613,6 +633,15 @@ export default function DashboardPage() {
                   onUploadClick={() => setUploaderModalOpen(true)}
                   onViewFilesClick={() => setIsLibraryOpen(true)}
                   onToggleCarousel={() => setShowPostSubmitCarousel((prev) => !prev)}
+                  onOpenBriefClick={
+                    activeManuscriptId
+                      ? () => {
+                          setBriefManuscriptId(activeManuscriptId);
+                          setBriefManuscriptTitle(projectTitle || requestContext?.title || 'Mi Obra');
+                          setProjectBriefModalOpen(true);
+                        }
+                      : undefined
+                  }
                 />
 
                 {/* Stepper Compacto Horizontal de Trayecto Editorial */}
@@ -1845,6 +1874,16 @@ export default function DashboardPage() {
         authorId={authorId}
         projectId={realProject?.id || undefined}
         projectTitle={projectTitle || requestContext?.title || undefined}
+      />
+      <ProjectBriefModal
+        open={projectBriefModalOpen}
+        onClose={() => setProjectBriefModalOpen(false)}
+        manuscriptId={briefManuscriptId || activeManuscriptId || ''}
+        authorId={authorId || ''}
+        manuscriptTitle={briefManuscriptTitle || projectTitle || requestContext?.title || 'Mi Obra'}
+        onBriefSaved={async () => {
+          await dashboardWorkspace.reload();
+        }}
       />
 
       {/* Barra fija inferior exclusiva para dispositivos móviles */}

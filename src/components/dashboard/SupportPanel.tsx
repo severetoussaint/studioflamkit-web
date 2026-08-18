@@ -15,7 +15,7 @@ interface SupportPanelProps {
 export function SupportPanel({
   producerName = 'Equipo Editorial Flamkit',
   producerRole = 'Dirección de Arte & Sonido',
-  responseSLA = 'Atención directa < 24 hrs',
+  responseSLA = 'Atención directa 24 hrs',
   contactEmail = 'contacto@studioflamkit.com',
   onOpenMessageModal,
 }: SupportPanelProps) {
