@@ -9,6 +9,12 @@ export type ProjectBriefAudienceSizeBand =
   | '250k_999_9k'
   | '1m_plus';
 
+export interface ProjectBriefSocialProfile {
+  platform: string;
+  url: string | null;
+  audienceSizeBand: ProjectBriefAudienceSizeBand;
+}
+
 export interface ProjectBrief {
   id: string;
   manuscriptId: string;
@@ -26,6 +32,7 @@ export interface ProjectBrief {
   additionalNotes: string | null;
   creatorStatus: ProjectBriefCreatorStatus;
   socialPlatforms: string[];
+  socialProfiles: ProjectBriefSocialProfile[];
   creatorContentType: string | null;
   audienceSizeBand: ProjectBriefAudienceSizeBand | null;
   primarySocialUrl: string | null;
