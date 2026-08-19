@@ -38,6 +38,7 @@ type PricingQuery = {
   select: (columns: string) => PricingQuery;
   order: (column: string, options: { ascending: boolean }) => PricingQuery;
   eq: (column: string, value: unknown) => PricingQuery;
+  update: (values: Record<string, unknown>) => PricingQuery;
 } & PromiseLike<PricingQueryResult>;
 
 type PricingDb = {
@@ -120,4 +121,49 @@ export async function listPricingServices(options?: { activeOnly?: boolean; cust
   if (error) throw new Error(error.message);
 
   return (data as PricingServiceRow[] | null ?? []).map(mapPricingService);
+}
+
+export async function updatePricingSetting(
+  key: string,
+  values: { numericValue?: number | null; textValue?: string | null; jsonValue?: unknown },
+): Promise<void> {
+  const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if ('numericValue' in values) payload.numeric_value = values.numericValue;
+  if ('textValue' in values) payload.text_value = values.textValue;
+  if ('jsonValue' in values) payload.json_value = values.jsonValue;
+
+  const { error } = await pricingDb
+    .from('pricing_settings')
+    .update(payload)
+    .eq('key', key);
+
+  if (error) throw new Error(error.message);
+}
+
+export async function updatePricingService(
+  id: string,
+  values: Partial<Pick<PricingService, 'name' | 'description' | 'pricingModel' | 'priceValue' | 'timeMinutes' | 'unitLabel' | 'defaultQuantity' | 'minQuantity' | 'maxQuantity' | 'includedByDefault' | 'active' | 'customerVisible' | 'sortOrder'>>,
+): Promise<void> {
+  const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
+
+  if (values.name !== undefined) payload.name = values.name;
+  if (values.description !== undefined) payload.description = values.description;
+  if (values.pricingModel !== undefined) payload.pricing_model = values.pricingModel;
+  if (values.priceValue !== undefined) payload.price_value = values.priceValue;
+  if (values.timeMinutes !== undefined) payload.time_minutes = values.timeMinutes;
+  if (values.unitLabel !== undefined) payload.unit_label = values.unitLabel;
+  if (values.defaultQuantity !== undefined) payload.default_quantity = values.defaultQuantity;
+  if (values.minQuantity !== undefined) payload.min_quantity = values.minQuantity;
+  if (values.maxQuantity !== undefined) payload.max_quantity = values.maxQuantity;
+  if (values.includedByDefault !== undefined) payload.included_by_default = values.includedByDefault;
+  if (values.active !== undefined) payload.active = values.active;
+  if (values.customerVisible !== undefined) payload.customer_visible = values.customerVisible;
+  if (values.sortOrder !== undefined) payload.sort_order = values.sortOrder;
+
+  const { error } = await pricingDb
+    .from('pricing_services')
+    .update(payload)
+    .eq('id', id);
+
+  if (error) throw new Error(error.message);
 }
