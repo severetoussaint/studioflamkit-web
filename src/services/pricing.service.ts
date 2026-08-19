@@ -51,9 +51,9 @@ function parseComplexityMultipliers(value: unknown): PricingSettings['complexity
   const candidate = value && typeof value === 'object' ? value as Record<string, unknown> : {};
   return {
     standard: Number(candidate.standard ?? 1),
-    medium: Number(candidate.medium ?? 1.1),
-    high: Number(candidate.high ?? 1.2),
-    cinematic: Number(candidate.cinematic ?? 1.35),
+    medium: Number(candidate.medium ?? 1.05),
+    high: Number(candidate.high ?? 1.12),
+    cinematic: Number(candidate.cinematic ?? 1.2),
   };
 }
 
@@ -102,6 +102,8 @@ export async function getPricingSettings(): Promise<PricingSettings> {
     basePfhRateUsd: Number(byKey.get('base_pfh_rate_usd')?.numeric_value ?? 400),
     wordsPerMinute: Number(byKey.get('words_per_minute')?.numeric_value ?? 155),
     minimumBasePriceUsd: Number(byKey.get('minimum_base_price_usd')?.numeric_value ?? 30),
+    baseWorkHoursPerAudioHour: Number(byKey.get('base_work_hours_per_audio_hour')?.numeric_value ?? 4),
+    maxTotalPriceMultiplier: Number(byKey.get('max_total_price_multiplier')?.numeric_value ?? 1.85),
     complexityMultipliers: parseComplexityMultipliers(byKey.get('complexity_multipliers')?.json_value),
     recommendedAdjustmentBounds: parseAdjustmentBounds(byKey.get('recommended_adjustment_bounds')?.json_value),
     version: byKey.get('pricing_model_version')?.text_value ?? 'v1',
