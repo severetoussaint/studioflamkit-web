@@ -161,7 +161,7 @@ export interface Evaluation {
   technicalDifficulty: string | null;
   estimatedTime: string | null;
   observations: string | null;
-  result: EvaluationResult;
+  result: EvaluationResult | null;
   createdAt: string;
 }
 
