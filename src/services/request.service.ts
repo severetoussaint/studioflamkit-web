@@ -4,6 +4,12 @@ import { mapProjectRequestRowToDomain } from '@/domain/request/mapProjectRequest
 
 type ReviewableRequestStatus = Extract<RequestStatus, 'pending' | 'evaluating' | 'rejected' | 'canceled'>;
 
+export interface ProjectRequestAuthorContact {
+  id: string;
+  email: string | null;
+  fullName: string | null;
+}
+
 export async function listProjectRequests(): Promise<ProjectRequest[]> {
   const { data, error } = await supabaseClient
     .from('project_requests')
@@ -37,23 +43,37 @@ export async function getProjectRequestByManuscript(manuscriptId: string): Promi
 }
 
 /**
- * Returns the author who owns the manuscript attached to a request.
- * Request identity remains anchored to manuscript_id; this helper only resolves the recipient.
+ * Resolves the author behind a request. Request identity remains anchored to manuscript_id.
  */
-export async function getProjectRequestAuthorId(requestId: string): Promise<string | null> {
+export async function getProjectRequestAuthorContact(requestId: string): Promise<ProjectRequestAuthorContact | null> {
   if (!requestId) return null;
 
   const { data, error } = await supabaseClient
     .from('project_requests')
-    .select('manuscripts(author_id)')
+    .select('manuscripts(author_id, authors(email, full_name))')
     .eq('id', requestId)
     .maybeSingle();
 
   if (error) throw error;
 
   const manuscripts = data?.manuscripts;
-  if (Array.isArray(manuscripts)) return manuscripts[0]?.author_id ?? null;
-  return manuscripts?.author_id ?? null;
+  const manuscript = Array.isArray(manuscripts) ? manuscripts[0] : manuscripts;
+  const authorId = manuscript?.author_id ?? null;
+  if (!authorId) return null;
+
+  const authors = manuscript?.authors;
+  const author = Array.isArray(authors) ? authors[0] : authors;
+
+  return {
+    id: authorId,
+    email: author?.email ?? null,
+    fullName: author?.full_name ?? null,
+  };
+}
+
+export async function getProjectRequestAuthorId(requestId: string): Promise<string | null> {
+  const contact = await getProjectRequestAuthorContact(requestId);
+  return contact?.id ?? null;
 }
 
 /**
