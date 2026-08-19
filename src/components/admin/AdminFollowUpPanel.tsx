@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, BellRing, CheckCircle2, Clock3, Mail, RotateCcw } from 'lucide-react';
+import { ArrowRight, BellRing, CheckCircle2, Clock3, Mail, RotateCcw, Send } from 'lucide-react';
 import type { AdminFollowUpItem } from '@/services/follow-up.service';
 import { listAdminFollowUps, markFollowUpEmailSent, saveFollowUpNote } from '@/services/follow-up.service';
 import { sendStudioFlamkitEmail } from '@/services/zoho-mail.service';
+import { AdminProposalComposer } from '@/components/admin/AdminProposalComposer';
 
 interface AdminFollowUpPanelProps {
   refreshKey?: number;
@@ -21,6 +22,7 @@ export function AdminFollowUpPanel({ refreshKey = 0 }: AdminFollowUpPanelProps) 
   const [savingNoteId, setSavingNoteId] = useState<string | null>(null);
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
   const [selectedEmailItem, setSelectedEmailItem] = useState<AdminFollowUpItem | null>(null);
+  const [selectedProposalItem, setSelectedProposalItem] = useState<AdminFollowUpItem | null>(null);
   const [emailBody, setEmailBody] = useState('');
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -178,11 +180,14 @@ export function AdminFollowUpPanel({ refreshKey = 0 }: AdminFollowUpPanelProps) 
                 {item.followUpNote && <p className="text-xs leading-5 text-[var(--color-text-muted)]"><span className="font-medium text-[var(--color-text)]">Nota:</span> {item.followUpNote}</p>}
               </div>
 
-              {item.category === 'email_pending' && (
-                <div className="mt-5 flex flex-wrap gap-2">
+              <div className="mt-5 flex flex-wrap gap-2">
+                {item.category === 'email_pending' && (
                   <button type="button" onClick={() => openEmail(item)} className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-accent)] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[var(--color-accent-hover)]"><Mail className="h-3.5 w-3.5" /> Enviar correo</button>
-                </div>
-              )}
+                )}
+                {item.category === 'proposal_ready' && (
+                  <button type="button" onClick={() => setSelectedProposalItem(item)} className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-accent)] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[var(--color-accent-hover)]"><Send className="h-3.5 w-3.5" /> Preparar propuesta</button>
+                )}
+              </div>
 
               {item.category === 'email_pending' && item.evaluationId && (
                 <div className="mt-4 border-t border-[var(--color-border-subtle)] pt-4">
@@ -199,7 +204,7 @@ export function AdminFollowUpPanel({ refreshKey = 0 }: AdminFollowUpPanelProps) 
       {selectedEmailItem && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => !sendingEmail && setSelectedEmailItem(null)} />
-          <div className="relative z-10 w-full max-w-2xl rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-6 shadow-2xl sm:p-8">
+          <div className="relative z-10 max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-6 shadow-2xl sm:p-8">
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--color-text-muted)]">Comunicación al autor</p>
             <h4 className="mt-1 font-serif text-2xl font-semibold text-[var(--color-text)]">Enviar correo oficial</h4>
             <p className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">El rechazo ya está registrado; el envío del correo es un paso independiente.</p>
@@ -216,6 +221,14 @@ export function AdminFollowUpPanel({ refreshKey = 0 }: AdminFollowUpPanelProps) 
             </div>
           </div>
         </div>
+      )}
+
+      {selectedProposalItem && (
+        <AdminProposalComposer
+          item={selectedProposalItem}
+          onClose={() => setSelectedProposalItem(null)}
+          onChanged={() => { void loadData(); }}
+        />
       )}
     </section>
   );
