@@ -46,4 +46,4 @@ export interface ProjectBrief {
   updatedAt: string;
 }
 
-export interface SaveProjectBriefInput extends Omit<ProjectBrief, 'id' | 'createdAt' | 'updatedAt'> {}
+export type SaveProjectBriefInput = Omit<ProjectBrief, 'id' | 'createdAt' | 'updatedAt'>;
