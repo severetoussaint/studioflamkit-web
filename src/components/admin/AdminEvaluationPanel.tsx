@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import type { Evaluation, EvaluationResult, ProjectRequest } from '@/types/domain.types';
 import { createEvaluation, getEvaluationByRequest, updateEvaluation } from '@/services/evaluation.service';
-import { getProjectRequestAuthorId, updateProjectRequestReviewStatus } from '@/services/request.service';
+import { getProjectRequestAuthorContact, updateProjectRequestReviewStatus } from '@/services/request.service';
 import { createNotification } from '@/services/notification.service';
+import { sendStudioFlamkitEmail } from '@/services/zoho-mail.service';
 
 interface AdminEvaluationPanelProps {
   requestId: string;
@@ -20,6 +21,8 @@ const resultOptions: Array<{ value: EvaluationResult; label: string }> = [
 const defaultRejectionMessage =
   'Después de revisar tu manuscrito y la información proporcionada, Studio FLAMKIT ha decidido no continuar con esta solicitud en esta ocasión. Gracias por confiar en nuestro equipo editorial.';
 
+const rejectionSubject = 'Actualización sobre tu proyecto en Studio FLAMKIT';
+
 export function AdminEvaluationPanel({ requestId, onRequestUpdated }: AdminEvaluationPanelProps) {
   const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
   const [feasibility, setFeasibility] = useState('');
@@ -29,7 +32,12 @@ export function AdminEvaluationPanel({ requestId, onRequestUpdated }: AdminEvalu
   const [observations, setObservations] = useState('');
   const [result, setResult] = useState<EvaluationResult | ''>('');
   const [authorMessage, setAuthorMessage] = useState(defaultRejectionMessage);
-  const [rejectionComposerOpen, setRejectionComposerOpen] = useState(false);
+  const [rejectionConfirmOpen, setRejectionConfirmOpen] = useState(false);
+  const [emailComposerOpen, setEmailComposerOpen] = useState(false);
+  const [authorEmail, setAuthorEmail] = useState<string | null>(null);
+  const [authorName, setAuthorName] = useState<string | null>(null);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,18 +96,18 @@ export function AdminEvaluationPanel({ requestId, onRequestUpdated }: AdminEvalu
       setResult(next.result ?? '');
 
       if (next.result && previousResult !== next.result) {
-        const authorId = await getProjectRequestAuthorId(requestId);
+        const contact = await getProjectRequestAuthorContact(requestId);
 
-        if (authorId) {
+        if (contact?.id) {
           if (next.result === 'approved') {
             await createNotification({
-              authorId,
+              authorId: contact.id,
               title: 'Tu obra avanza a la siguiente etapa',
               message: 'El análisis editorial ha concluido favorablemente. Studio FLAMKIT preparará la siguiente etapa de tu propuesta.',
             });
           } else if (next.result === 'approved_with_notes') {
             await createNotification({
-              authorId,
+              authorId: contact.id,
               title: 'Tu obra avanza con observaciones',
               message: 'El análisis editorial ha concluido y tu obra puede avanzar. Studio FLAMKIT ha registrado observaciones que se tendrán en cuenta en la siguiente etapa.',
             });
@@ -107,10 +115,12 @@ export function AdminEvaluationPanel({ requestId, onRequestUpdated }: AdminEvalu
             const rejectedRequest = await updateProjectRequestReviewStatus(requestId, 'rejected');
             onRequestUpdated?.(rejectedRequest);
             await createNotification({
-              authorId,
+              authorId: contact.id,
               title: 'Actualización sobre tu solicitud',
               message: authorMessage.trim() || defaultRejectionMessage,
             });
+            setAuthorEmail(contact.email);
+            setAuthorName(contact.fullName);
           }
         } else if (next.result === 'rejected') {
           const rejectedRequest = await updateProjectRequestReviewStatus(requestId, 'rejected');
@@ -118,18 +128,51 @@ export function AdminEvaluationPanel({ requestId, onRequestUpdated }: AdminEvalu
         }
       }
 
-      setRejectionComposerOpen(false);
       setSaved(true);
+      return next;
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'No se pudo guardar el análisis.');
+      return null;
     } finally {
       setSaving(false);
     }
   }
 
+  async function confirmRejection() {
+    const next = await persistAnalysis();
+    if (!next || next.result !== 'rejected') return;
+
+    setRejectionConfirmOpen(false);
+    setEmailSent(false);
+    setEmailComposerOpen(true);
+  }
+
+  async function handleSendEmail() {
+    if (!authorEmail) {
+      setError('No encontramos un correo válido para el autor. La decisión ya fue guardada y notificada dentro del Dashboard.');
+      return;
+    }
+
+    setSendingEmail(true);
+    setError(null);
+    try {
+      await sendStudioFlamkitEmail({
+        toAddress: authorEmail,
+        subject: rejectionSubject,
+        content: authorMessage.trim() || defaultRejectionMessage,
+      });
+      setEmailSent(true);
+    } catch (sendError) {
+      setError(sendError instanceof Error ? sendError.message : 'No se pudo enviar el correo por Zoho Mail.');
+    } finally {
+      setSendingEmail(false);
+    }
+  }
+
   function handleSave() {
     if (result === 'rejected' && evaluation?.result !== 'rejected') {
-      setRejectionComposerOpen(true);
+      setError(null);
+      setRejectionConfirmOpen(true);
       return;
     }
     void persistAnalysis();
@@ -208,40 +251,86 @@ export function AdminEvaluationPanel({ requestId, onRequestUpdated }: AdminEvalu
       {saved && <p className="mt-3 text-xs font-medium text-[var(--color-success)]">Análisis guardado correctamente.</p>}
       {error && <p className="mt-3 text-xs text-[var(--color-error)]">{error}</p>}
 
-      {rejectionComposerOpen && (
+      {rejectionConfirmOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => !saving && setRejectionComposerOpen(false)} />
-          <div className="relative z-10 w-full max-w-2xl rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-6 shadow-2xl sm:p-8">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-rose-600 dark:text-rose-300">Comunicación de rechazo</p>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => !saving && setRejectionConfirmOpen(false)} />
+          <div className="relative z-10 w-full max-w-xl rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-6 shadow-2xl sm:p-8">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-rose-600 dark:text-rose-300">Decisión final</p>
             <h4 className="mt-1 font-serif text-2xl font-semibold text-[var(--color-text)]">Confirmar rechazo de la solicitud</h4>
             <p className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">
-              La decisión quedará reflejada en el Dashboard del autor y el siguiente texto se usará para su notificación. El envío por el correo oficial de Studio FLAMKIT se conectará mediante la integración de Zoho Mail.
+              Al confirmar, la solicitud quedará cerrada, el Dashboard del autor reflejará el rechazo y se generará su notificación. Después tendrás una segunda ventana para enviar el correo oficial.
             </p>
-            <label className="mt-5 block space-y-2">
-              <span className="text-xs font-medium text-[var(--color-text-secondary)]">Mensaje para el autor</span>
-              <textarea
-                rows={7}
-                value={authorMessage}
-                onChange={(event) => setAuthorMessage(event.target.value)}
-                className="w-full resize-y rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm leading-6 text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
-              />
-            </label>
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button
                 type="button"
                 disabled={saving}
-                onClick={() => setRejectionComposerOpen(false)}
+                onClick={() => setRejectionConfirmOpen(false)}
                 className="rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] disabled:opacity-50"
               >
-                Volver
+                Cancelar
               </button>
               <button
                 type="button"
-                disabled={saving || !authorMessage.trim()}
-                onClick={() => void persistAnalysis()}
+                disabled={saving}
+                onClick={() => void confirmRejection()}
                 className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {saving ? 'Guardando rechazo…' : 'Confirmar rechazo y notificar al autor'}
+                {saving ? 'Confirmando…' : 'Confirmar rechazo'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {emailComposerOpen && (
+        <div className="fixed inset-0 z-[75] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => !sendingEmail && setEmailComposerOpen(false)} />
+          <div className="relative z-10 w-full max-w-2xl rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-6 shadow-2xl sm:p-8">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--color-text-muted)]">Comunicación al autor</p>
+            <h4 className="mt-1 font-serif text-2xl font-semibold text-[var(--color-text)]">Enviar correo oficial</h4>
+            <p className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">
+              La decisión ya está guardada. Este correo es un paso independiente y opcional.
+            </p>
+
+            <div className="mt-5 space-y-4">
+              <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm text-[var(--color-text-secondary)]">
+                <span className="font-medium text-[var(--color-text)]">Para:</span> {authorEmail || 'Correo del autor no disponible'}
+                {authorName ? <span className="ml-2 text-[var(--color-text-muted)]">({authorName})</span> : null}
+              </div>
+              <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm text-[var(--color-text-secondary)]">
+                <span className="font-medium text-[var(--color-text)]">Asunto:</span> {rejectionSubject}
+              </div>
+              <label className="block space-y-2">
+                <span className="text-xs font-medium text-[var(--color-text-secondary)]">Mensaje</span>
+                <textarea
+                  rows={8}
+                  value={authorMessage}
+                  onChange={(event) => setAuthorMessage(event.target.value)}
+                  className="w-full resize-y rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm leading-6 text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
+                />
+              </label>
+            </div>
+
+            {emailSent && (
+              <p className="mt-3 text-xs font-medium text-[var(--color-success)]">Correo enviado correctamente desde la integración oficial.</p>
+            )}
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                disabled={sendingEmail}
+                onClick={() => setEmailComposerOpen(false)}
+                className="rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] disabled:opacity-50"
+              >
+                Ahora no
+              </button>
+              <button
+                type="button"
+                disabled={sendingEmail || !authorEmail || emailSent}
+                onClick={() => void handleSendEmail()}
+                className="rounded-xl bg-[var(--color-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-accent-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {sendingEmail ? 'Enviando…' : emailSent ? 'Enviado' : 'Enviar correo'}
               </button>
             </div>
           </div>
