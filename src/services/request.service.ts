@@ -37,6 +37,32 @@ export async function getProjectRequestByManuscript(manuscriptId: string): Promi
 }
 
 /**
+ * Moves a valid incoming request into the internal editorial analysis phase.
+ * This is not proposal acceptance and must never create a project.
+ */
+export async function startProjectRequestAnalysis(requestId: string): Promise<ProjectRequest> {
+  const current = await getProjectRequest(requestId);
+  if (!current) throw new Error(`Project request ${requestId} not found.`);
+
+  if (current.status !== 'pending' && current.status !== 'evaluating') {
+    throw new Error(`Project request ${requestId} cannot enter analysis from status ${current.status}.`);
+  }
+
+  if (current.status === 'evaluating') return current;
+
+  const { data, error } = await supabaseClient
+    .from('project_requests')
+    .update({ status: 'evaluating' })
+    .eq('id', requestId)
+    .eq('status', 'pending')
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return mapProjectRequestRowToDomain(data);
+}
+
+/**
  * Updates only the request states that belong to request/review workflow.
  * Acceptance/rejection of a formal proposal must go through proposal.service.ts
  * and its transactional Supabase RPCs so Proposal remains the commercial authority.
