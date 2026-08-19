@@ -1,38 +1,30 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, BellRing, CheckCircle2, Clock3, Mail, MessageCircle, RotateCcw } from 'lucide-react';
+import { ArrowRight, BellRing, CheckCircle2, Clock3, Mail, RotateCcw } from 'lucide-react';
 import type { AdminFollowUpItem } from '@/services/follow-up.service';
-import { listAdminFollowUps, saveFollowUpNote } from '@/services/follow-up.service';
-import type { QuotationRequest } from '@/services/admin.service';
+import { listAdminFollowUps, markFollowUpEmailSent, saveFollowUpNote } from '@/services/follow-up.service';
+import { sendStudioFlamkitEmail } from '@/services/zoho-mail.service';
 
 interface AdminFollowUpPanelProps {
   refreshKey?: number;
-  onOpenRequest: (request: QuotationRequest) => void;
 }
 
 type Filter = 'all' | 'pending' | 'proposal' | 'history';
 
-function toQuotationRequest(item: AdminFollowUpItem): QuotationRequest {
-  return {
-    id: item.request.id,
-    client: item.client,
-    title: item.title,
-    requestedAt: item.createdAt.slice(0, 10),
-    status: item.request.status === 'evaluating' ? 'en_revision' : 'rechazada',
-    request: item.request,
-    chapters: 1,
-    amount: 0,
-    manuscript_id: item.request.manuscriptId,
-  };
-}
+const rejectionSubject = 'Actualización sobre tu proyecto en Studio FLAMKIT';
 
-export function AdminFollowUpPanel({ refreshKey = 0, onOpenRequest }: AdminFollowUpPanelProps) {
+export function AdminFollowUpPanel({ refreshKey = 0 }: AdminFollowUpPanelProps) {
   const [items, setItems] = useState<AdminFollowUpItem[]>([]);
   const [filter, setFilter] = useState<Filter>('all');
   const [loading, setLoading] = useState(true);
   const [savingNoteId, setSavingNoteId] = useState<string | null>(null);
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
+  const [selectedEmailItem, setSelectedEmailItem] = useState<AdminFollowUpItem | null>(null);
+  const [emailBody, setEmailBody] = useState('');
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailSent, setEmailSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function load() {
@@ -82,6 +74,41 @@ export function AdminFollowUpPanel({ refreshKey = 0, onOpenRequest }: AdminFollo
       setError(saveError instanceof Error ? saveError.message : 'No se pudo guardar la nota.');
     } finally {
       setSavingNoteId(null);
+    }
+  }
+
+  function openEmailComposer(item: AdminFollowUpItem) {
+    setSelectedEmailItem(item);
+    setEmailBody(item.authorMessage || '');
+    setEmailError(null);
+    setEmailSent(false);
+  }
+
+  async function handleSendEmail() {
+    if (!selectedEmailItem?.email) {
+      setEmailError('No encontramos un correo válido para el autor.');
+      return;
+    }
+    if (!selectedEmailItem.evaluationId) {
+      setEmailError('Este expediente no tiene una evaluación persistida para registrar el envío.');
+      return;
+    }
+
+    setSendingEmail(true);
+    setEmailError(null);
+    try {
+      await sendStudioFlamkitEmail({
+        toAddress: selectedEmailItem.email,
+        subject: rejectionSubject,
+        content: emailBody.trim(),
+      });
+      await markFollowUpEmailSent(selectedEmailItem.evaluationId);
+      setEmailSent(true);
+      await load();
+    } catch (sendError) {
+      setEmailError(sendError instanceof Error ? sendError.message : 'No se pudo enviar el correo.');
+    } finally {
+      setSendingEmail(false);
     }
   }
 
@@ -179,17 +206,14 @@ export function AdminFollowUpPanel({ refreshKey = 0, onOpenRequest }: AdminFollo
               </div>
 
               <div className="mt-5 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => onOpenRequest(toQuotationRequest(item))}
-                  className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-accent)] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[var(--color-accent-hover)]"
-                >
-                  Abrir expediente <ArrowRight className="h-3.5 w-3.5" />
-                </button>
                 {item.category === 'email_pending' && (
-                  <span className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-xs font-medium text-[var(--color-text-secondary)]">
-                    <MessageCircle className="h-3.5 w-3.5" /> Usa el expediente para enviar el correo
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => openEmailComposer(item)}
+                    className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-accent)] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[var(--color-accent-hover)]"
+                  >
+                    <Mail className="h-3.5 w-3.5" /> Enviar correo
+                  </button>
                 )}
               </div>
 
@@ -215,6 +239,31 @@ export function AdminFollowUpPanel({ refreshKey = 0, onOpenRequest }: AdminFollo
               )}
             </article>
           ))}
+        </div>
+      )}
+
+      {selectedEmailItem && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => !sendingEmail && setSelectedEmailItem(null)} />
+          <div className="relative z-10 w-full max-w-2xl rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-6 shadow-2xl sm:p-8">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--color-text-muted)]">Comunicación al autor</p>
+            <h4 className="mt-1 font-serif text-2xl font-semibold text-[var(--color-text)]">Enviar correo oficial</h4>
+            <p className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">Este caso sigue en Seguimiento porque el rechazo está guardado pero el correo aún no se ha enviado.</p>
+
+            <div className="mt-5 space-y-4">
+              <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm text-[var(--color-text-secondary)]"><span className="font-medium text-[var(--color-text)]">Para:</span> {selectedEmailItem.email || 'Correo del autor no disponible'}</div>
+              <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm text-[var(--color-text-secondary)]"><span className="font-medium text-[var(--color-text)]">Asunto:</span> {rejectionSubject}</div>
+              <label className="block space-y-2"><span className="text-xs font-medium text-[var(--color-text-secondary)]">Mensaje</span><textarea rows={8} value={emailBody} onChange={(event) => setEmailBody(event.target.value)} className="w-full resize-y rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm leading-6 text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]" /></label>
+            </div>
+
+            {emailError && <p className="mt-3 text-xs text-[var(--color-error)]">{emailError}</p>}
+            {emailSent && <p className="mt-3 text-xs font-medium text-[var(--color-success)]">Correo enviado y caso retirado de “Correos pendientes”.</p>}
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button type="button" disabled={sendingEmail} onClick={() => setSelectedEmailItem(null)} className="rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] disabled:opacity-50">Ahora no</button>
+              <button type="button" disabled={sendingEmail || emailSent || !selectedEmailItem.email || !emailBody.trim()} onClick={() => void handleSendEmail()} className="rounded-xl bg-[var(--color-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-accent-hover)] disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail ? 'Enviando…' : emailSent ? 'Enviado' : 'Enviar correo'}</button>
+            </div>
+          </div>
         </div>
       )}
     </section>
