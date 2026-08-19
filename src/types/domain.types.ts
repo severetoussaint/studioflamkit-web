@@ -162,6 +162,9 @@ export interface Evaluation {
   estimatedTime: string | null;
   observations: string | null;
   result: EvaluationResult | null;
+  authorMessage: string | null;
+  emailSentAt: string | null;
+  followUpNote: string | null;
   createdAt: string;
 }
 
@@ -176,40 +179,4 @@ export interface Proposal {
   status: ProposalStatus;
   expiresAt: string | null;
   createdAt: string;
-}
-
-export interface Review {
-  id: string;
-  deliverableId: string;
-  chapterTitle: string | null;
-  comment: string;
-  filePath: string | null;
-  status: ReviewStatus;
-  createdAt: string;
-}
-
-export interface Message {
-  id: string;
-  conversationId: string;
-  senderType: MessageSenderType;
-  senderId: string;
-  body: string;
-  createdAt: string;
-  readAt: string | null;
-}
-
-export interface Conversation {
-  id: string;
-  authorId: string;
-  projectId: string | null;
-  type: ConversationType;
-  subject: string;
-  status: ConversationStatus;
-  createdAt: string;
-  updatedAt: string;
-  lastMessage?: Message | null;
-  authorName?: string;
-  authorEmail?: string;
-  projectTitle?: string;
-  unreadCount?: number;
 }
