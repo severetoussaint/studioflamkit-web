@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import {
-  BookOpen, Plus, Trash2, Upload, MessageCircle, Send, X,
+  BookOpen, Plus, Upload, MessageCircle, Send, X,
   Inbox, User, AlertTriangle, CheckCircle2,
   BarChart3, ArrowRight, ShieldCheck,
 } from "lucide-react";
@@ -16,8 +16,7 @@ import { getUser, getUserRole } from "@/services/auth.service";
 import { adminService } from "@/services/admin.service";
 import { uploadProjectDeliverableFile } from "@/services/storage.service";
 import { useAdminProjectWorkspace } from "@/hooks/useAdminProjectWorkspace";
-import type { AdminProject, AdminProjectStatus, AudioDeliverable, QuotationRequest, QuotationRequestStatus, AdminChapter } from "@/services/admin.service";
-import type { ProjectProgress } from "@/types/domain.types";
+import type { AdminProject, AdminProjectStatus, AudioDeliverable, QuotationRequest } from "@/services/admin.service";
 import type { ProjectBrief } from "@/types/project-brief.types";
 import { getProjectBrief } from "@/services/project-brief.service";
 import { deriveAdminEditorialJourney, type AdminEditorialJourneyModel } from "@/components/admin/adminEditorialJourney.model";
@@ -134,7 +133,6 @@ export default function AdminPage() {
   const adminWorkspaceData = adminWorkspace.data;
 
   const activeWorkspaceProject = adminWorkspaceData?.project ?? null;
-  const activeProgressPercentage = adminWorkspaceData?.progress?.percentage;
   const activeProjectId = activeWorkspaceProject?.id ?? currentProjectId;
 
   /* ─── Active legacy project (bridge for data not yet in ViewModel) ─── */
@@ -277,10 +275,6 @@ export default function AdminPage() {
     if (confirm("¿Seguro que deseas eliminar este capítulo de la base de datos?")) {
       try { await adminService.deleteChapter(chapterId); await loadAllData(); } catch (error) { console.error("Error al eliminar capítulo:", error); }
     }
-  };
-
-  const handleQuotationStatus = async (id: string, status: QuotationRequestStatus) => {
-    try { const updated = await adminService.updateQuotationRequestStatus(id, status); if (updated) await loadAllData(); } catch (error) { console.error(error); }
   };
 
   const openQuotationRequest = async (request: QuotationRequest) => {
@@ -555,7 +549,14 @@ export default function AdminPage() {
                     {activeProject && (
                       <div className="space-y-6">
                         {/* 1. Header / Context */}
-                        <AdminProjectHeader workspaceProject={activeWorkspaceProject} legacyProject={activeProject} progress={adminWorkspaceData?.progress ?? null} hasOpenReviews={adminWorkspaceData?.hasOpenReviews ?? false} currentPhaseLabel={editorialJourney?.currentPhase ? statusLabels[activeProject.status] ?? "En curso" : "Sin obra seleccionada"} />
+                        <AdminProjectHeader
+                          workspaceProject={activeWorkspaceProject}
+                          legacyProject={activeProject}
+                          progress={adminWorkspaceData?.progress ?? null}
+                          hasOpenReviews={adminWorkspaceData?.hasOpenReviews ?? false}
+                          currentPhaseLabel={editorialJourney?.currentPhase ? statusLabels[activeProject.status] ?? "En curso" : "Sin obra seleccionada"}
+                          onDeleteProject={() => handleDeleteProject(activeProjectId)}
+                        />
 
                         {/* 2. Editorial Journey */}
                         <AdminEditorialJourneyView journey={editorialJourney} />

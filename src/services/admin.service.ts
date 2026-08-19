@@ -4,9 +4,10 @@ import { isProjectStatus } from '@/domain/project/projectStatus';
 import { mapProjectRequestRowToDomain } from '@/domain/request/mapProjectRequest';
 import { getProjectsProgress } from '@/services/production-stage.service';
 import { createNotification } from '@/services/notification.service';
+import { deleteProjectRequest } from '@/services/request.service';
 import type { ProjectRequest, ProjectStatus } from '@/types/domain.types';
 
-// ─── Tipos (mismos nombres que antes para no tocar admin/page.tsx) ────────────
+// ─── Tipos ──────────────────────────────────────────────────────────────────
 
 export type AdminProjectStatus = 'analisis' | 'produccion' | 'revisiones' | 'completado';
 export type QuotationRequestStatus = 'pendiente' | 'aprobada' | 'en_revision';
@@ -180,15 +181,6 @@ function adminStatusToDb(status: AdminProjectStatus): ProjectStatus {
   return map[status];
 }
 
-function adminRequestStatusToDb(status: QuotationRequestStatus): string {
-  const map: Record<QuotationRequestStatus, string> = {
-    pendiente: 'pending',
-    en_revision: 'evaluating',
-    aprobada: 'accepted',
-  };
-  return map[status];
-}
-
 // ─── SOLICITUDES (project_requests + manuscripts + authors) ───────────────────
 
 interface QuotationRequestRow {
@@ -304,109 +296,9 @@ export async function listQuotationRequests(): Promise<QuotationRequest[]> {
   });
 }
 
-export async function updateQuotationRequestStatus(
-  id: string,
-  status: QuotationRequestStatus
-): Promise<QuotationRequest | undefined> {
-  return executeWithRetry(async () => {
-    const dbStatus = adminRequestStatusToDb(status);
-    const { data, error } = await supabaseClient
-      .from('project_requests')
-      .update({ status: dbStatus })
-      .or(`id.eq.${id},manuscript_id.eq.${id}`)
-      .select(`
-        id, status, created_at,
-        manuscripts ( id, title, word_count, author_id, authors ( full_name ) )
-      `)
-      .maybeSingle();
-
-    if (error) {
-      handleSupabaseError(error, 'updateQuotationRequestStatus error');
-    }
-
-    let row = data as unknown as QuotationRequestRow | null;
-
-    if (!row) {
-      const { data: fallbackData, error: fallbackError } = await supabaseClient
-        .from('project_requests')
-        .select(`
-          id, status, created_at,
-          manuscripts ( id, title, word_count, author_id, authors ( full_name ) )
-        `)
-        .or(`id.eq.${id},manuscript_id.eq.${id}`)
-        .maybeSingle();
-
-      if (fallbackError) {
-        handleSupabaseError(fallbackError, 'updateQuotationRequestStatus fallback error');
-      }
-
-      if (!fallbackData) {
-        console.warn(`updateQuotationRequestStatus: No request found with id/manuscript_id ${id}`);
-        return undefined;
-      }
-      row = fallbackData as unknown as QuotationRequestRow;
-    }
-
-    const wordCount = row.manuscripts?.word_count ?? 0;
-    const amount = wordCount > 0 ? calculateManuscriptPrice(wordCount) : 0;
-    const estimatedChapters = Math.max(1, Math.round(wordCount / 3000)) || 1;
-    const durationMinutes = Math.round(wordCount / 155);
-
-    const request = mapProjectRequestRowToDomain({
-      id: row.id,
-      manuscript_id: row.manuscripts?.id ?? '',
-      channel: null,
-      status: row.status,
-      created_at: row.created_at,
-    });
-
-    return {
-      id: request.id,
-      client: row.manuscripts?.authors?.full_name ?? 'Autor desconocido',
-      title: row.manuscripts?.title ?? 'Sin título',
-      requestedAt: request.createdAt.slice(0, 10),
-      status,
-      request,
-      chapters: estimatedChapters,
-      amount,
-      wordCount,
-      durationMinutes,
-      manuscript_id: request.manuscriptId,
-      author_id: row.manuscripts?.author_id,
-    };
-  });
-}
-
-export async function addQuotationRequest(
-  req: Omit<QuotationRequest, 'id' | 'requestedAt' | 'request'>
-): Promise<QuotationRequest> {
-  console.warn('addQuotationRequest: operación no soportada en modo real');
-  const id = `rq-${Date.now()}`;
-  const requestedAt = new Date().toISOString().slice(0, 10);
-  return {
-    ...req,
-    id,
-    requestedAt,
-    request: {
-      id,
-      manuscriptId: req.manuscript_id ?? '',
-      channel: null,
-      status: req.status === 'en_revision' ? 'evaluating' : 'pending',
-      createdAt: requestedAt,
-    },
-  };
-}
-
 export async function deleteQuotationRequest(id: string): Promise<boolean> {
   return executeWithRetry(async () => {
-    const { error } = await supabaseClient
-      .from('project_requests')
-      .delete()
-      .eq('id', id);
-    if (error) {
-      handleSupabaseError(error, 'deleteQuotationRequest error');
-    }
-    return true;
+    return await deleteProjectRequest(id);
   });
 }
 
@@ -816,8 +708,6 @@ export async function deleteChapter(chapterId: string): Promise<boolean> {
 
 export const adminService = {
   listQuotationRequests,
-  updateQuotationRequestStatus,
-  addQuotationRequest,
   deleteQuotationRequest,
   listAdminProjects,
   updateProjectStatus,

@@ -118,6 +118,8 @@ export function AdminQuotationDetailModal({
                 <div className="mt-4">
                   <AdminProjectBriefPanel
                     brief={brief}
+                    manuscriptId={request.request.manuscriptId}
+                    requestId={request.request.id}
                     onRequestUpdated={onRequestUpdated}
                   />
                 </div>
@@ -125,6 +127,8 @@ export function AdminQuotationDetailModal({
             ) : (
               <AdminProjectBriefPanel
                 brief={brief}
+                manuscriptId={request.request.manuscriptId}
+                requestId={request.request.id}
                 onRequestUpdated={onRequestUpdated}
               />
             )}

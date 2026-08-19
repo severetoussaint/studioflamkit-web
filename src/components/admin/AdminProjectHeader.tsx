@@ -8,6 +8,7 @@ import {
   Hash,
   Clock,
   AlertCircle,
+  Trash2,
 } from 'lucide-react';
 import type { Project, ProjectProgress } from '@/types/domain.types';
 import type { AdminProject } from '@/services/admin.service';
@@ -18,6 +19,7 @@ interface AdminProjectHeaderProps {
   progress: ProjectProgress | null;
   hasOpenReviews: boolean;
   currentPhaseLabel: string;
+  onDeleteProject?: () => void;
 }
 
 export function AdminProjectHeader({
@@ -26,6 +28,7 @@ export function AdminProjectHeader({
   progress,
   hasOpenReviews,
   currentPhaseLabel,
+  onDeleteProject,
 }: AdminProjectHeaderProps) {
   const title = workspaceProject
     ? legacyProject?.title ?? 'Obra sin título'
@@ -86,6 +89,17 @@ export function AdminProjectHeader({
                 <Hash className="h-3.5 w-3.5" />
                 {projectId.slice(0, 8)}…
               </span>
+            )}
+            {onDeleteProject && projectId && (
+              <button
+                type="button"
+                onClick={onDeleteProject}
+                title="Eliminar obra"
+                className="inline-flex items-center gap-1 text-xs text-[var(--color-text-muted)] transition hover:text-rose-600 dark:hover:text-rose-400"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Eliminar obra</span>
+              </button>
             )}
           </div>
         </div>

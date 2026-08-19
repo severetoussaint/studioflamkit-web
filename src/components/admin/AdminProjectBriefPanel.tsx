@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { CalendarDays, Globe2, Megaphone, Users, Wand2 } from 'lucide-react';
 import type { ProjectBrief } from '@/types/project-brief.types';
 import type { ProjectRequest } from '@/types/domain.types';
-import { getProjectRequestByManuscript, startProjectRequestAnalysis } from '@/services/request.service';
+import { getProjectRequest, getProjectRequestByManuscript, startProjectRequestAnalysis } from '@/services/request.service';
 import { AdminEvaluationPanel } from '@/components/admin/AdminEvaluationPanel';
 
 const labels: Record<string, string> = {
@@ -28,9 +28,13 @@ const audienceBandLabels: Record<string, string> = {
 
 export function AdminProjectBriefPanel({
   brief,
+  manuscriptId: propManuscriptId,
+  requestId: propRequestId,
   onRequestUpdated,
 }: {
   brief: ProjectBrief | null;
+  manuscriptId?: string;
+  requestId?: string;
   onRequestUpdated?: (updatedRequest: ProjectRequest) => void;
 }) {
   const [request, setRequest] = useState<ProjectRequest | null>(null);
@@ -39,19 +43,23 @@ export function AdminProjectBriefPanel({
   const [startingAnalysis, setStartingAnalysis] = useState(false);
 
   useEffect(() => {
-    const manuscriptId = brief?.manuscriptId;
-    if (!manuscriptId) {
-      return;
-    }
-
-    const targetManuscriptId: string = manuscriptId;
+    const manuscriptId = brief?.manuscriptId || propManuscriptId;
     let mounted = true;
 
-    async function loadRequest(id: string) {
+    async function loadRequest() {
+      if (!manuscriptId && !propRequestId) {
+        return;
+      }
+
       setRequestLoading(true);
       setRequestError(null);
       try {
-        const linkedRequest = await getProjectRequestByManuscript(id);
+        let linkedRequest: ProjectRequest | null = null;
+        if (manuscriptId) {
+          linkedRequest = await getProjectRequestByManuscript(manuscriptId);
+        } else if (propRequestId) {
+          linkedRequest = await getProjectRequest(propRequestId);
+        }
         if (!mounted) return;
         setRequest(linkedRequest);
       } catch (error) {
@@ -62,11 +70,11 @@ export function AdminProjectBriefPanel({
       }
     }
 
-    void loadRequest(targetManuscriptId);
+    void loadRequest();
     return () => {
       mounted = false;
     };
-  }, [brief?.manuscriptId]);
+  }, [brief?.manuscriptId, propManuscriptId, propRequestId]);
 
   async function handleStartAnalysis() {
     if (!request) return;
@@ -84,13 +92,65 @@ export function AdminProjectBriefPanel({
     }
   }
 
+  const renderWorkflowSection = () => (
+    <div className="border-t border-edge/60 pt-5">
+      <div className="mb-3 flex flex-col gap-1.5 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-muted">Ruta de solicitud</p>
+          <h4 className="mt-1 font-serif text-lg font-medium text-ink">Análisis editorial</h4>
+        </div>
+        {request && (
+          <span className="inline-flex w-fit rounded-full border border-edge/60 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-muted">
+            {request.status === 'pending' ? 'Recibido' : request.status === 'evaluating' ? 'En análisis' : request.status}
+          </span>
+        )}
+      </div>
+
+      {requestLoading ? (
+        <p className="rounded-xl border border-edge/60 bg-surface p-4 text-sm text-ink-muted">Cargando estado de la solicitud…</p>
+      ) : requestError ? (
+        <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-600">
+          <strong>No se pudo cargar la solicitud.</strong>
+          <p className="mt-1">{requestError}</p>
+        </div>
+      ) : request?.status === 'pending' ? (
+        <div className="rounded-2xl border border-accent/20 bg-accent/5 p-4">
+          <p className="text-sm font-medium text-ink">El manuscrito está recibido y listo para análisis.</p>
+          <p className="mt-1 text-xs leading-5 text-ink-muted">Al iniciar el análisis no se crea ningún proyecto ni propuesta. La solicitud pasa de Recibido a Análisis.</p>
+          <button
+            type="button"
+            onClick={() => void handleStartAnalysis()}
+            disabled={startingAnalysis}
+            className="mt-4 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {startingAnalysis ? 'Iniciando análisis…' : 'Aceptar solicitud y comenzar análisis'}
+          </button>
+        </div>
+      ) : request?.status === 'evaluating' ? (
+        <AdminEvaluationPanel requestId={request.id} />
+      ) : request ? (
+        <p className="rounded-xl border border-edge/60 bg-surface p-4 text-sm text-ink-muted">La solicitud está en estado <span className="font-medium text-ink">{request.status}</span>.</p>
+      ) : (
+        <p className="rounded-xl border border-edge/60 bg-surface p-4 text-sm text-ink-muted">No se encontró una solicitud asociada a este manuscrito.</p>
+      )}
+    </div>
+  );
+
   if (!brief) {
     return (
-      <section className="rounded-3xl border border-edge/60 bg-surface-elevated p-6 shadow-xs">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-muted">Brief del proyecto</p>
-        <h3 className="mt-1 font-serif text-xl font-medium text-ink">Información pendiente</h3>
-        <p className="mt-2 text-sm text-ink-muted">El autor todavía no ha completado el brief de producción.</p>
-      </section>
+      <div className="space-y-6">
+        <section className="rounded-3xl border border-edge/60 bg-surface-elevated p-6 shadow-xs">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-muted">Brief del proyecto</p>
+          <h3 className="mt-1 font-serif text-xl font-medium text-ink">Información pendiente</h3>
+          <p className="mt-2 text-sm text-ink-muted">El autor todavía no ha completado el brief de producción.</p>
+        </section>
+
+        {(propManuscriptId || propRequestId || request) && (
+          <section className="rounded-3xl border border-edge/60 bg-surface-elevated p-6 shadow-xs">
+            {renderWorkflowSection()}
+          </section>
+        )}
+      </div>
     );
   }
 
@@ -162,43 +222,7 @@ export function AdminProjectBriefPanel({
         {brief.additionalNotes && <p className="mt-3 whitespace-pre-wrap"><span className="font-medium text-ink">Notas:</span> {brief.additionalNotes}</p>}
       </div>
 
-      <div className="border-t border-edge/60 pt-5">
-        <div className="mb-3 flex flex-col gap-1.5 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-muted">Ruta de solicitud</p>
-            <h4 className="mt-1 font-serif text-lg font-medium text-ink">Análisis editorial</h4>
-          </div>
-          {request && <span className="inline-flex w-fit rounded-full border border-edge/60 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-muted">{request.status === 'pending' ? 'Recibido' : request.status === 'evaluating' ? 'En análisis' : request.status}</span>}
-        </div>
-
-        {requestLoading ? (
-          <p className="rounded-xl border border-edge/60 bg-surface p-4 text-sm text-ink-muted">Cargando estado de la solicitud…</p>
-        ) : requestError ? (
-          <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-600">
-            <strong>No se pudo cargar la solicitud.</strong>
-            <p className="mt-1">{requestError}</p>
-          </div>
-        ) : request?.status === 'pending' ? (
-          <div className="rounded-2xl border border-accent/20 bg-accent/5 p-4">
-            <p className="text-sm font-medium text-ink">El manuscrito está recibido y listo para análisis.</p>
-            <p className="mt-1 text-xs leading-5 text-ink-muted">Al iniciar el análisis no se crea ningún proyecto ni propuesta. La solicitud pasa de Recibido a Análisis.</p>
-            <button
-              type="button"
-              onClick={() => void handleStartAnalysis()}
-              disabled={startingAnalysis}
-              className="mt-4 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {startingAnalysis ? 'Iniciando análisis…' : 'Aceptar solicitud y comenzar análisis'}
-            </button>
-          </div>
-        ) : request?.status === 'evaluating' ? (
-          <AdminEvaluationPanel requestId={request.id} />
-        ) : request ? (
-          <p className="rounded-xl border border-edge/60 bg-surface p-4 text-sm text-ink-muted">La solicitud está en estado <span className="font-medium text-ink">{request.status}</span>.</p>
-        ) : (
-          <p className="rounded-xl border border-edge/60 bg-surface p-4 text-sm text-ink-muted">No se encontró una solicitud asociada a este manuscrito.</p>
-        )}
-      </div>
+      {renderWorkflowSection()}
     </section>
   );
 }

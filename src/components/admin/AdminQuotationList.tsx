@@ -13,7 +13,7 @@ interface AdminQuotationListProps {
   onDeleteRequest?: (id: string) => void;
 }
 
-type FilterStatus = 'all' | 'pending' | 'evaluating' | 'accepted' | 'rejected';
+type FilterStatus = 'all' | 'pending' | 'evaluating';
 
 export function AdminQuotationList({
   requests,
@@ -32,9 +32,7 @@ export function AdminQuotationList({
   const counts = useMemo(() => {
     const pending = requests.filter((r) => r.request.status === 'pending').length;
     const evaluating = requests.filter((r) => r.request.status === 'evaluating').length;
-    const accepted = requests.filter((r) => r.request.status === 'accepted').length;
-    const rejected = requests.filter((r) => r.request.status === 'rejected').length;
-    return { all: requests.length, pending, evaluating, accepted, rejected };
+    return { all: requests.length, pending, evaluating };
   }, [requests]);
 
   return (

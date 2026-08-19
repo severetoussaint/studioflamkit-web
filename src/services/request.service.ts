@@ -81,3 +81,13 @@ export async function updateProjectRequestReviewStatus(
   if (error) throw error;
   return mapProjectRequestRowToDomain(data);
 }
+
+export async function deleteProjectRequest(requestId: string): Promise<boolean> {
+  const { error } = await supabaseClient
+    .from('project_requests')
+    .delete()
+    .eq('id', requestId);
+
+  if (error) throw error;
+  return true;
+}
