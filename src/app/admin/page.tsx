@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "motion/react";
 import {
   BookOpen, Plus, Trash2, Upload, MessageCircle, Send, X,
   Inbox, User, AlertTriangle, CheckCircle2,
-  BarChart3, ArrowRight, ArrowRightCircle, ShieldCheck,
+  BarChart3, ArrowRight, ShieldCheck,
 } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
@@ -20,7 +20,6 @@ import type { AdminProject, AdminProjectStatus, AudioDeliverable, QuotationReque
 import type { ProjectProgress } from "@/types/domain.types";
 import type { ProjectBrief } from "@/types/project-brief.types";
 import { getProjectBrief } from "@/services/project-brief.service";
-import { AdminProjectBriefPanel } from "@/components/admin/AdminProjectBriefPanel";
 import { deriveAdminEditorialJourney, type AdminEditorialJourneyModel } from "@/components/admin/adminEditorialJourney.model";
 import { AdminProjectHeader } from "@/components/admin/AdminProjectHeader";
 import { AdminEditorialJourneyView } from "@/components/admin/AdminEditorialJourneyView";
@@ -30,6 +29,8 @@ import { AdminRequestProposalPanel } from "@/components/admin/AdminRequestPropos
 import { AdminChaptersDeliverablesPanel } from "@/components/admin/AdminChaptersDeliverablesPanel";
 import { AdminFeedbackReviewPanel } from "@/components/admin/AdminFeedbackReviewPanel";
 import { AdminSupportMessagingPanel } from "@/components/admin/AdminSupportMessagingPanel";
+import { AdminQuotationList } from "@/components/admin/quotation/AdminQuotationList";
+import { AdminQuotationDetailModal } from "@/components/admin/quotation/AdminQuotationDetailModal";
 
 /* ────────────────────────────
    Legacy status presentation map
@@ -307,17 +308,6 @@ export default function AdminPage() {
     setSelectedQuotationBrief(null);
     setQuotationBriefLoading(false);
     setQuotationBriefError(null);
-  };
-
-  const handleConvertQuoteToProject = async (request: QuotationRequest) => {
-    try {
-      const created = await adminService.createAdminProject({ title: request.title, client: request.client, status: "produccion", chapters: request.chapters, amount: request.amount, maxRevisions: 3, revisionsUsed: 0, manuscript_id: request.request.manuscriptId, author_id: request.author_id });
-      await adminService.updateQuotationRequestStatus(request.request.id, "aprobada");
-      await loadAllData();
-      if (created) { setSelectedAuthor(created.client || request.client); setSelectedProjectId(created.id); }
-      closeQuotationRequest();
-      setActiveTab("proyectos");
-    } catch (error) { console.error(error); }
   };
 
   const handleDeleteQuote = async (id: string) => {
@@ -694,82 +684,17 @@ export default function AdminPage() {
             )}
 
             {/* ═════════════════════════════════════════════════════════
-                TAB 2: COTIZACIONES — Legacy preserved, restyled
+                TAB 2: COTIZACIONES — Modularized Pipeline
                 ═════════════════════════════════════════════════════════ */}
             {activeTab === "cotizaciones" && (
-              <motion.div key="cotizaciones" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }} className="space-y-6">
-                <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-8 shadow-[0_8px_30px_rgba(0,0,0,0.04)] sm:p-10">
-                  <h2 className="font-serif text-2xl font-semibold text-[var(--color-text)]">Solicitudes de Cotización y Análisis Editorial</h2>
-                  <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                    Aquí se reciben las peticiones de los autores de Studio Flamkit. Puedes evaluarlas, ajustar el presupuesto y activarlas como Proyectos con un solo clic.
-                  </p>
-                </div>
-
-                {requestsError && (
-                  <div className="rounded-2xl border border-[var(--color-error)]/20 bg-[var(--color-error-soft)] p-4 text-sm text-[var(--color-error)]">
-                    <strong>Error al cargar solicitudes de cotización</strong><p className="mt-1">{requestsError}</p>
-                  </div>
-                )}
-
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {requests.length === 0 ? (
-                    <div className="col-span-full rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-10 text-center shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
-                      <Inbox className="mx-auto h-10 w-10 text-[var(--color-text-muted)]" />
-                      <p className="mt-4 text-sm text-[var(--color-text-secondary)]">No hay solicitudes de cotización o manuscritos pendientes.</p>
-                    </div>
-                  ) : (
-                    requests.map((request) => (
-                      <div
-                        key={request.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => void openQuotationRequest(request)}
-                        onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); void openQuotationRequest(request); } }}
-                        className="cursor-pointer rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-all hover:-translate-y-0.5 hover:border-[var(--color-accent)]/40 hover:shadow-[0_12px_40px_rgba(0,0,0,0.06)]"
-                      >
-                        <div className="mb-3 flex items-center justify-between">
-                          <span className="font-mono text-xs text-[var(--color-text-muted)]">Manuscrito #{request.request.id}</span>
-                          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${request.status === "pendiente" ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)]" : "bg-[var(--color-info-soft)] text-[var(--color-info)]"}`}>
-                            {request.status === "pendiente" ? "Pendiente" : "En revisión"}
-                          </span>
-                        </div>
-                        <h3 className="font-serif text-lg font-semibold text-[var(--color-text)]">{request.title}</h3>
-                        <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Autor: {request.client}</p>
-                        <div className="mt-3 space-y-1 text-xs text-[var(--color-text-muted)]">
-                          <p>{request.chapters} capítulos</p>
-                          {request.wordCount ? <p>{request.wordCount.toLocaleString()} palabras (~{request.durationMinutes} min)</p> : null}
-                          <p>Fecha: {request.request.createdAt.slice(0, 10)}</p>
-                        </div>
-                        <div className="mt-4 border-t border-[var(--color-border)] pt-4">
-                          <div className="flex items-center justify-between">
-                            <span className="font-serif text-xl font-semibold text-[var(--color-premium)]">${request.amount} USD</span>
-                            <span className="text-xs text-[var(--color-text-muted)]">Presupuesto estimado</span>
-                          </div>
-                        </div>
-                        <div className="mt-4 rounded-xl border border-[var(--color-accent)]/20 bg-[var(--color-accent-soft)] px-3 py-2 text-xs font-medium text-[var(--color-accent)]">
-                          Abrir solicitud y ver Brief completo →
-                        </div>
-                        <div className="mt-4 space-y-2">
-                          <label className="text-xs font-medium text-[var(--color-text-secondary)]">Cambiar estado del análisis:</label>
-                          <div className="flex gap-2">
-                            {["pendiente", "en_revision"].map((st) => (
-                              <button key={st} onClick={(event) => { event.stopPropagation(); void handleQuotationStatus(request.request.id, st as QuotationRequestStatus); }}
-                                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${request.status === st ? "bg-[var(--color-accent)] text-white" : "border border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:border-[var(--color-accent)]/30"}`}>
-                                {st === "pendiente" ? "Pendiente" : "En revisión"}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                        <button onClick={(event) => { event.stopPropagation(); void handleConvertQuoteToProject(request); }} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent-hover)] cursor-pointer">
-                          <ArrowRightCircle className="h-4 w-4" />Convertir en Obra Activa
-                        </button>
-                        <button onClick={(event) => { event.stopPropagation(); void handleDeleteQuote(request.request.id); }} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--color-error)]/20 px-4 py-2 text-xs font-medium text-[var(--color-error)] transition-colors hover:bg-[var(--color-error-soft)] cursor-pointer">
-                          <Trash2 className="h-3.5 w-3.5" />Eliminar solicitud
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
+              <motion.div key="cotizaciones" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }}>
+                <AdminQuotationList
+                  requests={requests}
+                  isLoading={isDataLoading}
+                  error={requestsError}
+                  onOpenRequest={openQuotationRequest}
+                  onDeleteRequest={handleDeleteQuote}
+                />
               </motion.div>
             )}
 
@@ -851,66 +776,17 @@ export default function AdminPage() {
           </AnimatePresence>
 
           {/* ═════════════════════════════════════════════════════════
-              QUOTATION REQUEST / BRIEF DETAIL
+              QUOTATION REQUEST / BRIEF DETAIL MODAL
               ═════════════════════════════════════════════════════════ */}
-          <AnimatePresence>
-            {selectedQuotationRequest && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
-                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closeQuotationRequest} />
-                <motion.div
-                  initial={{ opacity: 0, y: 16, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 16, scale: 0.98 }}
-                  transition={{ duration: 0.22 }}
-                  role="dialog"
-                  aria-modal="true"
-                  aria-labelledby="quotation-request-detail-title"
-                  className="relative z-10 flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] shadow-2xl"
-                >
-                  <div className="flex shrink-0 items-start justify-between gap-6 border-b border-[var(--color-border)] px-6 py-5 sm:px-8">
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--color-text-muted)]">Solicitud de cotización</p>
-                      <h2 id="quotation-request-detail-title" className="mt-1 font-serif text-2xl font-semibold text-[var(--color-text)]">{selectedQuotationRequest.title}</h2>
-                      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Autor: {selectedQuotationRequest.client}</p>
-                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-[var(--color-text-muted)]">
-                        <span className="rounded-full border border-[var(--color-border)] px-2.5 py-1">{selectedQuotationRequest.chapters} capítulos</span>
-                        {selectedQuotationRequest.wordCount ? <span className="rounded-full border border-[var(--color-border)] px-2.5 py-1">{selectedQuotationRequest.wordCount.toLocaleString()} palabras</span> : null}
-                        <span className="rounded-full border border-[var(--color-border)] px-2.5 py-1">${selectedQuotationRequest.amount} USD</span>
-                      </div>
-                    </div>
-                    <button onClick={closeQuotationRequest} className="rounded-xl p-2 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text)]" aria-label="Cerrar detalle de solicitud">
-                      <X className="h-5 w-5" />
-                    </button>
-                  </div>
-
-                  <div className="flex-1 overflow-y-auto p-6 sm:p-8">
-                    {quotationBriefLoading ? (
-                      <div className="flex min-h-[260px] items-center justify-center">
-                        <div className="text-center">
-                          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-[var(--color-accent)] border-t-transparent" />
-                          <p className="mt-4 text-sm text-[var(--color-text-secondary)]">Cargando Brief del autor…</p>
-                        </div>
-                      </div>
-                    ) : quotationBriefError ? (
-                      <div className="rounded-2xl border border-[var(--color-error)]/20 bg-[var(--color-error-soft)] p-5 text-sm text-[var(--color-error)]">
-                        <strong>No se pudo cargar el Brief</strong>
-                        <p className="mt-1">{quotationBriefError}</p>
-                      </div>
-                    ) : (
-                      <AdminProjectBriefPanel brief={selectedQuotationBrief} />
-                    )}
-                  </div>
-
-                  <div className="flex shrink-0 flex-col gap-3 border-t border-[var(--color-border)] px-6 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-8">
-                    <p className="text-xs text-[var(--color-text-muted)]">La revisión del Brief ocurre antes de aceptar la solicitud y preparar la propuesta.</p>
-                    <button onClick={closeQuotationRequest} className="inline-flex items-center justify-center rounded-xl bg-[var(--color-accent)] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-accent-hover)]">
-                      Cerrar
-                    </button>
-                  </div>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <AdminQuotationDetailModal
+            isOpen={!!selectedQuotationRequest}
+            request={selectedQuotationRequest}
+            brief={selectedQuotationBrief}
+            loadingBrief={quotationBriefLoading}
+            briefError={quotationBriefError}
+            onClose={closeQuotationRequest}
+            onRequestUpdated={loadAllData}
+          />
 
           {/* ═════════════════════════════════════════════════════════
               CHAT / FEEDBACK SLIDE-OVER (Legacy preserved, restyled)

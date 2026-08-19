@@ -26,24 +26,32 @@ const audienceBandLabels: Record<string, string> = {
   '1m_plus': '1M+',
 };
 
-export function AdminProjectBriefPanel({ brief }: { brief: ProjectBrief | null }) {
+export function AdminProjectBriefPanel({
+  brief,
+  onRequestUpdated,
+}: {
+  brief: ProjectBrief | null;
+  onRequestUpdated?: (updatedRequest: ProjectRequest) => void;
+}) {
   const [request, setRequest] = useState<ProjectRequest | null>(null);
   const [requestLoading, setRequestLoading] = useState(false);
   const [requestError, setRequestError] = useState<string | null>(null);
   const [startingAnalysis, setStartingAnalysis] = useState(false);
 
   useEffect(() => {
-    if (!brief?.manuscriptId) {
+    const manuscriptId = brief?.manuscriptId;
+    if (!manuscriptId) {
       return;
     }
 
+    const targetManuscriptId: string = manuscriptId;
     let mounted = true;
 
-    async function loadRequest() {
+    async function loadRequest(id: string) {
       setRequestLoading(true);
       setRequestError(null);
       try {
-        const linkedRequest = await getProjectRequestByManuscript(brief.manuscriptId);
+        const linkedRequest = await getProjectRequestByManuscript(id);
         if (!mounted) return;
         setRequest(linkedRequest);
       } catch (error) {
@@ -54,7 +62,7 @@ export function AdminProjectBriefPanel({ brief }: { brief: ProjectBrief | null }
       }
     }
 
-    void loadRequest();
+    void loadRequest(targetManuscriptId);
     return () => {
       mounted = false;
     };
@@ -68,6 +76,7 @@ export function AdminProjectBriefPanel({ brief }: { brief: ProjectBrief | null }
     try {
       const updated = await startProjectRequestAnalysis(request.id);
       setRequest(updated);
+      onRequestUpdated?.(updated);
     } catch (error) {
       setRequestError(error instanceof Error ? error.message : 'No se pudo iniciar el análisis.');
     } finally {

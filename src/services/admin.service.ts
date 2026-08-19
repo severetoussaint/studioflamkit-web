@@ -568,16 +568,6 @@ export async function createAdminProject(
 
       if (projectRow) {
         createdProjectId = (projectRow as { id: string }).id;
-
-        // Actualizar la solicitud en project_requests a 'accepted' para asegurar sincronización
-        const { error: reqError } = await supabaseClient
-          .from('project_requests')
-          .update({ status: 'accepted' })
-          .eq('manuscript_id', manuscriptId);
-
-        if (reqError) {
-          handleSupabaseError(reqError, 'createAdminProject update project_requests status error');
-        }
       }
     }
 
