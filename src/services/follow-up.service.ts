@@ -77,7 +77,7 @@ export async function listAdminFollowUps(): Promise<AdminFollowUpItem[]> {
         created_at
       )
     `)
-    .in('status', ['rejected', 'evaluating'])
+    .in('status', ['rejected', 'accepted'])
     .order('created_at', { ascending: false });
 
   if (error) throw error;
@@ -87,14 +87,14 @@ export async function listAdminFollowUps(): Promise<AdminFollowUpItem[]> {
       const evaluation = getEvaluation(row);
       const result = (evaluation?.result ?? null) as EvaluationResult | null;
 
-      if (row.status === 'evaluating' && !['approved', 'approved_with_notes'].includes(result ?? '')) {
+      if (row.status === 'accepted' && !['approved', 'approved_with_notes'].includes(result ?? '')) {
         return null;
       }
 
       const category: FollowUpCategory =
         row.status === 'rejected' && !evaluation?.email_sent_at
           ? 'email_pending'
-          : row.status === 'evaluating'
+          : row.status === 'accepted'
             ? 'proposal_ready'
             : 'history';
 
