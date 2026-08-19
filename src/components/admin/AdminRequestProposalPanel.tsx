@@ -13,46 +13,39 @@ interface AdminRequestProposalPanelProps {
   workspaceProject: Project | null;
 }
 
+interface BriefState {
+  manuscriptId: string;
+  brief: ProjectBrief | null;
+  error: boolean;
+}
+
 export function AdminRequestProposalPanel({ request, workspaceProject }: AdminRequestProposalPanelProps) {
   const hasProposal = !!workspaceProject?.proposalId;
   const manuscriptId = workspaceProject?.manuscriptId?.trim() ?? "";
-  const [brief, setBrief] = useState<ProjectBrief | null>(null);
-  const [briefLoading, setBriefLoading] = useState(false);
-  const [briefError, setBriefError] = useState(false);
+  const [briefState, setBriefState] = useState<BriefState>({ manuscriptId: "", brief: null, error: false });
 
   useEffect(() => {
+    if (!manuscriptId) return;
+
     let mounted = true;
-
-    if (!manuscriptId) {
-      setBrief(null);
-      setBriefLoading(false);
-      setBriefError(false);
-      return () => {
-        mounted = false;
-      };
-    }
-
-    setBriefLoading(true);
-    setBriefError(false);
 
     void getProjectBrief(manuscriptId)
       .then((data) => {
-        if (mounted) setBrief(data);
+        if (mounted) setBriefState({ manuscriptId, brief: data, error: false });
       })
       .catch(() => {
-        if (mounted) {
-          setBrief(null);
-          setBriefError(true);
-        }
-      })
-      .finally(() => {
-        if (mounted) setBriefLoading(false);
+        if (mounted) setBriefState({ manuscriptId, brief: null, error: true });
       });
 
     return () => {
       mounted = false;
     };
   }, [manuscriptId]);
+
+  const briefLoaded = manuscriptId !== "" && briefState.manuscriptId === manuscriptId;
+  const briefLoading = manuscriptId !== "" && !briefLoaded;
+  const briefError = briefLoaded && briefState.error;
+  const brief = briefLoaded ? briefState.brief : null;
 
   return (
     <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)] sm:p-8">
