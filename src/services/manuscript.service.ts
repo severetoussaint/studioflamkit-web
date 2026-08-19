@@ -1,9 +1,8 @@
 import { supabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/database.types';
+\export type ManuscriptRow = Database['public']['Tables']['manuscripts']['Row'];
 
-export type ManuscriptRow = Database['public']['Tables']['manuscripts']['Row'];
-
-export type AuthorRequestState = 'none' | 'pending' | 'active';
+export type AuthorRequestState = 'none' | 'pending' | 'active' | 'rejected';
 
 export interface AuthorRequestContext {
   state: AuthorRequestState;
@@ -144,18 +143,31 @@ export async function getAuthorRequestContext(authorId: string, selectedManuscri
         createdAt: activeManuscript.created_at || null,
         manuscripts: manuscriptsList,
       };
-    } else {
-      const pendingReq = reqList.find((r) => r.status === 'pending' || r.status === 'evaluating');
+    }
+
+    const rejectedReq = reqList.find((r) => r.status === 'rejected');
+    if (rejectedReq) {
       return {
-        state: 'pending',
+        state: 'rejected',
         projectId: null,
         manuscriptId: activeManuscript.id,
-        requestId: pendingReq?.id || activeManuscript.id,
-        title: activeManuscript.title || 'Manuscrito enviado',
+        requestId: rejectedReq.id,
+        title: activeManuscript.title || 'Solicitud finalizada',
         createdAt: activeManuscript.created_at || null,
         manuscripts: manuscriptsList,
       };
     }
+
+    const pendingReq = reqList.find((r) => r.status === 'pending' || r.status === 'evaluating');
+    return {
+      state: 'pending',
+      projectId: null,
+      manuscriptId: activeManuscript.id,
+      requestId: pendingReq?.id || activeManuscript.id,
+      title: activeManuscript.title || 'Manuscrito enviado',
+      createdAt: activeManuscript.created_at || null,
+      manuscripts: manuscriptsList,
+    };
   } catch (err) {
     console.error('Error en getAuthorRequestContext:', err);
     return {
