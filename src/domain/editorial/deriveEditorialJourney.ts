@@ -35,17 +35,21 @@ function currentPhaseFromContext(context: EditorialJourneyContext): EditorialPha
   if (!context.hasManuscript) return null;
 
   if (context.projectStatus === 'completed') return 'completed';
-
   if (context.projectStatus === 'review' || context.hasOpenReviews) return 'review';
 
-  if (context.projectStatus === 'production') return 'production';
-
+  // A formal proposal is the commercial gate before production.
+  // Pending/rejected/expired proposals therefore remain in the Proposal phase,
+  // even if a legacy/partially-created project happens to carry a production status.
   if (context.proposalStatus === 'pending' || context.proposalStatus === 'rejected' || context.proposalStatus === 'expired') {
     return 'proposal';
   }
 
-  if (context.proposalStatus === 'accepted' || context.evaluationResult === 'approved' || context.evaluationResult === 'approved_with_notes') {
-    return 'production';
+  if (context.projectStatus === 'production') return 'production';
+
+  if (context.proposalStatus === 'accepted') return 'production';
+
+  if (context.evaluationResult === 'approved' || context.evaluationResult === 'approved_with_notes') {
+    return 'proposal';
   }
 
   if (context.requestStatus === 'evaluating' || context.evaluationResult === 'rejected') return 'analysis';
