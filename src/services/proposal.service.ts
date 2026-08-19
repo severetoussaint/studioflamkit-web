@@ -90,15 +90,24 @@ function validateProposalInput(input: UpdateProposalInput) {
   if (input.services == null) throw new Error('Proposal services are required.');
 }
 
-function mapProposalMutation(input: UpdateProposalInput) {
+interface ProposalMutationRow {
+  amount: number;
+  currency: string;
+  services: Json | null;
+  revisions_included: number;
+  deadline: string | null;
+  expires_at: string | null;
+}
+
+function mapProposalMutation(input: UpdateProposalInput): ProposalMutationRow {
   return {
     amount: input.amount,
     currency: input.currency ?? 'USD',
-    services: input.services,
+    services: input.services ?? null,
     revisions_included: input.revisionsIncluded ?? 0,
     deadline: input.deadline ?? null,
     expires_at: input.expiresAt ?? null,
-  } as never;
+  };
 }
 
 export async function createProposal(input: CreateProposalInput): Promise<Proposal> {
