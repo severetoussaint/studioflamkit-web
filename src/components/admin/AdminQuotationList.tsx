@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Inbox, AlertTriangle, Sparkles, Filter } from 'lucide-react';
+import { Inbox, AlertTriangle, Sparkles } from 'lucide-react';
 import type { QuotationRequest } from '@/services/admin.service';
 import { AdminQuotationCard } from './AdminQuotationCard';
 
