@@ -13,6 +13,7 @@ type SaveEvaluationInput = {
   estimatedTime?: string | null;
   observations?: string | null;
   result?: EvaluationResult | null;
+  authorMessage?: string | null;
 };
 
 function mapSaveInput(input: SaveEvaluationInput) {
@@ -24,7 +25,8 @@ function mapSaveInput(input: SaveEvaluationInput) {
     estimated_time: input.estimatedTime ?? null,
     observations: input.observations ?? null,
     result: input.result ?? null,
-  };
+    author_message: input.authorMessage ?? null,
+  } as never;
 }
 
 export async function getEvaluation(evaluationId: string): Promise<Evaluation | null> {
@@ -82,7 +84,32 @@ export async function updateEvaluation(
       estimated_time: input.estimatedTime ?? null,
       observations: input.observations ?? null,
       result: input.result ?? null,
-    })
+      author_message: input.authorMessage ?? null,
+    } as never)
+    .eq('id', evaluationId)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return mapEvaluationRowToDomain(data as EvaluationRow);
+}
+
+export async function markEvaluationEmailSent(evaluationId: string): Promise<Evaluation> {
+  const { data, error } = await supabaseClient
+    .from('evaluations')
+    .update({ email_sent_at: new Date().toISOString() } as never)
+    .eq('id', evaluationId)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return mapEvaluationRowToDomain(data as EvaluationRow);
+}
+
+export async function updateEvaluationFollowUpNote(evaluationId: string, note: string | null): Promise<Evaluation> {
+  const { data, error } = await supabaseClient
+    .from('evaluations')
+    .update({ follow_up_note: note?.trim() || null } as never)
     .eq('id', evaluationId)
     .select('*')
     .single();
