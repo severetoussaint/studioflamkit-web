@@ -7,7 +7,6 @@ import { listAdminFollowUps, saveFollowUpNote } from '@/services/follow-up.servi
 import type { QuotationRequest } from '@/services/admin.service';
 
 interface AdminFollowUpPanelProps {
-  isLoading?: boolean;
   refreshKey?: number;
   onOpenRequest: (request: QuotationRequest) => void;
 }
@@ -69,13 +68,18 @@ export function AdminFollowUpPanel({ refreshKey = 0, onOpenRequest }: AdminFollo
   }, [filter, items]);
 
   async function handleSaveNote(item: AdminFollowUpItem) {
+    if (!item.evaluationId) {
+      setError('Este expediente todavía no tiene una evaluación persistida.');
+      return;
+    }
+
     setSavingNoteId(item.request.id);
     setError(null);
     try {
-      const evaluationId = item.request.id;
-      // The current evaluation id is intentionally not exposed by the request domain.
-      // Save is skipped until the evaluation service exposes that id to the panel.
-      void evaluationId;
+      await saveFollowUpNote(item.evaluationId, noteDrafts[item.request.id] ?? '');
+      await load();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'No se pudo guardar la nota.');
     } finally {
       setSavingNoteId(null);
     }
@@ -189,7 +193,7 @@ export function AdminFollowUpPanel({ refreshKey = 0, onOpenRequest }: AdminFollo
                 )}
               </div>
 
-              {item.category === 'email_pending' && (
+              {item.category === 'email_pending' && item.evaluationId && (
                 <div className="mt-4 border-t border-[var(--color-border-subtle)] pt-4">
                   <label className="block text-xs font-medium text-[var(--color-text-secondary)]">Nota interna de seguimiento</label>
                   <textarea
