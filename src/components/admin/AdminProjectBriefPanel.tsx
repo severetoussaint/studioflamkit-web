@@ -42,7 +42,8 @@ export function AdminProjectBriefPanel({ brief }: { brief: ProjectBrief | null }
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border border-edge/60 bg-surface p-4">
-          <div className="flex items-center gap-2 text-xs font-semibold text-ink"><Wand2 className="h-4 w-4 text-accent" />Visión creativa</div>
+          <div className="flex items-center gap-2 text-xs font-semibold text-ink"><Wand2 className="h-4 w-4 text-accent" />Obra y género</div>
+          <p className="mt-2 text-sm leading-6 text-ink-muted">Género: <span className="font-medium text-ink">{brief.genre || 'No especificado'}</span></p>
           <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-ink-muted">{brief.creativeVision || 'Sin información.'}</p>
         </div>
         <div className="rounded-2xl border border-edge/60 bg-surface p-4">
