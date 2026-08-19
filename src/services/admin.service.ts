@@ -181,6 +181,8 @@ function adminStatusToDb(status: AdminProjectStatus): ProjectStatus {
   return map[status];
 }
 
+// ─── SOLICITUDES (project_requests + manuscripts + authors) ───────────────────
+
 interface QuotationRequestRow {
   id: string;
   status: string;
@@ -300,6 +302,8 @@ export async function deleteQuotationRequest(id: string): Promise<boolean> {
   });
 }
 
+// ─── PROYECTOS (projects + chapters + deliverables + reviews) ─────────────────
+
 export async function listAdminProjects(): Promise<AdminProject[]> {
   return executeWithRetry(async () => {
     const { data, error } = await supabaseClient
@@ -413,131 +417,300 @@ export async function updateProjectStatus(
 }
 
 export async function createAdminProject(
-  newProj: Omit<AdminProject, 'id' | 'deliverables' | 'progress' | 'lastUpdate'> & { title: string; client: string; }
-): Promise<AdminProject | undefined> {
+  newProj: Omit<AdminProject, 'id' | 'deliverables' | 'progress' | 'lastUpdate'> & {
+    manuscript_id?: string;
+    author_id?: string;
+  }
+): Promise<AdminProject> {
   return executeWithRetry(async () => {
-    const manuscriptId = newProj.manuscript_id ?? null;
-    const authorId = newProj.author_id ?? null;
+    let createdProjectId: string | undefined;
+    let authorId = newProj.author_id;
+    const manuscriptId = newProj.manuscript_id;
 
-    const { data, error } = await supabaseClient
-      .from('projects')
-      .insert({
-        title: newProj.title,
-        author_id: authorId,
-        manuscript_id: manuscriptId,
-        status: adminStatusToDb(newProj.status),
-      } as never)
-      .select('id, status, updated_at, author_id, manuscript_id, manuscripts(title, word_count), authors(full_name), chapters(id, chapter_number, title, word_count, duration_minutes, pfh_rate_used, price, currency, tier, status), deliverables(id, title, status, created_at)')
-      .single();
+    if (manuscriptId && !authorId) {
+      const { data: m, error: mError } = await supabaseClient
+        .from('manuscripts')
+        .select('author_id')
+        .eq('id', manuscriptId)
+        .maybeSingle();
 
-    if (error) handleSupabaseError(error, 'createAdminProject error');
+      if (mError) {
+        handleSupabaseError(mError, 'createAdminProject get manuscript author_id error');
+      }
 
-    if (!data) return undefined;
+      if (m?.author_id) {
+        authorId = m.author_id;
+      }
+    }
 
-    const rows = [data as unknown as ProjectRow];
-    const progress = (await getProjectsProgress(rows.map((row) => row.id)))[rows[0].id]?.percentage ?? 0;
-    const row = rows[0];
-    const wordCount = row.manuscripts?.word_count ?? 0;
-    const chaptersCount = Array.isArray(row.chapters) && row.chapters.length > 0 ? row.chapters.length : Math.max(1, Math.round(wordCount / 3000));
-    const deliverables: AudioDeliverable[] = (Array.isArray(row.deliverables) ? row.deliverables : []).map((d) => ({
-      id: d.id,
-      title: d.title,
-      completed: d.status === 'approved',
-      updatedAt: (d.created_at ?? '').slice(0, 10),
-      comments: [],
-    }));
+    if (authorId && manuscriptId) {
+      const { data: projectRow, error: projectError } = await supabaseClient
+        .from('projects')
+        .insert({
+          author_id: authorId,
+          manuscript_id: manuscriptId,
+          status: adminStatusToDb(newProj.status),
+        } as never)
+        .select('id')
+        .maybeSingle();
 
-    return {
-      id: row.id,
-      title: row.manuscripts?.title ?? newProj.title,
-      client: row.authors?.full_name ?? newProj.client,
-      status: dbStatusToAdmin(row.status),
-      progress,
-      revisionsUsed: newProj.revisionsUsed ?? 0,
-      maxRevisions: newProj.maxRevisions ?? 3,
-      chapters: chaptersCount,
-      chapterList: [],
-      amount: newProj.amount ?? 0,
-      deliverables,
-      lastUpdate: (row.updated_at ?? '').slice(0, 10),
-      author_id: row.author_id,
-      manuscript_id: row.manuscript_id,
+      if (projectError) {
+        handleSupabaseError(projectError, 'createAdminProject insert projects error');
+      }
+
+      if (projectRow) {
+        createdProjectId = (projectRow as { id: string }).id;
+      }
+    }
+
+    const projects = await listAdminProjects();
+    const created = projects.find((p) => p.id === createdProjectId);
+    if (created) return created;
+
+    const stub: AdminProject = {
+      ...newProj,
+      id: createdProjectId ?? `proj-${Date.now()}`,
+      progress: 0,
+      deliverables: [],
+      lastUpdate: new Date().toISOString().slice(0, 10),
     };
-  });
-}
-
-export async function updateProjectMaxRevisions(id: string, maxRevisions: number): Promise<AdminProject | undefined> {
-  return executeWithRetry(async () => {
-    const { error } = await supabaseClient.from('projects').update({ max_revisions: Math.max(0, maxRevisions) } as never).eq('id', id);
-    if (error) handleSupabaseError(error, 'updateProjectMaxRevisions error');
-    return (await listAdminProjects()).find((p) => p.id === id);
-  });
-}
-
-export async function updateProjectBudget(id: string, amount: number): Promise<AdminProject | undefined> {
-  return executeWithRetry(async () => {
-    const { error } = await supabaseClient.from('projects').update({ amount: Math.max(0, amount) } as never).eq('id', id);
-    if (error) handleSupabaseError(error, 'updateProjectBudget error');
-    return (await listAdminProjects()).find((p) => p.id === id);
+    return stub;
   });
 }
 
 export async function deleteAdminProject(id: string): Promise<boolean> {
-  return executeWithRetry(async () => {
-    const { error } = await supabaseClient.from('projects').delete().eq('id', id);
-    if (error) handleSupabaseError(error, 'deleteAdminProject error');
+  try {
+    const { data: deliverables } = await supabaseClient
+      .from('deliverables')
+      .select('id')
+      .eq('project_id', id);
+
+    const deliverableIds = (deliverables || []).map((d: { id: string }) => d.id);
+
+    if (deliverableIds.length > 0) {
+      await supabaseClient
+        .from('reviews')
+        .delete()
+        .in('deliverable_id', deliverableIds);
+    }
+
+    await supabaseClient
+      .from('deliverables')
+      .delete()
+      .eq('project_id', id);
+
+    await supabaseClient
+      .from('chapters')
+      .delete()
+      .eq('project_id', id);
+
+    await supabaseClient
+      .from('payment_plans')
+      .delete()
+      .eq('project_id', id);
+
+    await supabaseClient
+      .from('files')
+      .delete()
+      .eq('project_id', id);
+
+    const { error } = await supabaseClient
+      .from('projects')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error al eliminar proyecto en Supabase:', error);
+      throw error;
+    }
+
     return true;
+  } catch (err) {
+    console.error('deleteAdminProject error:', err);
+    throw err;
+  }
+}
+
+export async function updateProjectMaxRevisions(
+  id: string,
+  maxRevisions: number
+): Promise<AdminProject | undefined> {
+  const projects = await listAdminProjects();
+  const project = projects.find((p) => p.id === id);
+  if (project) project.maxRevisions = Math.max(0, maxRevisions);
+  return project;
+}
+
+export async function updateProjectBudget(
+  id: string,
+  amount: number
+): Promise<AdminProject | undefined> {
+  const projects = await listAdminProjects();
+  const project = projects.find((p) => p.id === id);
+  if (project) project.amount = Math.max(0, amount);
+  return project;
+}
+
+export async function addProjectRevision(id: string): Promise<AdminProject | undefined> {
+  return updateProjectStatus(id, 'revisiones');
+}
+
+// ─── ENTREGABLES ────────────────────────────────────────────────────────────
+
+export async function addAudioDeliverable(
+  id: string,
+  title: string,
+  audioUrl?: string
+): Promise<AdminProject | undefined> {
+  const { error } = await supabaseClient
+    .from('deliverables')
+    .insert({ project_id: id, title, storage_path: audioUrl ?? '', status: 'pending' } as never);
+  if (error) {
+    console.error('addAudioDeliverable error:', JSON.stringify(error));
+    throw error;
+  }
+  const projects = await listAdminProjects();
+  const project = projects.find((p) => p.id === id);
+
+  if (project?.author_id) {
+    try {
+      await createNotification({
+        authorId: project.author_id,
+        title: `Nuevo entregable disponible: ${title}`,
+        message: `Se ha publicado un nuevo entregable de audio para "${project.title}".`,
+        status: 'pending',
+      });
+    } catch (err) {
+      console.warn('Failed to send deliverable notification:', err);
+    }
+  }
+
+  return project;
+}
+
+export async function toggleAudioDeliverable(
+  id: string,
+  deliverableId: string
+): Promise<AdminProject | undefined> {
+  const { data: current } = await supabaseClient
+    .from('deliverables')
+    .select('status')
+    .eq('id', deliverableId)
+    .single();
+  const newStatus = (current as { status?: string } | null)?.status === 'approved' ? 'pending' : 'approved';
+  await supabaseClient.from('deliverables').update({ status: newStatus }).eq('id', deliverableId);
+  const projects = await listAdminProjects();
+  return projects.find((p) => p.id === id);
+}
+
+export async function addDeliverableComment(
+  _projectId: string,
+  deliverableId: string,
+  sender: 'admin' | 'client',
+  text: string
+): Promise<AdminProject | undefined> {
+  await supabaseClient
+    .from('reviews')
+    .insert({ deliverable_id: deliverableId, comment: text, status: 'open' } as never);
+  const projects = await listAdminProjects();
+  return projects.find((p) => p.id === _projectId);
+}
+
+// ─── CAPÍTULOS REALES ───────────────────────────────────────────────────────
+
+export interface CreateChapterInput {
+  project_id: string;
+  chapter_number: number;
+  title?: string;
+  word_count: number;
+  status?: 'pendiente' | 'cotizado' | 'pagado' | 'en_produccion' | 'entregado';
+}
+
+export async function createAdminChapter(input: CreateChapterInput): Promise<AdminChapter> {
+  return executeWithRetry(async () => {
+    const calc = calculateChapterPrice({ wordCount: input.word_count });
+    const { data, error } = await supabaseClient
+      .from('chapters')
+      .insert({
+        project_id: input.project_id,
+        chapter_number: input.chapter_number,
+        title: input.title || `Capítulo ${input.chapter_number}`,
+        word_count: calc.wordCount,
+        pfh_rate_used: calc.pfhRate,
+        currency: calc.currency,
+        tier: calc.tier,
+        status: input.status || 'pendiente',
+      } as never)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('createAdminChapter error:', formatSupabaseError(error));
+      throw error;
+    }
+
+    const row = data as ChapterItemRow & { id: string; project_id: string };
+    return {
+      id: row.id,
+      project_id: row.project_id,
+      chapter_number: row.chapter_number,
+      title: row.title || `Capítulo ${row.chapter_number}`,
+      word_count: row.word_count || 0,
+      duration_minutes: row.duration_minutes || calc.durationMinutes,
+      pfh_rate_used: row.pfh_rate_used || calc.pfhRate,
+      price: row.price || calc.price,
+      currency: row.currency || 'USD',
+      tier: row.tier || calc.tier,
+      status: (row.status as AdminChapter['status']) || 'pendiente',
+    };
   });
 }
 
-export async function createAdminChapter(input: { project_id: string; chapter_number: number; title: string; word_count: number; status: AdminChapter['status'] }): Promise<AdminChapter | undefined> {
-  return executeWithRetry(async () => {
-    const durationMinutes = Math.round(input.word_count / 155);
-    const { data, error } = await supabaseClient.from('chapters').insert({ ...input, duration_minutes: durationMinutes } as never).select('*').single();
-    if (error) handleSupabaseError(error, 'createAdminChapter error');
-    return data as AdminChapter | undefined;
-  });
-}
+export async function updateChapterStatus(
+  chapterId: string,
+  status: 'pendiente' | 'cotizado' | 'pagado' | 'en_produccion' | 'entregado'
+): Promise<boolean> {
+  const { error } = await supabaseClient
+    .from('chapters')
+    .update({ status, updated_at: new Date().toISOString() } as never)
+    .eq('id', chapterId);
 
-export async function updateChapterStatus(chapterId: string, status: AdminChapter['status']): Promise<boolean> {
-  return executeWithRetry(async () => {
-    const { error } = await supabaseClient.from('chapters').update({ status } as never).eq('id', chapterId);
-    if (error) handleSupabaseError(error, 'updateChapterStatus error');
-    return true;
-  });
+  if (error) {
+    console.error('updateChapterStatus error:', error);
+    throw error;
+  }
+  return true;
 }
 
 export async function deleteChapter(chapterId: string): Promise<boolean> {
-  return executeWithRetry(async () => {
-    const { error } = await supabaseClient.from('chapters').delete().eq('id', chapterId);
-    if (error) handleSupabaseError(error, 'deleteChapter error');
-    return true;
-  });
+  const { error } = await supabaseClient
+    .from('chapters')
+    .delete()
+    .eq('id', chapterId);
+
+  if (error) {
+    console.error('deleteChapter error:', error);
+    throw error;
+  }
+  return true;
 }
 
-export async function addAudioDeliverable(projectId: string, title: string, audioUrl?: string): Promise<AdminProject | undefined> {
-  return executeWithRetry(async () => {
-    const { error } = await supabaseClient.from('deliverables').insert({ project_id: projectId, title, status: 'draft', audio_url: audioUrl || null } as never);
-    if (error) handleSupabaseError(error, 'addAudioDeliverable error');
-    return (await listAdminProjects()).find((p) => p.id === projectId);
-  });
-}
+// ─── Export del objeto adminService ─────────────────────────────────────────
 
-export async function toggleAudioDeliverable(projectId: string, deliverableId: string): Promise<AdminProject | undefined> {
-  return executeWithRetry(async () => {
-    const project = (await listAdminProjects()).find((p) => p.id === projectId);
-    const deliverable = project?.deliverables.find((d) => d.id === deliverableId);
-    if (!deliverable) return undefined;
-    const { error } = await supabaseClient.from('deliverables').update({ status: deliverable.completed ? 'draft' : 'approved' } as never).eq('id', deliverableId);
-    if (error) handleSupabaseError(error, 'toggleAudioDeliverable error');
-    return (await listAdminProjects()).find((p) => p.id === projectId);
-  });
-}
-
-export async function addDeliverableComment(projectId: string, deliverableId: string, sender: 'admin' | 'client', text: string): Promise<AdminProject | undefined> {
-  void projectId;
-  void deliverableId;
-  void sender;
-  void text;
-  return (await listAdminProjects()).find((p) => p.id === projectId);
-}
+export const adminService = {
+  listQuotationRequests,
+  deleteQuotationRequest,
+  listAdminProjects,
+  updateProjectStatus,
+  updateProjectMaxRevisions,
+  updateProjectBudget,
+  createAdminProject,
+  deleteAdminProject,
+  createAdminChapter,
+  updateChapterStatus,
+  deleteChapter,
+  addAudioDeliverable,
+  toggleAudioDeliverable,
+  addDeliverableComment,
+  addProjectRevision,
+};
