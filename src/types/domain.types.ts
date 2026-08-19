@@ -145,6 +145,42 @@ export interface Notification {
   createdAt: string;
 }
 
+export interface Conversation {
+  id: string;
+  authorId: string;
+  projectId: string | null;
+  type: ConversationType;
+  subject: string;
+  status: ConversationStatus;
+  createdAt: string;
+  updatedAt: string;
+  lastMessage: Message | null;
+  authorName?: string;
+  authorEmail?: string;
+  projectTitle?: string;
+  unreadCount: number;
+}
+
+export interface Message {
+  id: string;
+  conversationId: string;
+  senderType: MessageSenderType;
+  senderId: string;
+  body: string;
+  createdAt: string;
+  readAt: string | null;
+}
+
+export interface Review {
+  id: string;
+  deliverableId: string;
+  chapterTitle: string | null;
+  comment: string;
+  filePath: string | null;
+  status: ReviewStatus;
+  createdAt: string;
+}
+
 export interface ProjectRequest {
   id: string;
   manuscriptId: string;
