@@ -28,21 +28,21 @@ function statusLabel(status: ProposalStatus): string {
 
 export function AdminProposalComposer({ item, onClose, onChanged }: AdminProposalComposerProps) {
   const [proposal, setProposal] = useState<Proposal | null>(null);
+  const [loadedRequestId, setLoadedRequestId] = useState<string | null>(null);
   const [amount, setAmount] = useState('');
   const [services, setServices] = useState('');
   const [revisionsIncluded, setRevisionsIncluded] = useState('3');
   const [deadline, setDeadline] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  const loading = loadedRequestId !== item.request.id;
+
   useEffect(() => {
     let mounted = true;
-    setLoading(true);
-    setError(null);
 
     void getCurrentProposalForRequest(item.request.id)
       .then((current) => {
@@ -53,12 +53,14 @@ export function AdminProposalComposer({ item, onClose, onChanged }: AdminProposa
         setRevisionsIncluded(String(current?.revisionsIncluded ?? 3));
         setDeadline(toDateInput(current?.deadline));
         setExpiresAt(toDateInput(current?.expiresAt));
+        setError(null);
+        setSuccess(null);
+        setLoadedRequestId(item.request.id);
       })
       .catch((loadError) => {
-        if (mounted) setError(loadError instanceof Error ? loadError.message : 'No se pudo cargar la propuesta.');
-      })
-      .finally(() => {
-        if (mounted) setLoading(false);
+        if (!mounted) return;
+        setError(loadError instanceof Error ? loadError.message : 'No se pudo cargar la propuesta.');
+        setLoadedRequestId(item.request.id);
       });
 
     return () => { mounted = false; };
