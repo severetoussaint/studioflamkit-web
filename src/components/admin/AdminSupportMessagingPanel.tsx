@@ -19,7 +19,6 @@ import {
 } from '@/services/conversation.service';
 import type { Conversation, Message } from '@/types/domain.types';
 import { AdminFollowUpPanel } from '@/components/admin/AdminFollowUpPanel';
-import type { QuotationRequest } from '@/services/admin.service';
 
 export interface AdminSupportMessagingPanelProps {
   adminUserId: string;
@@ -165,12 +164,6 @@ export function AdminSupportMessagingPanel({ adminUserId }: AdminSupportMessagin
     }
   };
 
-  const handleOpenFollowUpRequest = (request: QuotationRequest) => {
-    // The shared quotation detail modal is rendered by the parent Admin page.
-    window.dispatchEvent(new CustomEvent('studioflamkit:open-follow-up-request', { detail: request }));
-    setView('support');
-  };
-
   return (
     <div className="rounded-3xl border border-edge/80 bg-surface-elevated p-6 shadow-sm space-y-6">
       <div className="flex flex-col gap-3 border-b border-edge/60 pb-4 sm:flex-row sm:items-center sm:justify-between">
@@ -205,7 +198,7 @@ export function AdminSupportMessagingPanel({ adminUserId }: AdminSupportMessagin
       </div>
 
       {view === 'followup' ? (
-        <AdminFollowUpPanel onOpenRequest={handleOpenFollowUpRequest} />
+        <AdminFollowUpPanel />
       ) : (
         <>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-edge/60 pb-5">
