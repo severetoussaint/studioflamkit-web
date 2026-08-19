@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Clock, FolderOpen, UploadCloud, ChevronDown } from 'lucide-react';
+import { Clock, FolderOpen, UploadCloud, ChevronDown, XCircle } from 'lucide-react';
 
 export interface ManuscriptItem {
   id: string;
@@ -17,7 +17,7 @@ export interface SelectorInfo {
 }
 
 export interface DashboardHeaderProps {
-  requestState: 'none' | 'pending' | 'active';
+  requestState: 'none' | 'pending' | 'active' | 'rejected';
   hasActiveProject: boolean;
   requestContext: {
     projectId?: string | null;
@@ -72,7 +72,14 @@ export function DashboardHeader({
             </span>
           )}
 
-          {(hasActiveProject || requestState === 'pending') && (
+          {requestState === 'rejected' && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border-rose-500/30 bg-rose-500/10 px-2.5 py-0.5 text-xs font-medium text-rose-600 dark:text-rose-400">
+              <XCircle className="h-3.5 w-3.5 shrink-0" />
+              Solicitud finalizada
+            </span>
+          )}
+
+          {(hasActiveProject || requestState === 'pending' || requestState === 'rejected') && (
             <span className="inline-flex items-center gap-1 rounded-md bg-surface border-edge/60 px-2.5 py-0.5 text-xs font-mono font-medium text-ink-muted">
               ID:{' '}
               {requestContext?.projectId
@@ -95,6 +102,8 @@ export function DashboardHeader({
                 ? projectTitle || requestContext?.title || 'Tu Obra en Grabación'
                 : requestState === 'pending'
                 ? requestContext?.title || 'Manuscrito en Evaluación Editorial'
+                : requestState === 'rejected'
+                ? requestContext?.title || 'Solicitud finalizada'
                 : 'Bienvenido a Studio Flamkit'}
             </span>
             <ChevronDown className={`h-4 w-4 text-ink-muted/80 transition-transform duration-200 ease-out shrink-0 ${isSelectorOpen ? 'rotate-180 text-accent' : 'group-hover:translate-y-0.5'}`} />
@@ -103,7 +112,6 @@ export function DashboardHeader({
           <AnimatePresence>
             {isSelectorOpen && (
               <>
-                {/* Invisible backdrop to capture outside clicks and close the selector safely in iframes */}
                 <div className="fixed inset-0 z-40 cursor-default" onClick={onCloseSelector} />
 
                 <motion.div
