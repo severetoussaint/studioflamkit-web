@@ -47,19 +47,14 @@ export function AdminProjectBriefPanel({
     let mounted = true;
 
     async function loadRequest() {
-      if (!manuscriptId && !propRequestId) {
-        return;
-      }
+      if (!manuscriptId && !propRequestId) return;
 
       setRequestLoading(true);
       setRequestError(null);
       try {
         let linkedRequest: ProjectRequest | null = null;
-        if (manuscriptId) {
-          linkedRequest = await getProjectRequestByManuscript(manuscriptId);
-        } else if (propRequestId) {
-          linkedRequest = await getProjectRequest(propRequestId);
-        }
+        if (manuscriptId) linkedRequest = await getProjectRequestByManuscript(manuscriptId);
+        else if (propRequestId) linkedRequest = await getProjectRequest(propRequestId);
         if (!mounted) return;
         setRequest(linkedRequest);
       } catch (error) {
@@ -101,7 +96,7 @@ export function AdminProjectBriefPanel({
         </div>
         {request && (
           <span className="inline-flex w-fit rounded-full border border-edge/60 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-muted">
-            {request.status === 'pending' ? 'Recibido' : request.status === 'evaluating' ? 'En análisis' : request.status}
+            {request.status === 'pending' ? 'Recibido' : request.status === 'evaluating' ? 'En análisis' : request.status === 'rejected' ? 'Rechazada' : request.status}
           </span>
         )}
       </div>
@@ -127,7 +122,12 @@ export function AdminProjectBriefPanel({
           </button>
         </div>
       ) : request?.status === 'evaluating' ? (
-        <AdminEvaluationPanel requestId={request.id} />
+        <AdminEvaluationPanel requestId={request.id} onRequestUpdated={(updated) => { setRequest(updated); onRequestUpdated?.(updated); }} />
+      ) : request?.status === 'rejected' ? (
+        <div className="rounded-2xl border border-rose-500/25 bg-rose-500/5 p-4 text-sm text-rose-700 dark:text-rose-300">
+          <p className="font-semibold">Solicitud rechazada</p>
+          <p className="mt-1 leading-6">La evaluación editorial terminó y esta solicitud no avanzará a la fase de propuesta.</p>
+        </div>
       ) : request ? (
         <p className="rounded-xl border border-edge/60 bg-surface p-4 text-sm text-ink-muted">La solicitud está en estado <span className="font-medium text-ink">{request.status}</span>.</p>
       ) : (
