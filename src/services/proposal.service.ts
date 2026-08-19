@@ -51,6 +51,19 @@ export async function listProposals(requestId?: string): Promise<Proposal[]> {
   return (data ?? []).map(mapProposalRowToDomain);
 }
 
+export async function listProposalsForAuthor(authorId: string): Promise<Proposal[]> {
+  if (!authorId) return [];
+
+  const { data, error } = await supabaseClient
+    .from('proposals')
+    .select('*, project_requests!inner(manuscripts!inner(author_id))')
+    .eq('project_requests.manuscripts.author_id', authorId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []).map((row) => mapProposalRowToDomain(row));
+}
+
 /**
  * Resolves the proposal that should represent the current commercial state of a request.
  * Pending and accepted proposals take precedence over rejected/expired history.
@@ -80,6 +93,11 @@ export async function createProposal(input: CreateProposalInput): Promise<Propos
   if (!Number.isFinite(input.amount) || input.amount < 0) throw new Error('Proposal amount must be a non-negative number.');
   if (input.services == null) throw new Error('Proposal services are required.');
 
+  const existing = await getCurrentProposalForRequest(input.requestId);
+  if (existing?.status === 'pending') {
+    throw new Error(`A pending proposal already exists for request ${input.requestId}.`);
+  }
+
   const { data, error } = await supabaseClient
     .from('proposals')
     .insert({
@@ -100,11 +118,14 @@ export async function createProposal(input: CreateProposalInput): Promise<Propos
 }
 
 export async function sendProposal(proposalId: string): Promise<Proposal> {
+  const proposalBeforeSend = await getProposal(proposalId);
+  if (!proposalBeforeSend) throw new Error(`Proposal ${proposalId} not found.`);
+  assertPendingStatus(proposalBeforeSend);
+
   const persistedProposalId = await callProposalRpc('send_proposal', proposalId);
   const proposal = await getProposal(persistedProposalId);
   if (!proposal) throw new Error(`Proposal ${persistedProposalId} not found after sending.`);
 
-  // Notify author that proposal is ready
   try {
     const { data: propData } = await supabaseClient
       .from('proposals')
@@ -137,11 +158,18 @@ export async function sendProposal(proposalId: string): Promise<Proposal> {
 }
 
 export async function acceptProposal(proposalId: string): Promise<Proposal> {
+  const proposal = await getProposal(proposalId);
+  if (!proposal) throw new Error(`Proposal ${proposalId} not found.`);
+  assertPendingStatus(proposal);
+  if (proposal.expiresAt && new Date(proposal.expiresAt).getTime() < Date.now()) {
+    throw new Error('This proposal has expired and cannot be accepted.');
+  }
+
   const persistedProjectId = await callProposalRpc('accept_proposal', proposalId);
   if (!persistedProjectId) throw new Error(`Proposal ${proposalId} could not be accepted.`);
 
-  const proposal = await getProposal(proposalId);
-  if (!proposal) throw new Error(`Proposal ${proposalId} not found after acceptance.`);
+  const accepted = await getProposal(proposalId);
+  if (!accepted) throw new Error(`Proposal ${proposalId} not found after acceptance.`);
 
   try {
     const { data: propData } = await supabaseClient
@@ -171,14 +199,18 @@ export async function acceptProposal(proposalId: string): Promise<Proposal> {
     console.warn('Failed to create notification for accepted proposal:', err);
   }
 
-  return proposal;
+  return accepted;
 }
 
 export async function rejectProposal(proposalId: string): Promise<Proposal> {
+  const proposal = await getProposal(proposalId);
+  if (!proposal) throw new Error(`Proposal ${proposalId} not found.`);
+  assertPendingStatus(proposal);
+
   const persistedProposalId = await callProposalRpc('reject_proposal', proposalId);
-  const proposal = await getProposal(persistedProposalId);
-  if (!proposal) throw new Error(`Proposal ${persistedProposalId} not found after rejection.`);
-  return proposal;
+  const rejected = await getProposal(persistedProposalId);
+  if (!rejected) throw new Error(`Proposal ${persistedProposalId} not found after rejection.`);
+  return rejected;
 }
 
 export async function expireProposal(proposalId: string): Promise<Proposal> {
