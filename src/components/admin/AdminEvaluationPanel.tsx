@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { Evaluation, EvaluationResult, ProjectRequest } from '@/types/domain.types';
-import { createEvaluation, getEvaluationByRequest, updateEvaluation } from '@/services/evaluation.service';
+import { createEvaluation, getEvaluationByRequest, markEvaluationEmailSent, updateEvaluation } from '@/services/evaluation.service';
 import { getProjectRequestAuthorContact, updateProjectRequestReviewStatus } from '@/services/request.service';
 import { createNotification } from '@/services/notification.service';
 import { sendStudioFlamkitEmail } from '@/services/zoho-mail.service';
@@ -59,6 +59,8 @@ export function AdminEvaluationPanel({ requestId, onRequestUpdated }: AdminEvalu
         setEstimatedTime(current?.estimatedTime ?? '');
         setObservations(current?.observations ?? '');
         setResult(current?.result ?? '');
+        setAuthorMessage(current?.authorMessage || defaultRejectionMessage);
+        setEmailSent(Boolean(current?.emailSentAt));
       } catch (loadError) {
         if (mounted) setError(loadError instanceof Error ? loadError.message : 'No se pudo cargar el análisis.');
       } finally {
@@ -85,6 +87,7 @@ export function AdminEvaluationPanel({ requestId, onRequestUpdated }: AdminEvalu
         estimatedTime: estimatedTime.trim() || null,
         observations: observations.trim() || null,
         result: result || null,
+        authorMessage: authorMessage.trim() || null,
       };
 
       const previousResult = evaluation?.result ?? null;
@@ -94,6 +97,8 @@ export function AdminEvaluationPanel({ requestId, onRequestUpdated }: AdminEvalu
 
       setEvaluation(next);
       setResult(next.result ?? '');
+      setAuthorMessage(next.authorMessage || defaultRejectionMessage);
+      setEmailSent(Boolean(next.emailSentAt));
 
       if (next.result && previousResult !== next.result) {
         const contact = await getProjectRequestAuthorContact(requestId);
@@ -128,6 +133,14 @@ export function AdminEvaluationPanel({ requestId, onRequestUpdated }: AdminEvalu
         }
       }
 
+      if (next.result === 'rejected') {
+        const contact = await getProjectRequestAuthorContact(requestId);
+        if (contact) {
+          setAuthorEmail(contact.email);
+          setAuthorName(contact.fullName);
+        }
+      }
+
       setSaved(true);
       return next;
     } catch (saveError) {
@@ -143,7 +156,6 @@ export function AdminEvaluationPanel({ requestId, onRequestUpdated }: AdminEvalu
     if (!next || next.result !== 'rejected') return;
 
     setRejectionConfirmOpen(false);
-    setEmailSent(false);
     setEmailComposerOpen(true);
   }
 
@@ -161,6 +173,10 @@ export function AdminEvaluationPanel({ requestId, onRequestUpdated }: AdminEvalu
         subject: rejectionSubject,
         content: authorMessage.trim() || defaultRejectionMessage,
       });
+      if (evaluation?.id) {
+        await markEvaluationEmailSent(evaluation.id);
+        setEvaluation((current) => current ? { ...current, emailSentAt: new Date().toISOString(), authorMessage } : current);
+      }
       setEmailSent(true);
     } catch (sendError) {
       setError(sendError instanceof Error ? sendError.message : 'No se pudo enviar el correo por Zoho Mail.');
@@ -261,22 +277,8 @@ export function AdminEvaluationPanel({ requestId, onRequestUpdated }: AdminEvalu
               Al confirmar, la solicitud quedará cerrada, el Dashboard del autor reflejará el rechazo y se generará su notificación. Después tendrás una segunda ventana para enviar el correo oficial.
             </p>
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => setRejectionConfirmOpen(false)}
-                className="rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => void confirmRejection()}
-                className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {saving ? 'Confirmando…' : 'Confirmar rechazo'}
-              </button>
+              <button type="button" disabled={saving} onClick={() => setRejectionConfirmOpen(false)} className="rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] disabled:opacity-50">Cancelar</button>
+              <button type="button" disabled={saving} onClick={() => void confirmRejection()} className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50">{saving ? 'Confirmando…' : 'Confirmar rechazo'}</button>
             </div>
           </div>
         </div>
@@ -288,51 +290,23 @@ export function AdminEvaluationPanel({ requestId, onRequestUpdated }: AdminEvalu
           <div className="relative z-10 w-full max-w-2xl rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-6 shadow-2xl sm:p-8">
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--color-text-muted)]">Comunicación al autor</p>
             <h4 className="mt-1 font-serif text-2xl font-semibold text-[var(--color-text)]">Enviar correo oficial</h4>
-            <p className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">
-              La decisión ya está guardada. Este correo es un paso independiente y opcional.
-            </p>
+            <p className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">La decisión ya está guardada. Este correo es un paso independiente y opcional.</p>
 
             <div className="mt-5 space-y-4">
-              <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm text-[var(--color-text-secondary)]">
-                <span className="font-medium text-[var(--color-text)]">Para:</span> {authorEmail || 'Correo del autor no disponible'}
-                {authorName ? <span className="ml-2 text-[var(--color-text-muted)]">({authorName})</span> : null}
-              </div>
-              <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm text-[var(--color-text-secondary)]">
-                <span className="font-medium text-[var(--color-text)]">Asunto:</span> {rejectionSubject}
-              </div>
-              <label className="block space-y-2">
-                <span className="text-xs font-medium text-[var(--color-text-secondary)]">Mensaje</span>
-                <textarea
-                  rows={8}
-                  value={authorMessage}
-                  onChange={(event) => setAuthorMessage(event.target.value)}
-                  className="w-full resize-y rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm leading-6 text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
-                />
-              </label>
+              <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm text-[var(--color-text-secondary)]"><span className="font-medium text-[var(--color-text)]">Para:</span> {authorEmail || 'Correo del autor no disponible'}{authorName ? <span className="ml-2 text-[var(--color-text-muted)]">({authorName})</span> : null}</div>
+              <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm text-[var(--color-text-secondary)]"><span className="font-medium text-[var(--color-text)]">Asunto:</span> {rejectionSubject}</div>
+              <label className="block space-y-2"><span className="text-xs font-medium text-[var(--color-text-secondary)]">Mensaje</span><textarea rows={8} value={authorMessage} onChange={(event) => setAuthorMessage(event.target.value)} className="w-full resize-y rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm leading-6 text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]" /></label>
             </div>
 
-            {emailSent && (
-              <p className="mt-3 text-xs font-medium text-[var(--color-success)]">Correo enviado correctamente desde la integración oficial.</p>
+            {emailSent && <p className="mt-3 text-xs font-medium text-[var(--color-success)]">Este correo ya fue enviado.</p>}
+            {emailSent ? (
+              <div className="mt-6 flex justify-end"><button type="button" onClick={() => setEmailComposerOpen(false)} className="rounded-xl bg-[var(--color-accent)] px-4 py-2.5 text-sm font-semibold text-white">Cerrar</button></div>
+            ) : (
+              <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button type="button" disabled={sendingEmail} onClick={() => setEmailComposerOpen(false)} className="rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] disabled:opacity-50">Ahora no</button>
+                <button type="button" disabled={sendingEmail || !authorEmail || !authorMessage.trim()} onClick={() => void handleSendEmail()} className="rounded-xl bg-[var(--color-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-accent-hover)] disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail ? 'Enviando…' : 'Enviar correo'}</button>
+              </div>
             )}
-
-            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                disabled={sendingEmail}
-                onClick={() => setEmailComposerOpen(false)}
-                className="rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] disabled:opacity-50"
-              >
-                Ahora no
-              </button>
-              <button
-                type="button"
-                disabled={sendingEmail || !authorEmail || emailSent}
-                onClick={() => void handleSendEmail()}
-                className="rounded-xl bg-[var(--color-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-accent-hover)] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {sendingEmail ? 'Enviando…' : emailSent ? 'Enviado' : 'Enviar correo'}
-              </button>
-            </div>
           </div>
         </div>
       )}
