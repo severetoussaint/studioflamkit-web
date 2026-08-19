@@ -104,17 +104,16 @@ export function AdminEvaluationPanel({ requestId, onRequestUpdated }: AdminEvalu
         const contact = await getProjectRequestAuthorContact(requestId);
 
         if (contact?.id) {
-          if (next.result === 'approved') {
+          if (next.result === 'approved' || next.result === 'approved_with_notes') {
+            const acceptedRequest = await updateProjectRequestReviewStatus(requestId, 'accepted');
+            onRequestUpdated?.(acceptedRequest);
+
             await createNotification({
               authorId: contact.id,
-              title: 'Tu obra avanza a la siguiente etapa',
-              message: 'El análisis editorial ha concluido favorablemente. Studio FLAMKIT preparará la siguiente etapa de tu propuesta.',
-            });
-          } else if (next.result === 'approved_with_notes') {
-            await createNotification({
-              authorId: contact.id,
-              title: 'Tu obra avanza con observaciones',
-              message: 'El análisis editorial ha concluido y tu obra puede avanzar. Studio FLAMKIT ha registrado observaciones que se tendrán en cuenta en la siguiente etapa.',
+              title: next.result === 'approved' ? 'Tu obra avanza a la siguiente etapa' : 'Tu obra avanza con observaciones',
+              message: next.result === 'approved'
+                ? 'El análisis editorial ha concluido favorablemente. Studio FLAMKIT preparará la siguiente etapa de tu propuesta.'
+                : 'El análisis editorial ha concluido y tu obra puede avanzar. Studio FLAMKIT ha registrado observaciones que se tendrán en cuenta en la siguiente etapa.',
             });
           } else if (next.result === 'rejected') {
             const rejectedRequest = await updateProjectRequestReviewStatus(requestId, 'rejected');
@@ -127,6 +126,9 @@ export function AdminEvaluationPanel({ requestId, onRequestUpdated }: AdminEvalu
             setAuthorEmail(contact.email);
             setAuthorName(contact.fullName);
           }
+        } else if (next.result === 'approved' || next.result === 'approved_with_notes') {
+          const acceptedRequest = await updateProjectRequestReviewStatus(requestId, 'accepted');
+          onRequestUpdated?.(acceptedRequest);
         } else if (next.result === 'rejected') {
           const rejectedRequest = await updateProjectRequestReviewStatus(requestId, 'rejected');
           onRequestUpdated?.(rejectedRequest);
