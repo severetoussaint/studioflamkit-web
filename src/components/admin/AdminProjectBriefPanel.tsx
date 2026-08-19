@@ -121,13 +121,8 @@ export function AdminProjectBriefPanel({
             {startingAnalysis ? 'Iniciando análisis…' : 'Aceptar solicitud y comenzar análisis'}
           </button>
         </div>
-      ) : request?.status === 'evaluating' ? (
+      ) : request?.status === 'evaluating' || request?.status === 'rejected' ? (
         <AdminEvaluationPanel requestId={request.id} onRequestUpdated={(updated) => { setRequest(updated); onRequestUpdated?.(updated); }} />
-      ) : request?.status === 'rejected' ? (
-        <div className="rounded-2xl border border-rose-500/25 bg-rose-500/5 p-4 text-sm text-rose-700 dark:text-rose-300">
-          <p className="font-semibold">Solicitud rechazada</p>
-          <p className="mt-1 leading-6">La evaluación editorial terminó y esta solicitud no avanzará a la fase de propuesta.</p>
-        </div>
       ) : request ? (
         <p className="rounded-xl border border-edge/60 bg-surface p-4 text-sm text-ink-muted">La solicitud está en estado <span className="font-medium text-ink">{request.status}</span>.</p>
       ) : (
