@@ -2,11 +2,11 @@
 
 import React from 'react';
 import { motion } from 'motion/react';
-import { Sparkles, ArrowRight, CheckCircle2, Clock } from 'lucide-react';
+import { Sparkles, ArrowRight, CheckCircle2, Clock, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 interface NextActionCardProps {
-  state: 'none' | 'pending' | 'active';
+  state: 'none' | 'pending' | 'active' | 'rejected';
   pendingActionTitle?: string;
   pendingActionDesc?: string;
   buttonLabel?: string;
@@ -22,23 +22,30 @@ export function NextActionCard({
 }: NextActionCardProps) {
   const isNone = state === 'none';
   const isPending = state === 'pending';
+  const isRejected = state === 'rejected';
 
   const wrapperClassName = isNone
     ? 'border-accent/25 bg-surface-elevated'
     : isPending
     ? 'border-amber-500/25 bg-surface-elevated'
+    : isRejected
+    ? 'border-rose-500/25 bg-surface-elevated'
     : 'border-emerald-500/20 bg-surface-elevated';
 
   const badgeClassName = isNone
     ? 'border-accent/20 bg-accent/8 text-accent'
     : isPending
     ? 'border-amber-500/25 bg-amber-500/10 text-amber-800 dark:text-amber-300'
+    : isRejected
+    ? 'border-rose-500/25 bg-rose-500/10 text-rose-800 dark:text-rose-300'
     : 'border-emerald-500/25 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300';
 
   const badgeLabel = isNone
     ? 'Siguiente paso recomendado'
     : isPending
     ? 'En evaluación editorial'
+    : isRejected
+    ? 'Solicitud finalizada'
     : 'Producción en curso';
 
   const title =
@@ -47,6 +54,8 @@ export function NextActionCard({
       ? 'Envía tu primer manuscrito'
       : isPending
       ? 'Evaluación en proceso por la dirección artística'
+      : isRejected
+      ? 'Esta solicitud no continuará en esta ocasión'
       : 'Revisión y aprobación de capítulos');
 
   const description =
@@ -55,6 +64,8 @@ export function NextActionCard({
       ? 'Carga tu archivo en formato PDF o Word (.docx) para recibir una estimación de horas de locución y propuesta de producción sin compromiso.'
       : isPending
       ? 'No se requiere ninguna acción adicional de tu parte. Te notificaremos cuando el desglose técnico y la muestra de voz estén listos.'
+      : isRejected
+      ? 'Studio FLAMKIT ha finalizado el análisis de esta solicitud. Revisa tus notificaciones para consultar la comunicación enviada por el equipo.'
       : 'Escucha las muestras de audio disponibles de cada capítulo, deja comentarios sobre las voces o aprueba para paso a máster final.');
 
   const buttonVariant = isPending ? 'secondary' : 'primary';
@@ -66,6 +77,8 @@ export function NextActionCard({
     <Sparkles className="h-3.5 w-3.5" />
   ) : isPending ? (
     <Clock className="h-3.5 w-3.5" />
+  ) : isRejected ? (
+    <XCircle className="h-3.5 w-3.5" />
   ) : (
     <CheckCircle2 className="h-3.5 w-3.5" />
   );
@@ -95,7 +108,7 @@ export function NextActionCard({
           </p>
         </div>
 
-        {buttonLabel && onActionClick && (
+        {!isRejected && buttonLabel && onActionClick && (
           <div className="shrink-0">
             <Button
               variant={buttonVariant}
