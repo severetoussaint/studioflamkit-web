@@ -29,9 +29,22 @@ interface PricingServiceRow {
   metadata: unknown;
 }
 
-const pricingDb = supabaseClient as typeof supabaseClient & {
-  from: (table: string) => ReturnType<typeof supabaseClient.from>;
+type PricingQueryResult = {
+  data: unknown;
+  error: { message: string } | null;
 };
+
+type PricingQuery = {
+  select: (columns: string) => PricingQuery;
+  order: (column: string, options: { ascending: boolean }) => PricingQuery;
+  eq: (column: string, value: unknown) => PricingQuery;
+} & PromiseLike<PricingQueryResult>;
+
+type PricingDb = {
+  from: (table: string) => PricingQuery;
+};
+
+const pricingDb = supabaseClient as unknown as PricingDb;
 
 function parseComplexityMultipliers(value: unknown): PricingSettings['complexityMultipliers'] {
   const candidate = value && typeof value === 'object' ? value as Record<string, unknown> : {};
@@ -79,9 +92,9 @@ export async function getPricingSettings(): Promise<PricingSettings> {
     .from('pricing_settings')
     .select('key, numeric_value, text_value, json_value');
 
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 
-  const rows = (data ?? []) as unknown as PricingSettingRow[];
+  const rows = (data ?? []) as PricingSettingRow[];
   const byKey = new Map(rows.map((row) => [row.key, row]));
 
   return {
@@ -104,7 +117,7 @@ export async function listPricingServices(options?: { activeOnly?: boolean; cust
   if (options?.customerVisibleOnly) query = query.eq('customer_visible', true);
 
   const { data, error } = await query;
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 
-  return ((data ?? []) as unknown as PricingServiceRow[]).map(mapPricingService);
+  return (data as PricingServiceRow[] | null ?? []).map(mapPricingService);
 }
