@@ -23,6 +23,8 @@ export interface PricingSettings {
   basePfhRateUsd: number;
   wordsPerMinute: number;
   minimumBasePriceUsd: number;
+  baseWorkHoursPerAudioHour: number;
+  maxTotalPriceMultiplier: number;
   complexityMultipliers: Record<PricingComplexity, number>;
   recommendedAdjustmentBounds: { min: number; max: number };
   version: string;
