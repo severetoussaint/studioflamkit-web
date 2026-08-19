@@ -37,6 +37,26 @@ export async function getProjectRequestByManuscript(manuscriptId: string): Promi
 }
 
 /**
+ * Returns the author who owns the manuscript attached to a request.
+ * Request identity remains anchored to manuscript_id; this helper only resolves the recipient.
+ */
+export async function getProjectRequestAuthorId(requestId: string): Promise<string | null> {
+  if (!requestId) return null;
+
+  const { data, error } = await supabaseClient
+    .from('project_requests')
+    .select('manuscripts(author_id)')
+    .eq('id', requestId)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  const manuscripts = data?.manuscripts;
+  if (Array.isArray(manuscripts)) return manuscripts[0]?.author_id ?? null;
+  return manuscripts?.author_id ?? null;
+}
+
+/**
  * Moves a valid incoming request into the internal editorial analysis phase.
  * This is not proposal acceptance and must never create a project.
  */
