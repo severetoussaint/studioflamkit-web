@@ -9,11 +9,12 @@ const EVALUATION_RESULTS: ReadonlySet<string> = new Set([
   'rejected',
 ]);
 
-function mapEvaluationResult(value: string | null): EvaluationResult {
-  if (value !== null && EVALUATION_RESULTS.has(value)) {
+function mapEvaluationResult(value: string | null): EvaluationResult | null {
+  if (value === null) return null;
+  if (EVALUATION_RESULTS.has(value)) {
     return value as EvaluationResult;
   }
-  return 'approved';
+  return null;
 }
 
 export function mapEvaluationRowToDomain(row: EvaluationRow): Evaluation {
