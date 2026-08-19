@@ -2,7 +2,7 @@ import { supabaseClient } from '@/lib/supabase/client';
 import type { ProjectRequest, RequestStatus } from '@/types/domain.types';
 import { mapProjectRequestRowToDomain } from '@/domain/request/mapProjectRequest';
 
-type ReviewableRequestStatus = Extract<RequestStatus, 'pending' | 'evaluating' | 'rejected' | 'canceled'>;
+type ReviewableRequestStatus = Extract<RequestStatus, 'pending' | 'evaluating' | 'accepted' | 'rejected' | 'canceled'>;
 
 export interface ProjectRequestAuthorContact {
   id: string;
@@ -103,9 +103,7 @@ export async function startProjectRequestAnalysis(requestId: string): Promise<Pr
 }
 
 /**
- * Updates only the request states that belong to request/review workflow.
- * Acceptance/rejection of a formal proposal must go through proposal.service.ts
- * and its transactional Supabase RPCs so Proposal remains the commercial authority.
+ * Updates request/review workflow states. Proposal acceptance remains owned by proposal.service.ts.
  */
 export async function updateProjectRequestReviewStatus(
   requestId: string,
