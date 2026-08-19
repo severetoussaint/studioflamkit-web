@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { X, BookOpen, Clock, FileText, User, Sparkles, ShieldCheck } from 'lucide-react';
+import { X, BookOpen, FileText, User, Sparkles, ShieldCheck } from 'lucide-react';
 import type { QuotationRequest } from '@/services/admin.service';
 import type { ProjectBrief } from '@/types/project-brief.types';
 import { AdminProjectBriefPanel } from '@/components/admin/AdminProjectBriefPanel';
