@@ -16,7 +16,7 @@ export interface CreateProposalInput {
   requestId: string;
   amount: number;
   currency?: string | null;
-  services?: Json | null;
+  services?: unknown;
   revisionsIncluded?: number | null;
   deadline?: string | null;
   expiresAt?: string | null;
@@ -99,11 +99,16 @@ interface ProposalMutationRow {
   expires_at: string | null;
 }
 
+function toProposalJson(value: unknown): Json | null {
+  if (value == null) return null;
+  return JSON.parse(JSON.stringify(value)) as Json;
+}
+
 function mapProposalMutation(input: UpdateProposalInput): ProposalMutationRow {
   return {
     amount: input.amount,
     currency: input.currency ?? 'USD',
-    services: input.services ?? null,
+    services: toProposalJson(input.services),
     revisions_included: input.revisionsIncluded ?? 0,
     deadline: input.deadline ?? null,
     expires_at: input.expiresAt ?? null,
