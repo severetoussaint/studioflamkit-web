@@ -21,7 +21,7 @@ interface BriefState {
 
 export function AdminRequestProposalPanel({ request, workspaceProject }: AdminRequestProposalPanelProps) {
   const hasProposal = !!workspaceProject?.proposalId;
-  const manuscriptId = workspaceProject?.manuscriptId?.trim() ?? "";
+  const manuscriptId = request?.request.manuscriptId?.trim() || workspaceProject?.manuscriptId?.trim() || "";
   const [briefState, setBriefState] = useState<BriefState>({ manuscriptId: "", brief: null, error: false });
 
   useEffect(() => {
