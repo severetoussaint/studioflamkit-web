@@ -1,10 +1,12 @@
 import { supabaseClient } from '@/lib/supabase/client';
 import type { EvaluationResult, ProjectRequest } from '@/types/domain.types';
+import { markEvaluationEmailSent, updateEvaluationFollowUpNote } from '@/services/evaluation.service';
 
 export type FollowUpCategory = 'email_pending' | 'proposal_ready' | 'history';
 
 export interface AdminFollowUpItem {
   request: ProjectRequest;
+  evaluationId: string | null;
   title: string;
   client: string;
   email: string | null;
@@ -98,6 +100,7 @@ export async function listAdminFollowUps(): Promise<AdminFollowUpItem[]> {
 
       return {
         request: mapRequest(row),
+        evaluationId: evaluation?.id ?? null,
         title: row.manuscripts?.title ?? 'Sin título',
         client: row.manuscripts?.authors?.full_name ?? 'Autor desconocido',
         email: row.manuscripts?.authors?.email ?? null,
@@ -113,23 +116,9 @@ export async function listAdminFollowUps(): Promise<AdminFollowUpItem[]> {
 }
 
 export async function markFollowUpEmailSent(evaluationId: string): Promise<void> {
-  if (!evaluationId) throw new Error('evaluationId is required.');
-
-  const { error } = await supabaseClient
-    .from('evaluations')
-    .update({ email_sent_at: new Date().toISOString() } as never)
-    .eq('id', evaluationId);
-
-  if (error) throw error;
+  await markEvaluationEmailSent(evaluationId);
 }
 
 export async function saveFollowUpNote(evaluationId: string, note: string | null): Promise<void> {
-  if (!evaluationId) throw new Error('evaluationId is required.');
-
-  const { error } = await supabaseClient
-    .from('evaluations')
-    .update({ follow_up_note: note?.trim() || null } as never)
-    .eq('id', evaluationId);
-
-  if (error) throw error;
+  await updateEvaluationFollowUpNote(evaluationId, note);
 }
