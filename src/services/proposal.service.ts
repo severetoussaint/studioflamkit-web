@@ -22,6 +22,8 @@ export interface CreateProposalInput {
   expiresAt?: string | null;
 }
 
+export type UpdateProposalInput = Omit<CreateProposalInput, 'requestId'>;
+
 function assertPendingStatus(proposal: Proposal) {
   if (proposal.status !== 'pending') {
     throw new Error(`Proposal ${proposal.id} is not mutable from status ${proposal.status}.`);
@@ -64,13 +66,8 @@ export async function listProposalsForAuthor(authorId: string): Promise<Proposal
   return (data ?? []).map((row) => mapProposalRowToDomain(row));
 }
 
-/**
- * Resolves the proposal that should represent the current commercial state of a request.
- * Pending and accepted proposals take precedence over rejected/expired history.
- */
 export async function getCurrentProposalForRequest(requestId: string): Promise<Proposal | null> {
   const proposals = await listProposals(requestId);
-
   return proposals.find((proposal) => proposal.status === 'pending')
     ?? proposals.find((proposal) => proposal.status === 'accepted')
     ?? proposals[0]
@@ -88,10 +85,25 @@ export async function getProposal(proposalId: string): Promise<Proposal | null> 
   return data ? mapProposalRowToDomain(data) : null;
 }
 
-export async function createProposal(input: CreateProposalInput): Promise<Proposal> {
-  if (!input.requestId) throw new Error('requestId is required to create a proposal.');
+function validateProposalInput(input: UpdateProposalInput) {
   if (!Number.isFinite(input.amount) || input.amount < 0) throw new Error('Proposal amount must be a non-negative number.');
   if (input.services == null) throw new Error('Proposal services are required.');
+}
+
+function mapProposalMutation(input: UpdateProposalInput) {
+  return {
+    amount: input.amount,
+    currency: input.currency ?? 'USD',
+    services: input.services,
+    revisions_included: input.revisionsIncluded ?? 0,
+    deadline: input.deadline ?? null,
+    expires_at: input.expiresAt ?? null,
+  } as never;
+}
+
+export async function createProposal(input: CreateProposalInput): Promise<Proposal> {
+  if (!input.requestId) throw new Error('requestId is required to create a proposal.');
+  validateProposalInput(input);
 
   const existing = await getCurrentProposalForRequest(input.requestId);
   if (existing?.status === 'pending') {
@@ -102,14 +114,27 @@ export async function createProposal(input: CreateProposalInput): Promise<Propos
     .from('proposals')
     .insert({
       request_id: input.requestId,
-      amount: input.amount,
-      currency: input.currency ?? 'USD',
-      services: input.services,
-      revisions_included: input.revisionsIncluded ?? 0,
-      deadline: input.deadline ?? null,
-      expires_at: input.expiresAt ?? null,
+      ...mapProposalMutation(input),
       status: 'pending',
     })
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return mapProposalRowToDomain(data);
+}
+
+export async function updateProposal(proposalId: string, input: UpdateProposalInput): Promise<Proposal> {
+  validateProposalInput(input);
+  const current = await getProposal(proposalId);
+  if (!current) throw new Error(`Proposal ${proposalId} not found.`);
+  assertPendingStatus(current);
+
+  const { data, error } = await supabaseClient
+    .from('proposals')
+    .update(mapProposalMutation(input))
+    .eq('id', proposalId)
+    .eq('status', 'pending')
     .select('*')
     .single();
 
@@ -133,14 +158,7 @@ export async function sendProposal(proposalId: string): Promise<Proposal> {
       .eq('id', persistedProposalId)
       .maybeSingle();
 
-    interface ProposalAuthorQueryResult {
-      project_requests?: {
-        manuscripts?: {
-          author_id?: string;
-        } | null;
-      } | null;
-    }
-
+    interface ProposalAuthorQueryResult { project_requests?: { manuscripts?: { author_id?: string } | null } | null }
     const authorId = (propData as unknown as ProposalAuthorQueryResult | null)?.project_requests?.manuscripts?.author_id;
     if (authorId) {
       await createNotification({
@@ -161,9 +179,7 @@ export async function acceptProposal(proposalId: string): Promise<Proposal> {
   const proposal = await getProposal(proposalId);
   if (!proposal) throw new Error(`Proposal ${proposalId} not found.`);
   assertPendingStatus(proposal);
-  if (proposal.expiresAt && new Date(proposal.expiresAt).getTime() < Date.now()) {
-    throw new Error('This proposal has expired and cannot be accepted.');
-  }
+  if (proposal.expiresAt && new Date(proposal.expiresAt).getTime() < Date.now()) throw new Error('This proposal has expired and cannot be accepted.');
 
   const persistedProjectId = await callProposalRpc('accept_proposal', proposalId);
   if (!persistedProjectId) throw new Error(`Proposal ${proposalId} could not be accepted.`);
@@ -177,15 +193,7 @@ export async function acceptProposal(proposalId: string): Promise<Proposal> {
       .select('project_requests(manuscripts(author_id))')
       .eq('id', proposalId)
       .maybeSingle();
-
-    interface ProposalAuthorQueryResult {
-      project_requests?: {
-        manuscripts?: {
-          author_id?: string;
-        } | null;
-      } | null;
-    }
-
+    interface ProposalAuthorQueryResult { project_requests?: { manuscripts?: { author_id?: string } | null } | null }
     const authorId = (propData as unknown as ProposalAuthorQueryResult | null)?.project_requests?.manuscripts?.author_id;
     if (authorId) {
       await createNotification({
@@ -206,7 +214,6 @@ export async function rejectProposal(proposalId: string): Promise<Proposal> {
   const proposal = await getProposal(proposalId);
   if (!proposal) throw new Error(`Proposal ${proposalId} not found.`);
   assertPendingStatus(proposal);
-
   const persistedProposalId = await callProposalRpc('reject_proposal', proposalId);
   const rejected = await getProposal(persistedProposalId);
   if (!rejected) throw new Error(`Proposal ${persistedProposalId} not found after rejection.`);
@@ -216,10 +223,8 @@ export async function rejectProposal(proposalId: string): Promise<Proposal> {
 export async function expireProposal(proposalId: string): Promise<Proposal> {
   const proposal = await getProposal(proposalId);
   if (!proposal) throw new Error(`Proposal ${proposalId} not found.`);
-
   assertPendingStatus(proposal);
   assertExpired(proposal);
-
   const persistedProposalId = await callProposalRpc('expire_proposal', proposalId);
   const persistedProposal = await getProposal(persistedProposalId);
   if (!persistedProposal) throw new Error(`Proposal ${persistedProposalId} not found after expiration.`);
