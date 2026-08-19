@@ -69,11 +69,34 @@ export async function getProjectBrief(manuscriptId: string): Promise<ProjectBrie
 }
 
 export async function saveProjectBrief(input: SaveProjectBriefInput): Promise<ProjectBrief> {
-  const manuscriptId = input.manuscriptId?.trim();
-  const authorId = input.authorId?.trim();
+  let manuscriptId = input.manuscriptId?.trim() ?? '';
+  const authorId = input.authorId?.trim() ?? '';
 
-  if (!manuscriptId) throw new Error('No se pudo identificar el manuscrito enviado.');
   if (!authorId) throw new Error('No se pudo identificar la sesión del autor.');
+
+  // Safety net for the post-upload handoff: if the UI has not propagated the
+  // freshly created manuscript id yet, resolve the author's newest submitted
+  // manuscript instead of failing the brief submission outright.
+  if (!manuscriptId) {
+    const { data: latestManuscript, error: manuscriptLookupError } = await supabaseClient
+      .from('manuscripts')
+      .select('id')
+      .eq('author_id', authorId)
+      .in('status', ['submitted', 'pending', 'evaluating'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (manuscriptLookupError) {
+      throw manuscriptLookupError;
+    }
+
+    manuscriptId = (latestManuscript as { id?: string } | null)?.id?.trim() ?? '';
+  }
+
+  if (!manuscriptId) {
+    throw new Error('No se pudo identificar el manuscrito enviado. Vuelve al paso anterior e inténtalo de nuevo.');
+  }
 
   const payload = {
     manuscript_id: manuscriptId,
