@@ -52,6 +52,7 @@ export function ManuscriptBriefForm({ manuscriptId, authorId, manuscriptTitle, i
     additionalNotes: initialValues?.additionalNotes ?? null,
     creatorStatus: initialValues?.creatorStatus ?? 'none',
     socialPlatforms: initialValues?.socialPlatforms ?? [],
+    socialProfiles: initialValues?.socialProfiles ?? [],
     creatorContentType: initialValues?.creatorContentType ?? null,
     audienceSizeBand: initialValues?.audienceSizeBand ?? null,
     primarySocialUrl: initialValues?.primarySocialUrl ?? null,
