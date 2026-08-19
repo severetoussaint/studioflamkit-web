@@ -1,9 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Inbox, FileText, ArrowRightCircle, Clock, CheckCircle2 } from "lucide-react";
 import type { QuotationRequest } from "@/services/admin.service";
 import type { Project } from "@/types/domain.types";
+import type { ProjectBrief } from "@/types/project-brief.types";
+import { getProjectBrief } from "@/services/project-brief.service";
+import { AdminProjectBriefPanel } from "./AdminProjectBriefPanel";
 
 interface AdminRequestProposalPanelProps {
   request: QuotationRequest | null | undefined;
@@ -12,6 +15,44 @@ interface AdminRequestProposalPanelProps {
 
 export function AdminRequestProposalPanel({ request, workspaceProject }: AdminRequestProposalPanelProps) {
   const hasProposal = !!workspaceProject?.proposalId;
+  const manuscriptId = workspaceProject?.manuscriptId?.trim() ?? "";
+  const [brief, setBrief] = useState<ProjectBrief | null>(null);
+  const [briefLoading, setBriefLoading] = useState(false);
+  const [briefError, setBriefError] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    if (!manuscriptId) {
+      setBrief(null);
+      setBriefLoading(false);
+      setBriefError(false);
+      return () => {
+        mounted = false;
+      };
+    }
+
+    setBriefLoading(true);
+    setBriefError(false);
+
+    void getProjectBrief(manuscriptId)
+      .then((data) => {
+        if (mounted) setBrief(data);
+      })
+      .catch(() => {
+        if (mounted) {
+          setBrief(null);
+          setBriefError(true);
+        }
+      })
+      .finally(() => {
+        if (mounted) setBriefLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [manuscriptId]);
 
   return (
     <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)] sm:p-8">
@@ -19,7 +60,7 @@ export function AdminRequestProposalPanel({ request, workspaceProject }: AdminRe
         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-premium-soft)]">
           <FileText className="h-4 w-4 text-[var(--color-premium)]" />
         </div>
-        <h2 className="font-serif text-lg font-semibold text-[var(--color-text)]">Solicitud / Propuesta</h2>
+        <h2 className="font-serif text-lg font-semibold text-[var(--color-text)]">Solicitud / Brief / Propuesta</h2>
       </div>
 
       {!request && !hasProposal ? (
@@ -44,6 +85,22 @@ export function AdminRequestProposalPanel({ request, workspaceProject }: AdminRe
                 {request.wordCount ? <span>{request.wordCount.toLocaleString()} palabras</span> : null}
                 <span>${request.amount} USD</span>
               </div>
+            </div>
+          )}
+
+          {manuscriptId && (
+            <div className="space-y-3">
+              {briefLoading ? (
+                <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)] p-4 text-sm text-[var(--color-text-muted)]">
+                  Cargando brief del proyecto…
+                </div>
+              ) : briefError ? (
+                <div className="rounded-2xl border border-[var(--color-error)]/20 bg-[var(--color-error-soft)] p-4 text-sm text-[var(--color-error)]">
+                  No se pudo cargar el brief del manuscrito seleccionado.
+                </div>
+              ) : (
+                <AdminProjectBriefPanel brief={brief} />
+              )}
             </div>
           )}
 
