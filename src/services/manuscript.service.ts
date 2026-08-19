@@ -1,6 +1,6 @@
 import { supabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/database.types';
-\export type ManuscriptRow = Database['public']['Tables']['manuscripts']['Row'];
+export type ManuscriptRow = Database['public']['Tables']['manuscripts']['Row'];
 
 export type AuthorRequestState = 'none' | 'pending' | 'active' | 'rejected';
 
@@ -48,7 +48,6 @@ export interface ManuscriptWithDetails {
 
 export async function getAuthorRequestContext(authorId: string, selectedManuscriptId?: string | null): Promise<AuthorRequestContext> {
   try {
-    // 1. Obtener todos los manuscritos del autor
     const { data: authorManuscriptsData } = await supabaseClient
       .from('manuscripts')
       .select('id, title, created_at, status, project_requests(id, status), projects(id, status, production_stages(id, name, status, order_index))')
@@ -77,11 +76,7 @@ export async function getAuthorRequestContext(authorId: string, selectedManuscri
         } else {
           const stages = Array.isArray(proj.production_stages) ? proj.production_stages : [];
           const activeStage = stages.find((s: ProductionStageRelation) => /active|activo|en_curso|en curso/i.test(s.status || ''));
-          if (activeStage) {
-            resolvedStatus = 'en_revision';
-          } else {
-            resolvedStatus = 'active';
-          }
+          resolvedStatus = activeStage ? 'en_revision' : 'active';
         }
       } else if (reqList.length > 0) {
         resolvedStatus = reqList[0].status || 'evaluating';
@@ -97,10 +92,8 @@ export async function getAuthorRequestContext(authorId: string, selectedManuscri
       };
     });
 
-    // Encontrar el manuscrito activo según el id seleccionado
     let activeManuscript = authorManuscripts.find((m) => m.id === selectedManuscriptId);
 
-    // Si no se proporcionó id o no se encontró, seleccionamos el primero con proyecto activo, o el primero de la lista
     if (!activeManuscript && authorManuscripts.length > 0) {
       activeManuscript = authorManuscripts.find((m) => {
         const projList = Array.isArray(m.projects) ? m.projects : m.projects ? [m.projects] : [];
@@ -196,7 +189,6 @@ export interface SubmitManuscriptInput {
 
 export async function submitManuscript({ authorId, title, wordCount, file }: SubmitManuscriptInput) {
   try {
-    // 1. Asegurar que exista la fila en la tabla authors para este authorId
     const { data: userData } = await supabaseClient.auth.getUser();
     if (userData?.user) {
       const u = userData.user;
@@ -210,21 +202,17 @@ export async function submitManuscript({ authorId, title, wordCount, file }: Sub
       );
     }
 
-    // 2. Generar un nombre de archivo puramente aleatorio o simple
     const extension = file.name.split('.').pop() || 'pdf';
     const path = `${authorId}/${Date.now()}.${extension}`;
 
-    // 3. Subir archivo a Supabase Storage
     const { error: uploadError } = await supabaseClient.storage
       .from('manuscripts')
       .upload(path, file, { cacheControl: '3600', upsert: false });
 
     if (uploadError) {
       console.warn('Advertencia al subir a Supabase Storage:', uploadError);
-      // Continuamos con el registro en BD aun si el bucket requiere configuración previa
     }
 
-    // 4. Crear la fila real en manuscripts
     const { data: manuscript, error: manuscriptError } = await supabaseClient
       .from('manuscripts')
       .insert({
@@ -241,10 +229,8 @@ export async function submitManuscript({ authorId, title, wordCount, file }: Sub
 
     const manuscriptRow = manuscript as ManuscriptRow;
 
-    // 5. Crear o recuperar la fila real en project_requests
     let requestRow: { id: string } | null = null;
 
-    // Verificar primero si un trigger de base de datos o inserción previa ya creó la solicitud
     const { data: existingReq } = await supabaseClient
       .from('project_requests')
       .select('*')
@@ -268,7 +254,6 @@ export async function submitManuscript({ authorId, title, wordCount, file }: Sub
         .maybeSingle();
 
       if (requestError) {
-        // Si hay error por concurrencia u otro motivo, reintentar la lectura
         const { data: fallbackReq } = await supabaseClient
           .from('project_requests')
           .select('*')
