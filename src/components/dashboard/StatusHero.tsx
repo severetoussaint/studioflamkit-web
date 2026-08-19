@@ -2,14 +2,14 @@
 
 import React from 'react';
 import { motion } from 'motion/react';
-import { Sparkles, BookOpen, Clock, UploadCloud, CheckCircle2, Headphones, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Sparkles, BookOpen, Clock, UploadCloud, CheckCircle2, Headphones, ShieldCheck, ArrowRight, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { RotatingTagline } from '@/components/ui/RotatingTagline';
 import { getEditorialJourneyPresentation } from '@/domain/view-models/editorialJourneyPresentation';
 import type { EditorialJourney } from '@/types/domain.types';
 
 interface StatusHeroProps {
-  state: 'none' | 'pending' | 'active';
+  state: 'none' | 'pending' | 'active' | 'rejected';
   projectTitle?: string | null;
   submittedDate?: string | null;
   progress?: number;
@@ -82,7 +82,45 @@ export function StatusHero({
     );
   }
 
-  const presentation = getEditorialJourneyPresentation(journey, state);
+  if (state === 'rejected') {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+        className="relative overflow-hidden rounded-3xl border border-rose-500/25 bg-surface-elevated/95 p-5 sm:p-8 md:p-12 shadow-[0_12px_40px_rgba(0,0,0,0.03)]"
+      >
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_90%_10%,_#f43f5e_0%,_transparent_42%)] opacity-[0.06]" />
+        <div className="relative z-10 max-w-3xl">
+          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-rose-500/30 bg-rose-500/10 px-4 py-1.5 text-[11px] font-medium tracking-wide text-rose-700 dark:text-rose-300">
+            <XCircle className="h-3.5 w-3.5" />
+            <span className="uppercase tracking-[0.16em]">Solicitud finalizada</span>
+          </div>
+          <h1 className="font-serif text-2xl font-normal tracking-tight text-ink sm:text-4xl lg:text-5xl leading-[1.15]">
+            {projectTitle ? `«${projectTitle}» no continuará en esta ocasión.` : 'Tu solicitud no continuará en esta ocasión.'}
+          </h1>
+          <p className="mt-4 text-sm sm:text-base leading-relaxed text-ink-muted font-light">
+            {submittedDate ? `Registrado el ${submittedDate}. ` : ''}
+            El análisis editorial ha concluido. Hemos dejado una comunicación en tus notificaciones para que puedas revisar la decisión del equipo de Studio FLAMKIT.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center gap-4">
+            {onViewFilesClick && (
+              <Button
+                variant="secondary"
+                className="group/btn flex items-center gap-2 text-xs font-medium uppercase tracking-[0.12em]"
+                onClick={onViewFilesClick}
+              >
+                <BookOpen className="h-4 w-4 text-accent" />
+                <span>Ver Manuscrito en Custodia</span>
+              </Button>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
+  const presentation = getEditorialJourneyPresentation(journey, state as 'pending' | 'active');
   const effectiveProgress = progress;
   const effectiveLabel = journey ? presentation.label : (statusLabel || presentation.label);
 
@@ -152,7 +190,6 @@ export function StatusHero({
     );
   }
 
-  // Active state
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -181,7 +218,6 @@ export function StatusHero({
           </p>
         </div>
 
-        {/* Progress Gauge */}
         <div className="flex shrink-0 flex-col items-start rounded-2xl border-edge/50 bg-surface/80 p-6 sm:min-w-[240px] shadow-2xs backdrop-blur-xs">
           <div className="flex items-center justify-between w-full mb-3">
             <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-ink-muted">Avance General</span>
