@@ -1,7 +1,11 @@
-"use client";
+'use client';
 
+import { useEffect, useState } from 'react';
 import { CalendarDays, Globe2, Megaphone, Users, Wand2 } from 'lucide-react';
 import type { ProjectBrief } from '@/types/project-brief.types';
+import type { ProjectRequest } from '@/types/domain.types';
+import { getProjectRequestByManuscript, startProjectRequestAnalysis } from '@/services/request.service';
+import { AdminEvaluationPanel } from '@/components/admin/AdminEvaluationPanel';
 
 const labels: Record<string, string> = {
   creator: 'Creador/a de contenido',
@@ -23,6 +27,54 @@ const audienceBandLabels: Record<string, string> = {
 };
 
 export function AdminProjectBriefPanel({ brief }: { brief: ProjectBrief | null }) {
+  const [request, setRequest] = useState<ProjectRequest | null>(null);
+  const [requestLoading, setRequestLoading] = useState(false);
+  const [requestError, setRequestError] = useState<string | null>(null);
+  const [startingAnalysis, setStartingAnalysis] = useState(false);
+
+  useEffect(() => {
+    if (!brief?.manuscriptId) {
+      return;
+    }
+
+    let mounted = true;
+
+    async function loadRequest() {
+      setRequestLoading(true);
+      setRequestError(null);
+      try {
+        const linkedRequest = await getProjectRequestByManuscript(brief.manuscriptId);
+        if (!mounted) return;
+        setRequest(linkedRequest);
+      } catch (error) {
+        if (!mounted) return;
+        setRequestError(error instanceof Error ? error.message : 'No se pudo cargar la solicitud del manuscrito.');
+      } finally {
+        if (mounted) setRequestLoading(false);
+      }
+    }
+
+    void loadRequest();
+    return () => {
+      mounted = false;
+    };
+  }, [brief?.manuscriptId]);
+
+  async function handleStartAnalysis() {
+    if (!request) return;
+
+    setStartingAnalysis(true);
+    setRequestError(null);
+    try {
+      const updated = await startProjectRequestAnalysis(request.id);
+      setRequest(updated);
+    } catch (error) {
+      setRequestError(error instanceof Error ? error.message : 'No se pudo iniciar el análisis.');
+    } finally {
+      setStartingAnalysis(false);
+    }
+  }
+
   if (!brief) {
     return (
       <section className="rounded-3xl border border-edge/60 bg-surface-elevated p-6 shadow-xs">
@@ -99,6 +151,44 @@ export function AdminProjectBriefPanel({ brief }: { brief: ProjectBrief | null }
           <p><span className="font-medium text-ink">Presupuesto orientativo:</span> {brief.budgetBand || 'No indicado'}</p>
         </div>
         {brief.additionalNotes && <p className="mt-3 whitespace-pre-wrap"><span className="font-medium text-ink">Notas:</span> {brief.additionalNotes}</p>}
+      </div>
+
+      <div className="border-t border-edge/60 pt-5">
+        <div className="mb-3 flex flex-col gap-1.5 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-muted">Ruta de solicitud</p>
+            <h4 className="mt-1 font-serif text-lg font-medium text-ink">Análisis editorial</h4>
+          </div>
+          {request && <span className="inline-flex w-fit rounded-full border border-edge/60 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-muted">{request.status === 'pending' ? 'Recibido' : request.status === 'evaluating' ? 'En análisis' : request.status}</span>}
+        </div>
+
+        {requestLoading ? (
+          <p className="rounded-xl border border-edge/60 bg-surface p-4 text-sm text-ink-muted">Cargando estado de la solicitud…</p>
+        ) : requestError ? (
+          <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-600">
+            <strong>No se pudo cargar la solicitud.</strong>
+            <p className="mt-1">{requestError}</p>
+          </div>
+        ) : request?.status === 'pending' ? (
+          <div className="rounded-2xl border border-accent/20 bg-accent/5 p-4">
+            <p className="text-sm font-medium text-ink">El manuscrito está recibido y listo para análisis.</p>
+            <p className="mt-1 text-xs leading-5 text-ink-muted">Al iniciar el análisis no se crea ningún proyecto ni propuesta. La solicitud pasa de Recibido a Análisis.</p>
+            <button
+              type="button"
+              onClick={() => void handleStartAnalysis()}
+              disabled={startingAnalysis}
+              className="mt-4 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {startingAnalysis ? 'Iniciando análisis…' : 'Aceptar solicitud y comenzar análisis'}
+            </button>
+          </div>
+        ) : request?.status === 'evaluating' ? (
+          <AdminEvaluationPanel requestId={request.id} />
+        ) : request ? (
+          <p className="rounded-xl border border-edge/60 bg-surface p-4 text-sm text-ink-muted">La solicitud está en estado <span className="font-medium text-ink">{request.status}</span>.</p>
+        ) : (
+          <p className="rounded-xl border border-edge/60 bg-surface p-4 text-sm text-ink-muted">No se encontró una solicitud asociada a este manuscrito.</p>
+        )}
       </div>
     </section>
   );
