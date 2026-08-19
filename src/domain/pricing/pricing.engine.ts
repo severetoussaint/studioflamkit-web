@@ -40,7 +40,7 @@ function calculateServicePrice(
     case 'per_chapter':
       return service.priceValue * chapterCount * quantity;
     case 'per_actor':
-      return service.priceValue * quantity;
+      return basePrice * service.priceValue * quantity;
     default:
       return 0;
   }
@@ -103,8 +103,9 @@ export function calculatePricing(
   }
 
   const serviceSubtotal = lines.reduce((sum, line) => sum + line.price, 0);
-  const recommendedBeforeComplexity = basePrice + serviceSubtotal;
-  const recommendedPrice = roundMoney(recommendedBeforeComplexity * complexityMultiplier);
+  const uncappedRecommendedPrice = (basePrice + serviceSubtotal) * complexityMultiplier;
+  const priceCeiling = basePrice * settings.maxTotalPriceMultiplier;
+  const recommendedPrice = roundMoney(Math.min(uncappedRecommendedPrice, priceCeiling));
 
   const bounds = settings.recommendedAdjustmentBounds;
   const requestedAdjustment = Number.isFinite(input.commercialAdjustment) ? Number(input.commercialAdjustment) : 0;
@@ -112,10 +113,9 @@ export function calculatePricing(
   const adjustmentAmount = recommendedPrice * commercialAdjustment;
   const finalPrice = roundMoney(Math.max(settings.minimumBasePriceUsd, recommendedPrice + adjustmentAmount));
 
-  const estimatedWorkMinutes = roundMinutes(
-    durationMinutes * complexityMultiplier +
-      lines.reduce((sum, line) => sum + line.estimatedMinutes, 0),
-  );
+  const baseWorkMinutes = audioHours * settings.baseWorkHoursPerAudioHour * 60;
+  const serviceWorkMinutes = lines.reduce((sum, line) => sum + line.estimatedMinutes, 0);
+  const estimatedWorkMinutes = roundMinutes((baseWorkMinutes + serviceWorkMinutes) * complexityMultiplier);
 
   return {
     wordCount,
