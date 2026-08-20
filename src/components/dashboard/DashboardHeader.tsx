@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Clock, FolderOpen, UploadCloud, ChevronDown, XCircle, FileText } from 'lucide-react';
+import { Clock, FolderOpen, UploadCloud, ChevronDown, XCircle, FileText, Send } from 'lucide-react';
 import type { DashboardRequestState } from '@/services/dashboard-workspace.service';
 
 export interface ManuscriptItem {
@@ -51,6 +51,9 @@ export function DashboardHeader({
   onOpenLibrary,
   onOpenUploader,
 }: DashboardHeaderProps) {
+  const isProposal = requestState === 'proposal';
+  const isProposalSent = requestState === 'proposal_sent';
+
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-edge/60">
       <div className="w-full sm:max-w-xl">
@@ -73,10 +76,10 @@ export function DashboardHeader({
             </span>
           )}
 
-          {requestState === 'proposal' && (
+          {(isProposal || isProposalSent) && (
             <span className="inline-flex items-center gap-1.5 rounded-full border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">
-              <FileText className="h-3.5 w-3.5 shrink-0" />
-              En Propuesta
+              {isProposalSent ? <Send className="h-3.5 w-3.5 shrink-0" /> : <FileText className="h-3.5 w-3.5 shrink-0" />}
+              {isProposalSent ? 'Propuesta disponible' : 'En Propuesta'}
             </span>
           )}
 
@@ -87,7 +90,7 @@ export function DashboardHeader({
             </span>
           )}
 
-          {(hasActiveProject || requestState === 'pending' || requestState === 'proposal' || requestState === 'rejected') && (
+          {(hasActiveProject || requestState === 'pending' || isProposal || isProposalSent || requestState === 'rejected') && (
             <span className="inline-flex items-center gap-1 rounded-md bg-surface border-edge/60 px-2.5 py-0.5 text-xs font-mono font-medium text-ink-muted">
               ID:{' '}
               {requestContext?.projectId
@@ -110,7 +113,7 @@ export function DashboardHeader({
                 ? projectTitle || requestContext?.title || 'Tu Obra en Grabación'
                 : requestState === 'pending'
                 ? requestContext?.title || 'Manuscrito en Evaluación Editorial'
-                : requestState === 'proposal'
+                : isProposal || isProposalSent
                 ? requestContext?.title || 'Propuesta en preparación'
                 : requestState === 'rejected'
                 ? requestContext?.title || 'Solicitud finalizada'
@@ -123,7 +126,6 @@ export function DashboardHeader({
             {isSelectorOpen && (
               <>
                 <div className="fixed inset-0 z-40 cursor-default" onClick={onCloseSelector} />
-
                 <motion.div
                   initial={{ opacity: 0, scale: 0.96, y: -6 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -131,43 +133,18 @@ export function DashboardHeader({
                   transition={{ duration: 0.18, ease: 'easeOut' }}
                   className="absolute left-0 mt-2 w-72 sm:w-80 origin-top-left rounded-3xl border border-edge bg-surface-elevated/95 p-3 shadow-xl z-50 backdrop-blur-md"
                 >
-                  <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-ink-muted/70 border-b border-edge/40 pb-2 mb-2">
-                    Mis obras
-                  </div>
+                  <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-ink-muted/70 border-b border-edge/40 pb-2 mb-2">Mis obras</div>
                   <div className="space-y-1">
-                    {requestContext?.manuscripts && requestContext.manuscripts.length > 0 ? (
-                      requestContext.manuscripts.map((m) => {
-                        const info = getManuscriptSelectorInfo(m);
-                        const isSelected = m.id === activeManuscriptId;
-                        return (
-                          <button
-                            key={m.id}
-                            type="button"
-                            onClick={() => {
-                              onSelectManuscript(m.id);
-                              onCloseSelector();
-                            }}
-                            className={`w-full text-left rounded-2xl p-2.5 transition-all duration-150 ease-out flex flex-col gap-0.5 cursor-pointer active:scale-[0.99] ${
-                              isSelected
-                                ? 'bg-accent/10 text-accent font-medium'
-                                : 'hover:bg-surface hover:translate-x-0.5 text-ink'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2 text-sm font-medium">
-                              <span className={`h-2 w-2 rounded-full ${info.dotColor} shrink-0`} />
-                              <span className="truncate">{m.title}</span>
-                            </div>
-                            <div className="pl-4 text-[11px] text-ink-muted/90 font-light">
-                              {info.label} {info.progress !== null ? `· ${info.progress}%` : ''}
-                            </div>
-                          </button>
-                        );
-                      })
-                    ) : (
-                      <div className="px-3 py-2 text-xs text-ink-muted">
-                        No tienes manuscritos registrados.
-                      </div>
-                    )}
+                    {requestContext?.manuscripts && requestContext.manuscripts.length > 0 ? requestContext.manuscripts.map((m) => {
+                      const info = getManuscriptSelectorInfo(m);
+                      const isSelected = m.id === activeManuscriptId;
+                      return (
+                        <button key={m.id} type="button" onClick={() => { onSelectManuscript(m.id); onCloseSelector(); }} className={`w-full text-left rounded-2xl p-2.5 transition-all duration-150 ease-out flex flex-col gap-0.5 cursor-pointer active:scale-[0.99] ${isSelected ? 'bg-accent/10 text-accent font-medium' : 'hover:bg-surface hover:translate-x-0.5 text-ink'}`}>
+                          <div className="flex items-center gap-2 text-sm font-medium"><span className={`h-2 w-2 rounded-full ${info.dotColor} shrink-0`} /><span className="truncate">{m.title}</span></div>
+                          <div className="pl-4 text-[11px] text-ink-muted/90 font-light">{info.label} {info.progress !== null ? `· ${info.progress}%` : ''}</div>
+                        </button>
+                      );
+                    }) : <div className="px-3 py-2 text-xs text-ink-muted">No tienes manuscritos registrados.</div>}
                   </div>
                 </motion.div>
               </>
@@ -177,23 +154,8 @@ export function DashboardHeader({
       </div>
 
       <div className="flex flex-wrap items-center gap-3 shrink-0">
-        <button
-          type="button"
-          onClick={onOpenLibrary}
-          className="group inline-flex items-center gap-2 rounded-2xl border border-edge/80 bg-surface-elevated px-4 py-2.5 text-xs font-medium text-ink transition-all duration-200 ease-out hover:border-accent/40 hover:text-accent hover:-translate-y-0.5 active:scale-[0.98] shadow-2xs cursor-pointer"
-        >
-          <FolderOpen className="h-4 w-4 text-accent transition-transform duration-200 ease-out group-hover:scale-110" />
-          <span>Biblioteca de archivos</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={onOpenUploader}
-          className="group inline-flex items-center gap-2 rounded-2xl bg-accent px-4 py-2.5 text-xs font-medium text-surface transition-all duration-200 ease-out hover:bg-accent-hover hover:-translate-y-0.5 active:scale-[0.98] shadow-xs cursor-pointer"
-        >
-          <UploadCloud className="h-4 w-4 transition-transform duration-200 ease-out group-hover:-translate-y-0.5" />
-          <span>{requestState === 'none' ? 'Subir Manuscrito' : 'Enviar Nueva Versión'}</span>
-        </button>
+        <button type="button" onClick={onOpenLibrary} className="group inline-flex items-center gap-2 rounded-2xl border border-edge/80 bg-surface-elevated px-4 py-2.5 text-xs font-medium text-ink transition-all duration-200 ease-out hover:border-accent/40 hover:text-accent hover:-translate-y-0.5 active:scale-[0.98] shadow-2xs cursor-pointer"><FolderOpen className="h-4 w-4 text-accent transition-transform duration-200 ease-out group-hover:scale-110" /><span>Biblioteca de archivos</span></button>
+        <button type="button" onClick={onOpenUploader} className="group inline-flex items-center gap-2 rounded-2xl bg-accent px-4 py-2.5 text-xs font-medium text-surface transition-all duration-200 ease-out hover:bg-accent-hover hover:-translate-y-0.5 active:scale-[0.98] shadow-xs cursor-pointer"><UploadCloud className="h-4 w-4 transition-transform duration-200 ease-out group-hover:-translate-y-0.5" /><span>{requestState === 'none' ? 'Subir Manuscrito' : 'Enviar Nueva Versión'}</span></button>
       </div>
     </div>
   );
