@@ -3,20 +3,23 @@ import type { Proposal, ProposalStatus } from '@/types/domain.types';
 import { isProposalStatus } from '@/domain/proposal/proposalStatus';
 
 type ProposalRow = Database['public']['Tables']['proposals']['Row'];
+type ProposalRowWithSentAt = ProposalRow & { sent_at?: string | null };
 
 export function mapProposalRowToDomain(row: ProposalRow): Proposal {
-  const status: ProposalStatus = isProposalStatus(row.status) ? row.status : 'pending';
+  const typedRow = row as ProposalRowWithSentAt;
+  const status: ProposalStatus = isProposalStatus(typedRow.status) ? typedRow.status : 'pending';
 
   return {
-    id: row.id,
-    requestId: row.request_id,
-    amount: Number(row.amount),
-    currency: row.currency,
-    services: row.services,
-    revisionsIncluded: row.revisions_included,
-    deadline: row.deadline,
+    id: typedRow.id,
+    requestId: typedRow.request_id,
+    amount: Number(typedRow.amount),
+    currency: typedRow.currency,
+    services: typedRow.services,
+    revisionsIncluded: typedRow.revisions_included,
+    deadline: typedRow.deadline,
     status,
-    expiresAt: row.expires_at,
-    createdAt: row.created_at ?? '',
+    expiresAt: typedRow.expires_at,
+    sentAt: typedRow.sent_at ?? null,
+    createdAt: typedRow.created_at ?? '',
   };
 }
