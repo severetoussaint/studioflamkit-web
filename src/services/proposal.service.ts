@@ -130,7 +130,6 @@ export async function createProposal(input: CreateProposalInput): Promise<Propos
       request_id: input.requestId,
       ...mapProposalMutation(input),
       status: 'pending',
-      sent_at: null,
     })
     .select('*')
     .single();
@@ -145,15 +144,13 @@ export async function updateProposal(proposalId: string, input: UpdateProposalIn
   if (!current) throw new Error(`Proposal ${proposalId} not found.`);
   assertPendingStatus(current);
 
-  if (current.status === 'pending') {
-    const { data: sentRow } = await supabaseClient
-      .from('proposals')
-      .select('sent_at')
-      .eq('id', proposalId)
-      .maybeSingle();
-    if (sentRow?.sent_at) {
-      throw new Error('Esta propuesta ya fue enviada al autor y no puede modificarse.');
-    }
+  const { data: sentRow } = await supabaseClient
+    .from('proposals')
+    .select('sent_at')
+    .eq('id', proposalId)
+    .maybeSingle();
+  if (sentRow?.sent_at) {
+    throw new Error('Esta propuesta ya fue enviada al autor y no puede modificarse.');
   }
 
   const { data, error } = await supabaseClient
@@ -161,7 +158,6 @@ export async function updateProposal(proposalId: string, input: UpdateProposalIn
     .update(mapProposalMutation(input))
     .eq('id', proposalId)
     .eq('status', 'pending')
-    .is('sent_at', null)
     .select('*')
     .single();
 
