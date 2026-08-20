@@ -25,13 +25,17 @@ function buildWorkspaceData(
   projectsOverview: AuthorProjectOverview[],
   editorialWorkspace: AuthorProjectViewModel | null,
   requestStatusOverride: string | null = null,
+  requestIdOverride: string | null = null,
   proposalSentAt: string | null = null,
 ): DashboardWorkspaceData {
   const selectedManuscript = requestContext?.manuscripts.find((manuscript) => manuscript.id === manuscriptId);
   const requestStatus = requestStatusOverride ?? selectedManuscript?.requestStatus;
+  const normalizedRequestContext = requestContext && requestIdOverride
+    ? { ...requestContext, requestId: requestIdOverride }
+    : requestContext;
 
   let resolvedRequestState: DashboardRequestState =
-    requestContext?.state ?? (editorialWorkspace?.project ? 'active' : 'none');
+    normalizedRequestContext?.state ?? (editorialWorkspace?.project ? 'active' : 'none');
 
   if (requestStatus === 'accepted') {
     resolvedRequestState = proposalSentAt ? 'proposal_sent' : 'proposal';
@@ -39,13 +43,13 @@ function buildWorkspaceData(
 
   return {
     manuscriptId,
-    requestContext,
+    requestContext: normalizedRequestContext,
     projectsOverview,
     editorialWorkspace,
     requestState: resolvedRequestState,
-    projectId: editorialWorkspace?.project?.id ?? requestContext?.projectId ?? null,
+    projectId: editorialWorkspace?.project?.id ?? normalizedRequestContext?.projectId ?? null,
     projectStatus: editorialWorkspace?.project?.status ?? null,
-    projectTitle: requestContext?.title ?? null,
+    projectTitle: normalizedRequestContext?.title ?? null,
     proposalSentAt,
   };
 }
@@ -80,6 +84,7 @@ export async function getDashboardWorkspaceData(
   const manuscriptId = selectedManuscriptId ?? requestContext.manuscriptId ?? null;
   let editorialWorkspace: AuthorProjectViewModel | null = null;
   let requestStatusOverride: string | null = null;
+  let requestIdOverride: string | null = null;
   let proposalSentAt: string | null = null;
 
   if (manuscriptId) {
@@ -97,6 +102,7 @@ export async function getDashboardWorkspaceData(
 
     if (!requestError && requestRow) {
       requestStatusOverride = requestRow.status;
+      requestIdOverride = requestRow.id;
 
       if (requestRow.status === 'accepted') {
         const { data: proposalRow, error: proposalError } = await supabaseClient
@@ -107,12 +113,10 @@ export async function getDashboardWorkspaceData(
           .limit(1)
           .maybeSingle();
 
-        if (!proposalError) {
-          proposalSentAt = proposalRow?.sent_at ?? null;
-        }
+        if (!proposalError) proposalSentAt = proposalRow?.sent_at ?? null;
       }
     }
   }
 
-  return buildWorkspaceData(manuscriptId, requestContext, projectsOverview, editorialWorkspace, requestStatusOverride, proposalSentAt);
+  return buildWorkspaceData(manuscriptId, requestContext, projectsOverview, editorialWorkspace, requestStatusOverride, requestIdOverride, proposalSentAt);
 }
