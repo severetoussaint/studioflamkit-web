@@ -21,12 +21,18 @@ function buildWorkspaceData(
   projectsOverview: AuthorProjectOverview[],
   editorialWorkspace: AuthorProjectViewModel | null,
 ): DashboardWorkspaceData {
+  const selectedManuscript = requestContext?.manuscripts.find((manuscript) => manuscript.id === manuscriptId);
+  const resolvedRequestState: AuthorRequestState =
+    selectedManuscript?.requestStatus === 'accepted'
+      ? 'proposal'
+      : requestContext?.state ?? (editorialWorkspace?.project ? 'active' : 'none');
+
   return {
     manuscriptId,
     requestContext,
     projectsOverview,
     editorialWorkspace,
-    requestState: requestContext?.state ?? (editorialWorkspace?.project ? 'active' : 'none'),
+    requestState: resolvedRequestState,
     projectId: editorialWorkspace?.project?.id ?? requestContext?.projectId ?? null,
     projectStatus: editorialWorkspace?.project?.status ?? null,
     projectTitle: requestContext?.title ?? null,
@@ -35,16 +41,20 @@ function buildWorkspaceData(
 
 /**
  * Coordinates dashboard data for the currently selected manuscript.
- * This is intentionally a transitional loader: legacy request/project reads remain
- * available when an author id is provided, while the shared EditorialWorkspace
- * becomes the source of domain project data.
+ * The request phase remains available even when the editorial workspace
+ * cannot yet materialize a Project (for example, while a proposal is being prepared).
  */
 export async function getDashboardWorkspaceData(
   authorId: string | null,
   selectedManuscriptId?: string | null,
 ): Promise<DashboardWorkspaceData> {
   if (!authorId && selectedManuscriptId) {
-    const editorialWorkspace = await getEditorialWorkspaceByManuscript(selectedManuscriptId);
+    let editorialWorkspace: AuthorProjectViewModel | null = null;
+    try {
+      editorialWorkspace = await getEditorialWorkspaceByManuscript(selectedManuscriptId);
+    } catch (error) {
+      console.error('Error loading editorial workspace:', error);
+    }
     return buildWorkspaceData(selectedManuscriptId, null, [], editorialWorkspace);
   }
 
@@ -58,9 +68,15 @@ export async function getDashboardWorkspaceData(
   ]);
 
   const manuscriptId = selectedManuscriptId ?? requestContext.manuscriptId ?? null;
-  const editorialWorkspace = manuscriptId
-    ? await getEditorialWorkspaceByManuscript(manuscriptId)
-    : null;
+  let editorialWorkspace: AuthorProjectViewModel | null = null;
+
+  if (manuscriptId) {
+    try {
+      editorialWorkspace = await getEditorialWorkspaceByManuscript(manuscriptId);
+    } catch (error) {
+      console.error('Error loading editorial workspace:', error);
+    }
+  }
 
   return buildWorkspaceData(manuscriptId, requestContext, projectsOverview, editorialWorkspace);
 }
