@@ -214,5 +214,6 @@ export interface Proposal {
   deadline: string | null;
   status: ProposalStatus;
   expiresAt: string | null;
+  sentAt: string | null;
   createdAt: string;
 }
