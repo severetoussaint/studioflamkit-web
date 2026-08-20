@@ -146,10 +146,11 @@ export async function updateProposal(proposalId: string, input: UpdateProposalIn
 
   const { data: sentRow } = await supabaseClient
     .from('proposals')
-    .select('sent_at')
+    .select('*')
     .eq('id', proposalId)
     .maybeSingle();
-  if (sentRow?.sent_at) {
+  const sentAt = (sentRow as unknown as { sent_at?: string | null } | null)?.sent_at ?? null;
+  if (sentAt) {
     throw new Error('Esta propuesta ya fue enviada al autor y no puede modificarse.');
   }
 
