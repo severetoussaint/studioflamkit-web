@@ -10,6 +10,7 @@ export interface AdminFollowUpItem {
   title: string;
   client: string;
   email: string | null;
+  wordCount: number;
   result: EvaluationResult | null;
   authorMessage: string | null;
   emailSentAt: string | null;
@@ -26,6 +27,7 @@ interface FollowUpRow {
     id?: string;
     title?: string;
     author_id?: string;
+    word_count?: number | null;
     authors?: {
       full_name?: string | null;
       email?: string | null;
@@ -66,6 +68,7 @@ export async function listAdminFollowUps(): Promise<AdminFollowUpItem[]> {
         id,
         title,
         author_id,
+        word_count,
         authors ( full_name, email )
       ),
       evaluations (
@@ -104,6 +107,7 @@ export async function listAdminFollowUps(): Promise<AdminFollowUpItem[]> {
         title: row.manuscripts?.title ?? 'Sin título',
         client: row.manuscripts?.authors?.full_name ?? 'Autor desconocido',
         email: row.manuscripts?.authors?.email ?? null,
+        wordCount: Number(row.manuscripts?.word_count ?? 0),
         result,
         authorMessage: evaluation?.author_message ?? null,
         emailSentAt: evaluation?.email_sent_at ?? null,
