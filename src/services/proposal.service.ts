@@ -24,9 +24,15 @@ export interface CreateProposalInput {
 
 export type UpdateProposalInput = Omit<CreateProposalInput, 'requestId'>;
 
+function assertDraftStatus(proposal: Proposal) {
+  if (proposal.status !== 'draft') {
+    throw new Error(`Proposal ${proposal.id} is not editable from status ${proposal.status}.`);
+  }
+}
+
 function assertPendingStatus(proposal: Proposal) {
   if (proposal.status !== 'pending') {
-    throw new Error(`Proposal ${proposal.id} is not mutable from status ${proposal.status}.`);
+    throw new Error(`Proposal ${proposal.id} is not awaiting author decision (status=${proposal.status}).`);
   }
 }
 
@@ -69,6 +75,7 @@ export async function listProposalsForAuthor(authorId: string): Promise<Proposal
 export async function getCurrentProposalForRequest(requestId: string): Promise<Proposal | null> {
   const proposals = await listProposals(requestId);
   return proposals.find((proposal) => proposal.status === 'pending')
+    ?? proposals.find((proposal) => proposal.status === 'draft')
     ?? proposals.find((proposal) => proposal.status === 'accepted')
     ?? proposals[0]
     ?? null;
@@ -123,13 +130,16 @@ export async function createProposal(input: CreateProposalInput): Promise<Propos
   if (existing?.status === 'pending') {
     throw new Error(`A pending proposal already exists for request ${input.requestId}.`);
   }
+  if (existing?.status === 'draft') {
+    throw new Error(`A draft proposal already exists for request ${input.requestId}.`);
+  }
 
   const { data, error } = await supabaseClient
     .from('proposals')
     .insert({
       request_id: input.requestId,
       ...mapProposalMutation(input),
-      status: 'pending',
+      status: 'draft',
     })
     .select('*')
     .single();
@@ -142,13 +152,13 @@ export async function updateProposal(proposalId: string, input: UpdateProposalIn
   validateProposalInput(input);
   const current = await getProposal(proposalId);
   if (!current) throw new Error(`Proposal ${proposalId} not found.`);
-  assertPendingStatus(current);
+  assertDraftStatus(current);
 
   const { data, error } = await supabaseClient
     .from('proposals')
     .update(mapProposalMutation(input))
     .eq('id', proposalId)
-    .eq('status', 'pending')
+    .eq('status', 'draft')
     .select('*')
     .single();
 
@@ -159,32 +169,11 @@ export async function updateProposal(proposalId: string, input: UpdateProposalIn
 export async function sendProposal(proposalId: string): Promise<Proposal> {
   const proposalBeforeSend = await getProposal(proposalId);
   if (!proposalBeforeSend) throw new Error(`Proposal ${proposalId} not found.`);
-  assertPendingStatus(proposalBeforeSend);
+  assertDraftStatus(proposalBeforeSend);
 
   const persistedProposalId = await callProposalRpc('send_proposal', proposalId);
   const proposal = await getProposal(persistedProposalId);
   if (!proposal) throw new Error(`Proposal ${persistedProposalId} not found after sending.`);
-
-  try {
-    const { data: propData } = await supabaseClient
-      .from('proposals')
-      .select('project_requests(manuscripts(author_id))')
-      .eq('id', persistedProposalId)
-      .maybeSingle();
-
-    interface ProposalAuthorQueryResult { project_requests?: { manuscripts?: { author_id?: string } | null } | null }
-    const authorId = (propData as unknown as ProposalAuthorQueryResult | null)?.project_requests?.manuscripts?.author_id;
-    if (authorId) {
-      await createNotification({
-        authorId,
-        title: 'Propuesta editorial disponible',
-        message: 'Tu propuesta editorial y cotización detallada ya está lista para su revisión.',
-        status: 'pending',
-      });
-    }
-  } catch (err) {
-    console.warn('Failed to create notification for sent proposal:', err);
-  }
 
   return proposal;
 }
