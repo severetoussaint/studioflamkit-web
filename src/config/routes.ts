@@ -9,5 +9,7 @@ export const routes = {
   registro: '/registro',
   dashboard: '/dashboard',
   admin: '/admin',
+  adminConfiguracion: '/admin/configuracion',
+  adminPrecios: '/admin/precios',
   privacidad: '/privacidad',
 };
