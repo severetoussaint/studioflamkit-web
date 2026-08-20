@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Clock, FolderOpen, UploadCloud, ChevronDown, XCircle } from 'lucide-react';
+import { Clock, FolderOpen, UploadCloud, ChevronDown, XCircle, FileText } from 'lucide-react';
+import type { DashboardRequestState } from '@/services/dashboard-workspace.service';
 
 export interface ManuscriptItem {
   id: string;
@@ -17,7 +18,7 @@ export interface SelectorInfo {
 }
 
 export interface DashboardHeaderProps {
-  requestState: 'none' | 'pending' | 'active' | 'rejected';
+  requestState: DashboardRequestState;
   hasActiveProject: boolean;
   requestContext: {
     projectId?: string | null;
@@ -72,6 +73,13 @@ export function DashboardHeader({
             </span>
           )}
 
+          {requestState === 'proposal' && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+              <FileText className="h-3.5 w-3.5 shrink-0" />
+              En Propuesta
+            </span>
+          )}
+
           {requestState === 'rejected' && (
             <span className="inline-flex items-center gap-1.5 rounded-full border-rose-500/30 bg-rose-500/10 px-2.5 py-0.5 text-xs font-medium text-rose-600 dark:text-rose-400">
               <XCircle className="h-3.5 w-3.5 shrink-0" />
@@ -79,7 +87,7 @@ export function DashboardHeader({
             </span>
           )}
 
-          {(hasActiveProject || requestState === 'pending' || requestState === 'rejected') && (
+          {(hasActiveProject || requestState === 'pending' || requestState === 'proposal' || requestState === 'rejected') && (
             <span className="inline-flex items-center gap-1 rounded-md bg-surface border-edge/60 px-2.5 py-0.5 text-xs font-mono font-medium text-ink-muted">
               ID:{' '}
               {requestContext?.projectId
@@ -102,6 +110,8 @@ export function DashboardHeader({
                 ? projectTitle || requestContext?.title || 'Tu Obra en Grabación'
                 : requestState === 'pending'
                 ? requestContext?.title || 'Manuscrito en Evaluación Editorial'
+                : requestState === 'proposal'
+                ? requestContext?.title || 'Propuesta en preparación'
                 : requestState === 'rejected'
                 ? requestContext?.title || 'Solicitud finalizada'
                 : 'Bienvenido a Studio Flamkit'}
