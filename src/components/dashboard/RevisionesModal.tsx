@@ -21,13 +21,12 @@ export interface RevisionesModalProps {
 export function RevisionesModal({
   open,
   onClose,
-  maxRevisions = 3,
+  maxRevisions = 0,
 }: RevisionesModalProps) {
   return (
     <AnimatePresence>
       {open && (
         <div className="fixed inset-0 z-[75] flex items-center justify-center p-4 sm:p-6">
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -36,7 +35,6 @@ export function RevisionesModal({
             onClick={onClose}
           />
 
-          {/* Modal Card */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 16 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -44,7 +42,6 @@ export function RevisionesModal({
             transition={{ duration: 0.22, ease: 'easeOut' }}
             className="relative z-10 w-full max-w-lg overflow-hidden rounded-3xl border border-edge/80 bg-surface-elevated p-6 shadow-2xl"
           >
-            {/* Header */}
             <div className="flex items-center justify-between border-b border-edge/60 pb-4">
               <div className="flex items-center gap-3">
                 <button
@@ -76,7 +73,6 @@ export function RevisionesModal({
               </div>
             </div>
 
-            {/* Main Stat Block */}
             <div className="mt-5 rounded-2xl border border-edge/60 bg-surface/70 p-5 text-left">
               <div className="flex items-baseline gap-2">
                 <span className="font-serif text-4xl sm:text-5xl font-normal text-ink">
@@ -91,7 +87,6 @@ export function RevisionesModal({
               </p>
             </div>
 
-            {/* Feature list */}
             <div className="mt-5 space-y-3">
               <div className="flex items-start gap-3.5 rounded-2xl border border-edge/50 bg-surface/50 p-3.5">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">
@@ -124,7 +119,6 @@ export function RevisionesModal({
               </div>
             </div>
 
-            {/* Notice block */}
             <div className="mt-5 rounded-2xl border border-edge/40 bg-surface-elevated p-4">
               <div className="flex items-center gap-2 text-ink-muted">
                 <Sparkles className="h-4 w-4 text-amber-500 shrink-0" />
@@ -135,7 +129,6 @@ export function RevisionesModal({
               </p>
             </div>
 
-            {/* Action button */}
             <div className="mt-6">
               <button
                 type="button"
