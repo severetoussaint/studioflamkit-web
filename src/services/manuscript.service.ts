@@ -1,7 +1,7 @@
 import { supabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/database.types';
-export type ManuscriptRow = Database['public']['Tables']['manuscripts']['Row'];
 
+export type ManuscriptRow = Database['public']['Tables']['manuscripts']['Row'];
 export type AuthorRequestState = 'none' | 'pending' | 'active' | 'rejected';
 
 export interface AuthorRequestContext {
@@ -19,89 +19,28 @@ export interface AuthorRequestContext {
   }>;
 }
 
-export interface ProductionStageRelation {
-  id: string;
-  name: string;
-  status: string | null;
-  order_index: number;
-}
+type ManuscriptContextRow = Pick<ManuscriptRow, 'id' | 'title' | 'created_at' | 'status'>;
+type RequestRow = Pick<Database['public']['Tables']['project_requests']['Row'], 'id' | 'manuscript_id' | 'status' | 'created_at'>;
+type ProjectRow = Pick<Database['public']['Tables']['projects']['Row'], 'id' | 'manuscript_id' | 'status' | 'updated_at'>;
 
-export interface ProjectRelation {
-  id: string;
-  status: string | null;
-  production_stages?: ProductionStageRelation[] | null;
-}
-
-export interface ProjectRequestRelation {
-  id: string;
-  status: string | null;
-}
-
-export interface ManuscriptWithDetails {
-  id: string;
-  title: string;
-  created_at: string | null;
-  status: string | null;
-  project_requests?: ProjectRequestRelation[] | null;
-  projects?: ProjectRelation[] | null;
-}
-
-export async function getAuthorRequestContext(authorId: string, selectedManuscriptId?: string | null): Promise<AuthorRequestContext> {
+export async function getAuthorRequestContext(
+  authorId: string,
+  selectedManuscriptId?: string | null,
+): Promise<AuthorRequestContext> {
   try {
-    const { data: authorManuscriptsData } = await supabaseClient
+    // Load manuscripts independently. A failure in a related table must never
+    // make the author appear to have no manuscripts.
+    const { data: manuscriptRows, error: manuscriptsError } = await supabaseClient
       .from('manuscripts')
-      .select('id, title, created_at, status, project_requests(id, status), projects(id, status, production_stages(id, name, status, order_index))')
+      .select('id, title, created_at, status')
       .eq('author_id', authorId)
       .order('created_at', { ascending: false });
 
-    const authorManuscripts = (authorManuscriptsData as unknown as ManuscriptWithDetails[]) || [];
-    const manuscriptsList = authorManuscripts.map((m: ManuscriptWithDetails) => {
-      const reqList = Array.isArray(m.project_requests)
-        ? m.project_requests
-        : m.project_requests
-        ? [m.project_requests]
-        : [];
-      const projList = Array.isArray(m.projects)
-        ? m.projects
-        : m.projects
-        ? [m.projects]
-        : [];
+    if (manuscriptsError) throw manuscriptsError;
 
-      let resolvedStatus = 'evaluating';
+    const authorManuscripts = (manuscriptRows ?? []) as ManuscriptContextRow[];
 
-      if (projList.length > 0) {
-        const proj = projList[0];
-        if (proj.status === 'completed') {
-          resolvedStatus = 'completed';
-        } else {
-          const stages = Array.isArray(proj.production_stages) ? proj.production_stages : [];
-          const activeStage = stages.find((s: ProductionStageRelation) => /active|activo|en_curso|en curso/i.test(s.status || ''));
-          resolvedStatus = activeStage ? 'en_revision' : 'active';
-        }
-      } else if (reqList.length > 0) {
-        resolvedStatus = reqList[0].status || 'evaluating';
-      } else if (m.status) {
-        resolvedStatus = m.status;
-      }
-
-      return {
-        id: m.id,
-        title: m.title || 'Sin título',
-        createdAt: m.created_at || null,
-        requestStatus: resolvedStatus,
-      };
-    });
-
-    let activeManuscript = authorManuscripts.find((m) => m.id === selectedManuscriptId);
-
-    if (!activeManuscript && authorManuscripts.length > 0) {
-      activeManuscript = authorManuscripts.find((m) => {
-        const projList = Array.isArray(m.projects) ? m.projects : m.projects ? [m.projects] : [];
-        return projList.length > 0;
-      }) || authorManuscripts[0];
-    }
-
-    if (!activeManuscript) {
+    if (authorManuscripts.length === 0) {
       return {
         state: 'none',
         requestId: null,
@@ -113,65 +52,108 @@ export async function getAuthorRequestContext(authorId: string, selectedManuscri
       };
     }
 
-    const projList = Array.isArray(activeManuscript.projects)
-      ? activeManuscript.projects
-      : activeManuscript.projects
-      ? [activeManuscript.projects]
-      : [];
+    const manuscriptIds = authorManuscripts.map((manuscript) => manuscript.id);
 
-    const reqList = Array.isArray(activeManuscript.project_requests)
-      ? activeManuscript.project_requests
-      : activeManuscript.project_requests
-      ? [activeManuscript.project_requests]
-      : [];
+    const [requestsResult, projectsResult] = await Promise.all([
+      supabaseClient
+        .from('project_requests')
+        .select('id, manuscript_id, status, created_at')
+        .in('manuscript_id', manuscriptIds)
+        .order('created_at', { ascending: false }),
+      supabaseClient
+        .from('projects')
+        .select('id, manuscript_id, status, updated_at')
+        .in('manuscript_id', manuscriptIds)
+        .order('updated_at', { ascending: false }),
+    ]);
 
-    if (projList.length > 0) {
-      const activeProject = projList[0];
+    if (requestsResult.error) {
+      console.warn('No se pudieron cargar las solicitudes asociadas:', requestsResult.error);
+    }
+    if (projectsResult.error) {
+      console.warn('No se pudieron cargar los proyectos asociados:', projectsResult.error);
+    }
+
+    const requests = (requestsResult.data ?? []) as RequestRow[];
+    const projects = (projectsResult.data ?? []) as ProjectRow[];
+
+    const requestsByManuscript = new Map<string, RequestRow>();
+    for (const request of requests) {
+      if (!requestsByManuscript.has(request.manuscript_id)) {
+        requestsByManuscript.set(request.manuscript_id, request);
+      }
+    }
+
+    const projectsByManuscript = new Map<string, ProjectRow>();
+    for (const project of projects) {
+      if (!projectsByManuscript.has(project.manuscript_id)) {
+        projectsByManuscript.set(project.manuscript_id, project);
+      }
+    }
+
+    const manuscriptsList = authorManuscripts.map((manuscript) => {
+      const request = requestsByManuscript.get(manuscript.id) ?? null;
+      const project = projectsByManuscript.get(manuscript.id) ?? null;
+
+      let requestStatus = manuscript.status || 'evaluating';
+
+      if (project) {
+        requestStatus = project.status === 'completed' ? 'completed' : 'active';
+      } else if (request?.status) {
+        requestStatus = request.status;
+      }
+
+      return {
+        id: manuscript.id,
+        title: manuscript.title || 'Sin título',
+        createdAt: manuscript.created_at || null,
+        requestStatus,
+      };
+    });
+
+    const activeManuscript =
+      authorManuscripts.find((manuscript) => manuscript.id === selectedManuscriptId) ??
+      authorManuscripts[0];
+
+    const activeRequest = requestsByManuscript.get(activeManuscript.id) ?? null;
+    const activeProject = projectsByManuscript.get(activeManuscript.id) ?? null;
+
+    if (activeProject) {
       return {
         state: 'active',
         projectId: activeProject.id,
         manuscriptId: activeManuscript.id,
-        requestId: null,
+        requestId: activeRequest?.id ?? null,
         title: activeManuscript.title || 'Obra en producción',
         createdAt: activeManuscript.created_at || null,
         manuscripts: manuscriptsList,
       };
     }
 
-    const rejectedReq = reqList.find((r) => r.status === 'rejected');
-    if (rejectedReq) {
+    if (activeRequest?.status === 'rejected') {
       return {
         state: 'rejected',
         projectId: null,
         manuscriptId: activeManuscript.id,
-        requestId: rejectedReq.id,
+        requestId: activeRequest.id,
         title: activeManuscript.title || 'Solicitud finalizada',
         createdAt: activeManuscript.created_at || null,
         manuscripts: manuscriptsList,
       };
     }
 
-    const pendingReq = reqList.find((r) => r.status === 'pending' || r.status === 'evaluating');
     return {
       state: 'pending',
       projectId: null,
       manuscriptId: activeManuscript.id,
-      requestId: pendingReq?.id || activeManuscript.id,
+      requestId: activeRequest?.id ?? activeManuscript.id,
       title: activeManuscript.title || 'Manuscrito enviado',
       createdAt: activeManuscript.created_at || null,
       manuscripts: manuscriptsList,
     };
   } catch (err) {
     console.error('Error en getAuthorRequestContext:', err);
-    return {
-      state: 'none',
-      requestId: null,
-      manuscriptId: null,
-      projectId: null,
-      title: null,
-      createdAt: null,
-      manuscripts: [],
-    };
+    throw err;
   }
 }
 
