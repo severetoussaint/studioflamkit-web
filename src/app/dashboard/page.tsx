@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUser } from '@/services/auth.service';
 import { submitManuscript } from '@/services/manuscript.service';
-import { getAuthorProjectData, type AuthorProjectData } from '@/services/project.service';
 import { getDashboardFileLibraryData, type DashboardFileLibraryData } from '@/services/file.service';
 import { useEditorialWorkspace } from '@/hooks/useEditorialWorkspace';
 import { useDashboardWorkspace } from '@/hooks/useDashboardWorkspace';
@@ -96,8 +95,6 @@ interface InvoiceItem {
   pdfAvailable: boolean;
 }
 
-const initialChapters: ChapterItem[] = [];
-
 const initialComments: Record<string, CommentItem[]> = {};
 
 const deliverables: { title: string; date: string; size: string; format: string }[] = [];
@@ -126,9 +123,6 @@ export default function DashboardPage() {
 
   // Integración de Workspace Editorial (Fase 1B3.6.A)
   const editorialWorkspace = useEditorialWorkspace(activeManuscriptId);
-
-  // realProject se mantiene únicamente para capítulos y datos legacy sin sustituto en el ViewModel
-  const [realProject, setRealProject] = useState<AuthorProjectData | null>(null);
 
   // Estados de la biblioteca de archivos
   const [libraryData, setLibraryData] = useState<DashboardFileLibraryData | null>(null);
@@ -178,11 +172,70 @@ export default function DashboardPage() {
   };
 
   // Estados de gestión de capítulos y comentarios
-  const [chaptersState, setChaptersState] = useState<ChapterItem[]>(initialChapters);
+  const [localChapterOverrides, setLocalChapterOverrides] = useState<Record<string, Partial<ChapterItem>>>({});
   const [commentsState, setCommentsState] = useState<Record<string, CommentItem[]>>(initialComments);
   const [selectedChapter, setSelectedChapter] = useState<ChapterItem | null>(null);
   const [newCommentText, setNewCommentText] = useState('');
   const [newCommentTime, setNewCommentTime] = useState('03:45');
+
+  // Capítulos derivados directamente de editorialWorkspace (Fase 1B3.5.B)
+  const chaptersState: ChapterItem[] = useMemo(() => {
+    const chapters = editorialWorkspace.data?.chapters;
+    const revisionsIncluded = editorialWorkspace.data?.revisionsIncluded ?? 0;
+
+    if (!chapters || chapters.length === 0) {
+      return [];
+    }
+
+    return chapters.map((c) => {
+      let progress = 0;
+      let statusLabel: ChapterItem['status'] = 'Pendiente';
+      let payStatus: ChapterItem['paymentStatus'] = 'Pendiente';
+
+      if (c.status === 'pendiente') {
+        progress = 0;
+        statusLabel = 'Pendiente';
+        payStatus = 'Pendiente';
+      } else if (c.status === 'cotizado') {
+        progress = 20;
+        statusLabel = 'Cotizado';
+        payStatus = 'Pendiente';
+      } else if (c.status === 'pagado') {
+        progress = 40;
+        statusLabel = 'Pagado';
+        payStatus = 'Pagado';
+      } else if (c.status === 'en_produccion') {
+        progress = 75;
+        statusLabel = 'En Grabación';
+        payStatus = 'Pagado';
+      } else if (c.status === 'entregado') {
+        progress = 100;
+        statusLabel = 'Entregado';
+        payStatus = 'Pagado';
+      }
+
+      const base: ChapterItem = {
+        id: c.id,
+        number: c.chapterNumber,
+        title: c.title,
+        progress,
+        revisions: 0,
+        maxRevisions: revisionsIncluded,
+        status: statusLabel,
+        rawStatus: c.status,
+        paymentStatus: payStatus,
+        price: c.price,
+        words: `${c.wordCount.toLocaleString()} palabras`,
+        duration: `~${c.durationMinutes} min`,
+      };
+
+      const override = localChapterOverrides[c.id];
+      if (override) {
+        return { ...base, ...override };
+      }
+      return base;
+    });
+  }, [editorialWorkspace.data?.chapters, editorialWorkspace.data?.revisionsIncluded, localChapterOverrides]);
 
   // Estados de navegación, audio y modales
   const [active, setActive] = useState<SectionId>('resumen');
@@ -250,88 +303,7 @@ export default function DashboardPage() {
     };
   }, [router]);
 
-  // 2. Efecto para cargar realProject (capítulos y datos legacy) cuando existe un manuscrito activo
-  // Nota: Este efecto se mantiene como frontera 1B3.7 - no migrar capítulos aún
-  useEffect(() => {
-    if (!authorId || !activeManuscriptId) return;
-
-    let isMounted = true;
-    const currentAuthorId = authorId;
-    const currentManuscriptId = activeManuscriptId;
-
-    async function loadProjectData() {
-      try {
-        const projectData = await getAuthorProjectData(currentAuthorId, currentManuscriptId);
-        if (!isMounted) return;
-
-        if (projectData) {
-          setRealProject(projectData);
-
-          if (projectData.chapters && projectData.chapters.length > 0) {
-            const mappedChapters: ChapterItem[] = projectData.chapters.map((c) => {
-              let progress = 0;
-              let statusLabel: ChapterItem['status'] = 'Pendiente';
-              let payStatus: ChapterItem['paymentStatus'] = 'Pendiente';
-
-              if (c.status === 'pendiente') {
-                progress = 0;
-                statusLabel = 'Pendiente';
-                payStatus = 'Pendiente';
-              } else if (c.status === 'cotizado') {
-                progress = 20;
-                statusLabel = 'Cotizado';
-                payStatus = 'Pendiente';
-              } else if (c.status === 'pagado') {
-                progress = 40;
-                statusLabel = 'Pagado';
-                payStatus = 'Pagado';
-              } else if (c.status === 'en_produccion') {
-                progress = 75;
-                statusLabel = 'En Grabación';
-                payStatus = 'Pagado';
-              } else if (c.status === 'entregado') {
-                progress = 100;
-                statusLabel = 'Entregado';
-                payStatus = 'Pagado';
-              }
-
-              return {
-                id: c.id,
-                number: c.chapter_number,
-                title: c.title,
-                progress,
-                revisions: 0,
-                maxRevisions: projectData.maxRevisions || 3,
-                status: statusLabel,
-                rawStatus: c.status,
-                paymentStatus: payStatus,
-                price: c.price,
-                words: `${c.word_count.toLocaleString()} palabras`,
-                duration: `~${c.duration_minutes} min`,
-              };
-            });
-            setChaptersState(mappedChapters);
-          } else {
-            setRealProject(null);
-            setChaptersState([]);
-          }
-        } else {
-          setRealProject(null);
-          setChaptersState([]);
-        }
-      } catch (err) {
-        console.error('Error al cargar datos del proyecto:', err);
-      }
-    }
-
-    loadProjectData();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [authorId, activeManuscriptId]);
-
-  // 3. Efecto para cargar datos completos de la biblioteca de archivos
+  // 2. Efecto para cargar datos completos de la biblioteca de archivos
   useEffect(() => {
     if (!authorId || !activeManuscriptId) return;
     const currentAuthorId = authorId;
@@ -462,26 +434,22 @@ export default function DashboardPage() {
     }));
 
     // Actualizar conteo de revisiones del capítulo
-    setChaptersState((prev) =>
-      prev.map((c) => {
-        if (c.id === chapterId) {
-          const updatedRevisions = Math.min(c.maxRevisions, c.revisions + 1);
-          return {
-            ...c,
-            revisions: updatedRevisions,
-            status: 'Revisiones',
-          };
-        }
-        return c;
-      })
-    );
+    const updatedRevisions = Math.min(currentChap.maxRevisions, currentChap.revisions + 1);
+    setLocalChapterOverrides((prev) => ({
+      ...prev,
+      [chapterId]: {
+        ...prev[chapterId],
+        revisions: updatedRevisions,
+        status: 'Revisiones',
+      },
+    }));
 
     // Actualizar capítulo seleccionado en modal
     setSelectedChapter((prev) =>
       prev
         ? {
             ...prev,
-            revisions: Math.min(prev.maxRevisions, prev.revisions + 1),
+            revisions: updatedRevisions,
             status: 'Revisiones',
           }
         : null
@@ -492,9 +460,14 @@ export default function DashboardPage() {
 
   // Aprobar capítulo
   const handleApproveChapter = (chapterId: string) => {
-    setChaptersState((prev) =>
-      prev.map((c) => (c.id === chapterId ? { ...c, status: 'Aprobado', progress: 100 } : c))
-    );
+    setLocalChapterOverrides((prev) => ({
+      ...prev,
+      [chapterId]: {
+        ...prev[chapterId],
+        status: 'Aprobado',
+        progress: 100,
+      },
+    }));
     if (selectedChapter?.id === chapterId) {
       setSelectedChapter((prev) => (prev ? { ...prev, status: 'Aprobado', progress: 100 } : null));
     }
@@ -504,9 +477,13 @@ export default function DashboardPage() {
   const handleConfirmChapterPayment = (chapterId: string) => {
     setPaymentProcessing(true);
     setTimeout(() => {
-      setChaptersState((prev) =>
-        prev.map((c) => (c.id === chapterId ? { ...c, paymentStatus: 'Pagado' } : c))
-      );
+      setLocalChapterOverrides((prev) => ({
+        ...prev,
+        [chapterId]: {
+          ...prev[chapterId],
+          paymentStatus: 'Pagado',
+        },
+      }));
       setPaymentProcessing(false);
       setPayingChapter(null);
       if (selectedChapter?.id === chapterId) {
@@ -670,9 +647,22 @@ export default function DashboardPage() {
                     <KpiCard
                       icon={Wallet}
                       label="Revisiones Incluidas"
-                      value={realProject?.maxRevisions || 3}
+                      value={
+                        editorialWorkspace.data?.revisionsIncluded !== null && editorialWorkspace.data?.revisionsIncluded !== undefined
+                          ? editorialWorkspace.data.revisionsIncluded
+                          : 'Según Propuesta'
+                      }
                       subtext="Garantía de calidad editorial"
-                      statusBadge={{ text: 'Pactado', type: 'success' }}
+                      statusBadge={{
+                        text:
+                          editorialWorkspace.data?.revisionsIncluded !== null && editorialWorkspace.data?.revisionsIncluded !== undefined
+                            ? 'Pactado'
+                            : 'Pendiente',
+                        type:
+                          editorialWorkspace.data?.revisionsIncluded !== null && editorialWorkspace.data?.revisionsIncluded !== undefined
+                            ? 'success'
+                            : 'neutral',
+                      }}
                     />
                   </div>
                 )}
@@ -682,7 +672,7 @@ export default function DashboardPage() {
                   <div className="xl:col-span-2">
                     <FilePanel
                       projectTitle={projectTitle || requestContext?.title}
-                      acceptedPaymentAmount={realProject?.chapters?.reduce((acc, c) => acc + (c.price || 0), 0) || 0}
+                      acceptedPaymentAmount={editorialWorkspace.data?.chapters?.reduce((acc, c) => acc + (c.price || 0), 0) || 0}
                       files={
                         requestContext?.manuscripts && requestContext.manuscripts.length > 0
                           ? [
@@ -707,12 +697,12 @@ export default function DashboardPage() {
                                   status,
                                 };
                               }),
-                              ...(realProject?.deliverables || []).map((d) => ({
+                              ...(editorialWorkspace.data?.deliverables || []).map((d) => ({
                                 id: d.id,
                                 name: d.title,
                                 size: 'Entregable de Producción',
                                 date: d.createdAt ? new Date(d.createdAt).toLocaleDateString() : 'Reciente',
-                                status: d.completed ? 'aprobado' as const : 'en_revision' as 'aprobado' | 'en_revision',
+                                status: (d.status === 'completed' || d.status === 'aprobado' ? 'aprobado' : 'en_revision') as 'aprobado' | 'en_revision',
                               })),
                             ]
                           : []
@@ -1862,7 +1852,11 @@ export default function DashboardPage() {
       </AnimatePresence>
 
       <FilesLibraryModal open={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} data={libraryData} />
-      <RevisionesModal open={revisionesModalOpen} onClose={() => setRevisionesModalOpen(false)} maxRevisions={realProject?.maxRevisions || 3} />
+      <RevisionesModal
+        open={revisionesModalOpen}
+        onClose={() => setRevisionesModalOpen(false)}
+        maxRevisions={editorialWorkspace.data?.revisionsIncluded ?? undefined}
+      />
       <AcompanamientoModal
         open={acompanamientoModalOpen}
         onClose={() => setAcompanamientoModalOpen(false)}
@@ -1872,7 +1866,7 @@ export default function DashboardPage() {
         open={supportChatOpen}
         onClose={() => setSupportChatOpen(false)}
         authorId={authorId}
-        projectId={realProject?.id || undefined}
+        projectId={editorialWorkspace.data?.project?.id || workspaceData?.projectId || undefined}
         projectTitle={projectTitle || requestContext?.title || undefined}
       />
       <ProjectBriefModal
