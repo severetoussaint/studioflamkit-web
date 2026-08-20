@@ -1,6 +1,7 @@
 "use client";
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ArrowLeft, ChevronRight, Settings2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getUser, getUserRole } from '@/services/auth.service';
@@ -8,6 +9,7 @@ import { routes } from '@/config/routes';
 import { Card } from '@/components/ui/Card';
 
 export default function AdminConfiguracionPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
 
@@ -18,7 +20,7 @@ export default function AdminConfiguracionPage() {
       try {
         const user = await getUser();
         if (!user || getUserRole(user) !== 'admin') {
-          window.location.href = routes.login;
+          router.replace(routes.login);
           return;
         }
         if (mounted) setAuthorized(true);
@@ -31,7 +33,7 @@ export default function AdminConfiguracionPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [router]);
 
   if (loading) {
     return <main className="min-h-screen bg-surface p-8 text-ink">Cargando configuración…</main>;
