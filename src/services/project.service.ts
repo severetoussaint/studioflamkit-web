@@ -129,6 +129,7 @@ interface AuthorProjectQueryResult {
   status?: ProjectStatus;
   updated_at?: string;
   manuscripts?: { id?: string; title?: string; word_count?: number; author_id?: string } | null;
+  proposals?: { revisions_included?: number | null } | null;
   chapters?: AuthorProjectChapterRow[];
   deliverables?: AuthorProjectDeliverableRow[];
 }
@@ -142,6 +143,7 @@ export async function getAuthorProjectData(authorId: string, manuscriptId?: stri
         status,
         updated_at,
         manuscripts ( id, title, word_count, author_id ),
+        proposals ( revisions_included ),
         chapters ( id, chapter_number, title, word_count, duration_minutes, pfh_rate_used, price, currency, tier, status ),
         deliverables ( id, title, status, created_at )
       `);
@@ -206,7 +208,7 @@ export async function getAuthorProjectData(authorId: string, manuscriptId?: stri
       id: project.id,
       title: project.manuscripts?.title ?? 'Tu Obra de Audio',
       status: dbStatus,
-      maxRevisions: 3,
+      maxRevisions: Math.max(0, project.proposals?.revisions_included ?? 0),
       revisionsUsed: 0,
       progress: projectProgress.percentage,
       chapters,
