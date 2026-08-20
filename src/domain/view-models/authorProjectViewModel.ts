@@ -1,4 +1,6 @@
 import type {
+  Chapter,
+  Deliverable,
   EditorialJourney,
   Project,
   ProjectProgress,
@@ -23,4 +25,7 @@ export interface AuthorProjectViewModel {
   reviews: Review[];
   timeline: TimelineEntry[];
   hasOpenReviews: boolean;
+  chapters: Chapter[];
+  deliverables: Deliverable[];
+  revisionsIncluded: number | null;
 }

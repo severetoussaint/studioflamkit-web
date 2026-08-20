@@ -217,3 +217,29 @@ export interface Proposal {
   sentAt: string | null;
   createdAt: string;
 }
+
+export type ChapterStatus =
+  | 'pendiente'
+  | 'cotizado'
+  | 'pagado'
+  | 'en_produccion'
+  | 'entregado';
+
+export interface Chapter {
+  id: string;
+  chapterNumber: number;
+  title: string;
+  wordCount: number;
+  durationMinutes: number;
+  price: number;
+  currency: string;
+  tier: string;
+  status: ChapterStatus | string;
+}
+
+export interface Deliverable {
+  id: string;
+  title: string;
+  status: string;
+  createdAt: string;
+}

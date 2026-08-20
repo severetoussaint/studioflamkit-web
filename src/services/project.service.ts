@@ -1,11 +1,15 @@
 import { supabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/database.types';
-import type { ProjectStatus } from '@/types/domain.types';
+import type { Chapter, Deliverable, ProjectStatus } from '@/types/domain.types';
 import { getProjectProgress, getProjectsProgress } from '@/services/production-stage.service';
+import { mapChapterRowToDomain } from '@/domain/project/mapChapter';
+import { mapDeliverableRowToDomain } from '@/domain/project/mapDeliverable';
 
 export type ProjectRow = Database['public']['Tables']['projects']['Row'];
 export type ProjectInsert = Database['public']['Tables']['projects']['Insert'];
 export type ProjectUpdate = Database['public']['Tables']['projects']['Update'];
+export type ChapterRow = Database['public']['Tables']['chapters']['Row'];
+export type DeliverableRow = Database['public']['Tables']['deliverables']['Row'];
 
 export type ManuscriptRow = Database['public']['Tables']['manuscripts']['Row'];
 export type ManuscriptInsert = Database['public']['Tables']['manuscripts']['Insert'];
@@ -53,6 +57,28 @@ export async function getProjectByManuscript(manuscriptId: string): Promise<Proj
 
   if (error) throw error;
   return data as ProjectRow | null;
+}
+
+export async function listProjectChapters(projectId: string): Promise<Chapter[]> {
+  const { data, error } = await supabaseClient
+    .from('chapters')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('chapter_number', { ascending: true });
+
+  if (error) throw error;
+  return ((data ?? []) as ChapterRow[]).map(mapChapterRowToDomain);
+}
+
+export async function listProjectDeliverables(projectId: string): Promise<Deliverable[]> {
+  const { data, error } = await supabaseClient
+    .from('deliverables')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return ((data ?? []) as DeliverableRow[]).map(mapDeliverableRowToDomain);
 }
 
 export async function listManuscriptsByAuthor(authorId: string) {

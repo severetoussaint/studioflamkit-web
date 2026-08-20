@@ -1,10 +1,10 @@
-import type { Project, ProjectProgress } from '@/types/domain.types';
+import type { Chapter, Deliverable, Project, ProjectProgress } from '@/types/domain.types';
 import { buildEditorialJourneyContext } from '@/domain/editorial/buildEditorialJourneyContext';
 import { deriveEditorialJourney } from '@/domain/editorial/deriveEditorialJourney';
-import { getCurrentProposalForRequest } from '@/services/proposal.service';
+import { getCurrentProposalForRequest, getProposal } from '@/services/proposal.service';
 import { getEvaluationByRequest } from '@/services/evaluation.service';
 import { getProjectRequestByManuscript } from '@/services/request.service';
-import { getProjectByManuscript } from '@/services/project.service';
+import { getProjectByManuscript, listProjectChapters, listProjectDeliverables } from '@/services/project.service';
 import { mapProjectRowToDomain } from '@/domain/project/mapProject';
 import { hasOpenReviewsByProject, listReviewsByProject } from '@/services/review.service';
 import { getProjectProgress } from '@/services/production-stage.service';
@@ -37,14 +37,28 @@ export async function getEditorialWorkspaceByManuscript(
   let reviews = [] as Awaited<ReturnType<typeof listReviewsByProject>>;
   let timeline = [] as Awaited<ReturnType<typeof listProjectTimeline>>;
   let hasOpenReviews = false;
+  let chapters: Chapter[] = [];
+  let deliverables: Deliverable[] = [];
 
   if (project) {
-    [progress, reviews, timeline, hasOpenReviews] = await Promise.all([
+    [progress, reviews, timeline, hasOpenReviews, chapters, deliverables] = await Promise.all([
       getProjectProgress(project.id),
       listReviewsByProject(project.id),
       listProjectTimeline(project.id),
       hasOpenReviewsByProject(project.id),
+      listProjectChapters(project.id),
+      listProjectDeliverables(project.id),
     ]);
+  }
+
+  let revisionsIncluded: number | null = null;
+  if (project) {
+    if (proposal && proposal.revisionsIncluded !== null && proposal.revisionsIncluded !== undefined) {
+      revisionsIncluded = proposal.revisionsIncluded;
+    } else if (project.proposalId) {
+      const acceptedProposal = await getProposal(project.proposalId);
+      revisionsIncluded = acceptedProposal?.revisionsIncluded ?? null;
+    }
   }
 
   const context = buildEditorialJourneyContext({
@@ -64,6 +78,9 @@ export async function getEditorialWorkspaceByManuscript(
     reviews,
     timeline,
     hasOpenReviews,
+    chapters,
+    deliverables,
+    revisionsIncluded,
     journey: deriveEditorialJourney(context),
   };
 }

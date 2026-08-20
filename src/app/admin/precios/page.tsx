@@ -1,6 +1,7 @@
 "use client";
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Check, Settings2 } from 'lucide-react';
 import { getUser, getUserRole } from '@/services/auth.service';
@@ -20,6 +21,7 @@ function currency(value: number): string {
 }
 
 export default function AdminPricingPage() {
+  const router = useRouter();
   const [settings, setSettings] = useState<PricingSettings | null>(null);
   const [services, setServices] = useState<PricingService[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,7 +38,7 @@ export default function AdminPricingPage() {
       try {
         const user = await getUser();
         if (!user || getUserRole(user) !== 'admin') {
-          window.location.href = '/login';
+          router.replace('/login');
           return;
         }
 
@@ -61,7 +63,7 @@ export default function AdminPricingPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [router]);
 
   const groupedServices = useMemo(() => {
     const groups = new Map<string, PricingService[]>();
