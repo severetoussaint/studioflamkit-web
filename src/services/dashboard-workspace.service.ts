@@ -3,7 +3,6 @@ import type { ProjectStatus } from '@/types/domain.types';
 import { getEditorialWorkspaceByManuscript } from '@/services/editorial-workspace.service';
 import { getAuthorRequestContext, type AuthorRequestContext, type AuthorRequestState } from '@/services/manuscript.service';
 import { getAuthorProjectsList, type AuthorProjectOverview } from '@/services/project.service';
-import { supabaseClient } from '@/lib/supabase/client';
 
 export type DashboardRequestState = AuthorRequestState | 'proposal' | 'proposal_sent';
 
@@ -90,6 +89,7 @@ export async function getDashboardWorkspaceData(
   if (manuscriptId) {
     try {
       editorialWorkspace = await getEditorialWorkspaceByManuscript(manuscriptId);
+      proposalSentAt = editorialWorkspace?.proposal?.sentAt ?? null;
     } catch (error) {
       console.error('Error loading editorial workspace:', error);
     }
@@ -103,18 +103,6 @@ export async function getDashboardWorkspaceData(
     if (!requestError && requestRow) {
       requestStatusOverride = requestRow.status;
       requestIdOverride = requestRow.id;
-
-      if (requestRow.status === 'accepted') {
-        const { data: proposalRow, error: proposalError } = await supabaseClient
-          .from('proposals')
-          .select('sent_at')
-          .eq('request_id', requestRow.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (!proposalError) proposalSentAt = proposalRow?.sent_at ?? null;
-      }
     }
   }
 
