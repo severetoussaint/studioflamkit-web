@@ -50,7 +50,9 @@ function buildWorkspaceData(
 
 /**
  * Coordinates dashboard data for the currently selected manuscript.
- * The request phase remains available even when a Project does not yet exist.
+ * Critical author/request data must survive failures in secondary read models.
+ * The request/manuscript context is the source of truth for the editorial phase;
+ * projects are supplemental and must never make the whole workspace disappear.
  */
 export async function getDashboardWorkspaceData(
   authorId: string | null,
@@ -63,26 +65,44 @@ export async function getDashboardWorkspaceData(
     } catch (error) {
       console.error('Error loading editorial workspace:', error);
     }
-    return buildWorkspaceData(selectedManuscriptId, null, [], editorialWorkspace, editorialWorkspace?.proposal?.sentAt ?? null);
+    return buildWorkspaceData(
+      selectedManuscriptId,
+      null,
+      [],
+      editorialWorkspace,
+      editorialWorkspace?.proposal?.sentAt ?? null,
+    );
   }
 
   if (!authorId) {
     return buildWorkspaceData(null, null, [], null);
   }
 
-  const [projectsOverview, requestContext] = await Promise.all([
-    getAuthorProjectsList(authorId),
-    getAuthorRequestContext(authorId, selectedManuscriptId ?? null),
-  ]);
+  // Load the critical request/manuscript context independently from optional
+  // project aggregates. A project-side failure must not turn a valid manuscript
+  // into the "no manuscript" state.
+  let requestContext: AuthorRequestContext | null = null;
+  try {
+    requestContext = await getAuthorRequestContext(authorId, selectedManuscriptId ?? null);
+  } catch (error) {
+    console.error('Error loading author request context:', error);
+  }
 
-  const manuscriptId = selectedManuscriptId ?? requestContext.manuscriptId ?? null;
+  let projectsOverview: AuthorProjectOverview[] = [];
+  try {
+    projectsOverview = await getAuthorProjectsList(authorId);
+  } catch (error) {
+    console.warn('Error loading author projects overview:', error);
+  }
+
+  const manuscriptId = selectedManuscriptId ?? requestContext?.manuscriptId ?? null;
   let editorialWorkspace: AuthorProjectViewModel | null = null;
 
   if (manuscriptId) {
     try {
       editorialWorkspace = await getEditorialWorkspaceByManuscript(manuscriptId);
     } catch (error) {
-      console.error('Error loading editorial workspace:', error);
+      console.warn('Error loading editorial workspace:', error);
     }
   }
 
