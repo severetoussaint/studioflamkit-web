@@ -20,7 +20,6 @@ export type RequestStatus =
   | 'canceled';
 
 export type ProposalStatus =
-  | 'draft'
   | 'pending'
   | 'accepted'
   | 'rejected'
