@@ -58,6 +58,7 @@ import { RevisionesModal } from '@/components/dashboard/RevisionesModal';
 import { AcompanamientoModal } from '@/components/dashboard/AcompanamientoModal';
 import { SupportChatModal } from '@/components/dashboard/SupportChatModal';
 import { ProjectBriefModal } from '@/components/dashboard/ProjectBriefModal';
+import type { Chapter } from '@/types/domain.types';
 
 type SectionId = 'resumen' | 'capitulos' | 'entregables' | 'pagos' | 'perfil';
 
@@ -98,6 +99,62 @@ interface InvoiceItem {
 const initialComments: Record<string, CommentItem[]> = {};
 
 const deliverables: { title: string; date: string; size: string; format: string }[] = [];
+
+/**
+ * Función pura para mapear un capítulo del dominio a su ViewModel de presentación,
+ * incorporando cualquier cambio local/temporal de UI sin duplicar entidades.
+ */
+function toChapterViewModel(
+  chapter: Chapter,
+  revisionsIncluded: number,
+  localOverride?: Partial<ChapterItem>
+): ChapterItem {
+  let progress = 0;
+  let statusLabel: ChapterItem['status'] = 'Pendiente';
+  let payStatus: ChapterItem['paymentStatus'] = 'Pendiente';
+
+  if (chapter.status === 'pendiente') {
+    progress = 0;
+    statusLabel = 'Pendiente';
+    payStatus = 'Pendiente';
+  } else if (chapter.status === 'cotizado') {
+    progress = 20;
+    statusLabel = 'Cotizado';
+    payStatus = 'Pendiente';
+  } else if (chapter.status === 'pagado') {
+    progress = 40;
+    statusLabel = 'Pagado';
+    payStatus = 'Pagado';
+  } else if (chapter.status === 'en_produccion') {
+    progress = 75;
+    statusLabel = 'En Grabación';
+    payStatus = 'Pagado';
+  } else if (chapter.status === 'entregado') {
+    progress = 100;
+    statusLabel = 'Entregado';
+    payStatus = 'Pagado';
+  }
+
+  const base: ChapterItem = {
+    id: chapter.id,
+    number: chapter.chapterNumber,
+    title: chapter.title,
+    progress,
+    revisions: 0,
+    maxRevisions: revisionsIncluded,
+    status: statusLabel,
+    rawStatus: chapter.status,
+    paymentStatus: payStatus,
+    price: chapter.price,
+    words: `${chapter.wordCount.toLocaleString()} palabras`,
+    duration: `~${chapter.durationMinutes} min`,
+  };
+
+  if (localOverride) {
+    return { ...base, ...localOverride };
+  }
+  return base;
+}
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -174,68 +231,36 @@ export default function DashboardPage() {
   // Estados de gestión de capítulos y comentarios
   const [localChapterOverrides, setLocalChapterOverrides] = useState<Record<string, Partial<ChapterItem>>>({});
   const [commentsState, setCommentsState] = useState<Record<string, CommentItem[]>>(initialComments);
-  const [selectedChapter, setSelectedChapter] = useState<ChapterItem | null>(null);
+  const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null);
   const [newCommentText, setNewCommentText] = useState('');
   const [newCommentTime, setNewCommentTime] = useState('03:45');
+  const [payingChapterId, setPayingChapterId] = useState<string | null>(null);
 
-  // Capítulos derivados directamente de editorialWorkspace (Fase 1B3.5.B)
-  const chaptersState: ChapterItem[] = useMemo(() => {
-    const chapters = editorialWorkspace.data?.chapters;
+  // Capítulos derivados directamente de editorialWorkspace (Fase 1B3.5.C)
+  const chapters: ChapterItem[] = useMemo(() => {
+    const rawChapters = editorialWorkspace.data?.chapters;
     const revisionsIncluded = editorialWorkspace.data?.revisionsIncluded ?? 0;
 
-    if (!chapters || chapters.length === 0) {
+    if (!rawChapters || rawChapters.length === 0) {
       return [];
     }
 
-    return chapters.map((c) => {
-      let progress = 0;
-      let statusLabel: ChapterItem['status'] = 'Pendiente';
-      let payStatus: ChapterItem['paymentStatus'] = 'Pendiente';
-
-      if (c.status === 'pendiente') {
-        progress = 0;
-        statusLabel = 'Pendiente';
-        payStatus = 'Pendiente';
-      } else if (c.status === 'cotizado') {
-        progress = 20;
-        statusLabel = 'Cotizado';
-        payStatus = 'Pendiente';
-      } else if (c.status === 'pagado') {
-        progress = 40;
-        statusLabel = 'Pagado';
-        payStatus = 'Pagado';
-      } else if (c.status === 'en_produccion') {
-        progress = 75;
-        statusLabel = 'En Grabación';
-        payStatus = 'Pagado';
-      } else if (c.status === 'entregado') {
-        progress = 100;
-        statusLabel = 'Entregado';
-        payStatus = 'Pagado';
-      }
-
-      const base: ChapterItem = {
-        id: c.id,
-        number: c.chapterNumber,
-        title: c.title,
-        progress,
-        revisions: 0,
-        maxRevisions: revisionsIncluded,
-        status: statusLabel,
-        rawStatus: c.status,
-        paymentStatus: payStatus,
-        price: c.price,
-        words: `${c.wordCount.toLocaleString()} palabras`,
-        duration: `~${c.durationMinutes} min`,
-      };
-
-      const override = localChapterOverrides[c.id];
-      if (override) {
-        return { ...base, ...override };
-      }
-      return base;
-    });
+    return rawChapters.map((c) =>
+      toChapterViewModel(c, revisionsIncluded, localChapterOverrides[c.id])
+    );
   }, [editorialWorkspace.data?.chapters, editorialWorkspace.data?.revisionsIncluded, localChapterOverrides]);
+
+  // Selección derivada reactivamente por ID (sin duplicar entidad)
+  const selectedChapter = useMemo(
+    () => (selectedChapterId ? chapters.find((c) => c.id === selectedChapterId) ?? null : null),
+    [chapters, selectedChapterId]
+  );
+
+  // Capítulo en proceso de pago derivado reactivamente por ID
+  const payingChapter = useMemo(
+    () => (payingChapterId ? chapters.find((c) => c.id === payingChapterId) ?? null : null),
+    [chapters, payingChapterId]
+  );
 
   // Estados de navegación, audio y modales
   const [active, setActive] = useState<SectionId>('resumen');
@@ -247,7 +272,6 @@ export default function DashboardPage() {
   const [uploadingState, setUploadingState] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadSubmitted, setUploadSubmitted] = useState(false);
-  const [payingChapter, setPayingChapter] = useState<ChapterItem | null>(null);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [viewInvoice, setViewInvoice] = useState<InvoiceItem | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'bank'>('paypal');
@@ -337,7 +361,7 @@ export default function DashboardPage() {
 
   const sections: { id: SectionId; label: string; icon: React.ElementType; badge?: string }[] = [
     { id: 'resumen', label: 'Resumen', icon: LayoutDashboard },
-    { id: 'capitulos', label: 'Capítulos', icon: BookOpen, badge: hasActiveProject ? `${chaptersState.length}` : undefined },
+    { id: 'capitulos', label: 'Capítulos', icon: BookOpen, badge: hasActiveProject ? `${chapters.length}` : undefined },
     { id: 'entregables', label: 'Entregables', icon: Download },
     { id: 'pagos', label: 'Pagos & Facturas', icon: Wallet },
     { id: 'perfil', label: 'Perfil & Preferencias', icon: Settings },
@@ -416,7 +440,7 @@ export default function DashboardPage() {
   const handleAddComment = (chapterId: string) => {
     if (!newCommentText.trim()) return;
 
-    const currentChap = chaptersState.find((c) => c.id === chapterId);
+    const currentChap = chapters.find((c) => c.id === chapterId);
     if (!currentChap) return;
 
     // Verificar si queda cupo de revisiones si el estado cambia
@@ -444,17 +468,6 @@ export default function DashboardPage() {
       },
     }));
 
-    // Actualizar capítulo seleccionado en modal
-    setSelectedChapter((prev) =>
-      prev
-        ? {
-            ...prev,
-            revisions: updatedRevisions,
-            status: 'Revisiones',
-          }
-        : null
-    );
-
     setNewCommentText('');
   };
 
@@ -468,9 +481,6 @@ export default function DashboardPage() {
         progress: 100,
       },
     }));
-    if (selectedChapter?.id === chapterId) {
-      setSelectedChapter((prev) => (prev ? { ...prev, status: 'Aprobado', progress: 100 } : null));
-    }
   };
 
   // Ejecutar pago simulado de capítulo
@@ -485,10 +495,7 @@ export default function DashboardPage() {
         },
       }));
       setPaymentProcessing(false);
-      setPayingChapter(null);
-      if (selectedChapter?.id === chapterId) {
-        setSelectedChapter((prev) => (prev ? { ...prev, paymentStatus: 'Pagado' } : null));
-      }
+      setPayingChapterId(null);
     }, 1500);
   };
 
@@ -633,8 +640,8 @@ export default function DashboardPage() {
                     <KpiCard
                       icon={BookOpen}
                       label="Capítulos de la Obra"
-                      value={chaptersState.length}
-                      subtext={hasActiveProject ? `${chaptersState.filter(c => c.paymentStatus === 'Pagado').length} pagados / en producción` : 'Pendiente de cotización'}
+                      value={chapters.length}
+                      subtext={hasActiveProject ? `${chapters.filter(c => c.paymentStatus === 'Pagado').length} pagados / en producción` : 'Pendiente de cotización'}
                       statusBadge={{ text: requestState === 'active' ? 'Activo' : 'En Evaluación', type: requestState === 'active' ? 'success' : 'warning' }}
                     />
                     <KpiCard
@@ -735,14 +742,14 @@ export default function DashboardPage() {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-serif text-3xl font-medium text-ink">
-                        {chaptersState.length}
+                        {chapters.length}
                       </span>
                       <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
                         Capítulos Registrados
                       </span>
                     </div>
                     <p className="mt-1 text-xs text-ink-muted font-light">
-                      {chaptersState.filter(c => c.paymentStatus === 'Pagado').length} pagados / en producción
+                      {chapters.filter(c => c.paymentStatus === 'Pagado').length} pagados / en producción
                     </p>
                   </div>
 
@@ -791,7 +798,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Lista de Capítulos o Estado Vacío */}
-                {chaptersState.length === 0 ? (
+                {chapters.length === 0 ? (
                   <div className="rounded-3xl border border-edge/60 bg-surface-elevated p-8 text-center sm:p-12 shadow-xs">
                     <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-edge bg-surface text-accent">
                       <BookOpen className="h-7 w-7" />
@@ -821,7 +828,7 @@ export default function DashboardPage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {chaptersState
+                    {chapters
                       .filter((c) => {
                         if (chapterFilter === 'in_progress') return c.status === 'En Grabación' || c.status === 'Produccion' || c.status === 'Revisiones';
                         if (chapterFilter === 'pending') return c.status === 'Pendiente' || c.status === 'Cotizado';
@@ -832,7 +839,7 @@ export default function DashboardPage() {
                           key={chapter.id}
                           chapter={chapter}
                           index={index}
-                          onSelectChapter={() => setSelectedChapter(chapter)}
+                          onSelectChapter={() => setSelectedChapterId(chapter.id)}
                         />
                       ))}
                   </div>
@@ -922,7 +929,7 @@ export default function DashboardPage() {
                           </span>
                         </div>
                         <p className="mt-3 font-serif text-3xl font-normal text-ink">
-                          {chaptersState.filter(c => c.paymentStatus === 'Pagado').length}
+                          {chapters.filter(c => c.paymentStatus === 'Pagado').length}
                         </p>
                         <p className="mt-1 text-xs text-ink-muted font-light">
                           Hasta el momento
@@ -1458,7 +1465,7 @@ export default function DashboardPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setSelectedChapter(null)}
+              onClick={() => setSelectedChapterId(null)}
               aria-hidden="true"
               className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm cursor-pointer"
             />
@@ -1492,7 +1499,7 @@ export default function DashboardPage() {
 
                   <button
                     type="button"
-                    onClick={() => setSelectedChapter(null)}
+                    onClick={() => setSelectedChapterId(null)}
                     aria-label="Cerrar modal de revisión de capítulo"
                     className="flex h-10 w-10 items-center justify-center rounded-xl text-ink-muted transition-colors hover:bg-surface hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 cursor-pointer"
                   >
@@ -1652,8 +1659,8 @@ export default function DashboardPage() {
                       <button
                         type="button"
                         onClick={() => {
-                          setPayingChapter(selectedChapter);
-                          setSelectedChapter(null);
+                          setPayingChapterId(selectedChapter.id);
+                          setSelectedChapterId(null);
                         }}
                         className="inline-flex items-center gap-1.5 rounded-xl bg-accent px-5 py-2.5 text-xs font-medium text-surface transition hover:bg-accent-hover shadow-sm cursor-pointer"
                       >
@@ -1677,7 +1684,7 @@ export default function DashboardPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setPayingChapter(null)}
+              onClick={() => setPayingChapterId(null)}
               aria-hidden="true"
               className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm cursor-pointer"
             />
@@ -1693,7 +1700,7 @@ export default function DashboardPage() {
               >
                 <button
                   type="button"
-                  onClick={() => setPayingChapter(null)}
+                  onClick={() => setPayingChapterId(null)}
                   aria-label="Cerrar pasarela de pago"
                   className="absolute top-5 right-5 flex h-10 w-10 items-center justify-center rounded-xl text-ink-muted transition-colors hover:bg-surface hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 cursor-pointer"
                 >
@@ -1731,7 +1738,7 @@ export default function DashboardPage() {
                   <div className="flex justify-end gap-3 pt-2">
                     <button
                       type="button"
-                      onClick={() => setPayingChapter(null)}
+                      onClick={() => setPayingChapterId(null)}
                       className="rounded-xl border-edge/50 bg-surface px-4 py-2.5 text-xs font-medium text-ink hover:bg-surface-elevated cursor-pointer"
                     >
                       Cancelar
@@ -1884,7 +1891,7 @@ export default function DashboardPage() {
       <BottomNav
         activeSection={active}
         onSectionChange={(section) => setActive(section)}
-        chaptersCount={chaptersState.length}
+        chaptersCount={chapters.length}
       />
 
       <Footer />
