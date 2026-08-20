@@ -83,11 +83,13 @@ export function calculatePricing(
 
   for (const service of services.filter((item) => item.active)) {
     const selection = selectionMap.get(service.code);
-    const isIncluded = service.includedByDefault || service.pricingModel === 'included';
+    const isIncludedBySelection = Boolean(selection);
+    const isIncludedByDefault = service.includedByDefault;
 
-    if (!selection && !isIncluded) continue;
+    if (!isIncludedBySelection && !isIncludedByDefault) continue;
 
-    const quantity = selection ? clampQuantity(selection, service) : service.defaultQuantity;
+    const effectiveSelection = selection ?? { serviceCode: service.code, quantity: service.defaultQuantity };
+    const quantity = clampQuantity(effectiveSelection, service);
     const price = calculateServicePrice(service, quantity, basePrice, audioHours, durationMinutes, chapterCount);
     const estimatedMinutes = calculateServiceTime(service, quantity, audioHours, durationMinutes, chapterCount);
 
