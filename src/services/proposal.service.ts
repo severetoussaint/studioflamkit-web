@@ -24,15 +24,9 @@ export interface CreateProposalInput {
 
 export type UpdateProposalInput = Omit<CreateProposalInput, 'requestId'>;
 
-function assertDraftStatus(proposal: Proposal) {
-  if (proposal.status !== 'draft') {
-    throw new Error(`Proposal ${proposal.id} is not editable from status ${proposal.status}.`);
-  }
-}
-
 function assertPendingStatus(proposal: Proposal) {
   if (proposal.status !== 'pending') {
-    throw new Error(`Proposal ${proposal.id} is not awaiting author decision (status=${proposal.status}).`);
+    throw new Error(`Proposal ${proposal.id} is not mutable from status ${proposal.status}.`);
   }
 }
 
@@ -75,7 +69,6 @@ export async function listProposalsForAuthor(authorId: string): Promise<Proposal
 export async function getCurrentProposalForRequest(requestId: string): Promise<Proposal | null> {
   const proposals = await listProposals(requestId);
   return proposals.find((proposal) => proposal.status === 'pending')
-    ?? proposals.find((proposal) => proposal.status === 'draft')
     ?? proposals.find((proposal) => proposal.status === 'accepted')
     ?? proposals[0]
     ?? null;
@@ -130,16 +123,14 @@ export async function createProposal(input: CreateProposalInput): Promise<Propos
   if (existing?.status === 'pending') {
     throw new Error(`A pending proposal already exists for request ${input.requestId}.`);
   }
-  if (existing?.status === 'draft') {
-    throw new Error(`A draft proposal already exists for request ${input.requestId}.`);
-  }
 
   const { data, error } = await supabaseClient
     .from('proposals')
     .insert({
       request_id: input.requestId,
       ...mapProposalMutation(input),
-      status: 'draft',
+      status: 'pending',
+      sent_at: null,
     })
     .select('*')
     .single();
@@ -152,13 +143,25 @@ export async function updateProposal(proposalId: string, input: UpdateProposalIn
   validateProposalInput(input);
   const current = await getProposal(proposalId);
   if (!current) throw new Error(`Proposal ${proposalId} not found.`);
-  assertDraftStatus(current);
+  assertPendingStatus(current);
+
+  if (current.status === 'pending') {
+    const { data: sentRow } = await supabaseClient
+      .from('proposals')
+      .select('sent_at')
+      .eq('id', proposalId)
+      .maybeSingle();
+    if (sentRow?.sent_at) {
+      throw new Error('Esta propuesta ya fue enviada al autor y no puede modificarse.');
+    }
+  }
 
   const { data, error } = await supabaseClient
     .from('proposals')
     .update(mapProposalMutation(input))
     .eq('id', proposalId)
-    .eq('status', 'draft')
+    .eq('status', 'pending')
+    .is('sent_at', null)
     .select('*')
     .single();
 
@@ -169,7 +172,7 @@ export async function updateProposal(proposalId: string, input: UpdateProposalIn
 export async function sendProposal(proposalId: string): Promise<Proposal> {
   const proposalBeforeSend = await getProposal(proposalId);
   if (!proposalBeforeSend) throw new Error(`Proposal ${proposalId} not found.`);
-  assertDraftStatus(proposalBeforeSend);
+  assertPendingStatus(proposalBeforeSend);
 
   const persistedProposalId = await callProposalRpc('send_proposal', proposalId);
   const proposal = await getProposal(persistedProposalId);
