@@ -4,12 +4,14 @@ import { getEditorialWorkspaceByManuscript } from '@/services/editorial-workspac
 import { getAuthorRequestContext, type AuthorRequestContext, type AuthorRequestState } from '@/services/manuscript.service';
 import { getAuthorProjectsList, type AuthorProjectOverview } from '@/services/project.service';
 
+export type DashboardRequestState = AuthorRequestState | 'proposal';
+
 export interface DashboardWorkspaceData {
   manuscriptId: string | null;
   requestContext: AuthorRequestContext | null;
   projectsOverview: AuthorProjectOverview[];
   editorialWorkspace: AuthorProjectViewModel | null;
-  requestState: AuthorRequestState;
+  requestState: DashboardRequestState;
   projectId: string | null;
   projectStatus: ProjectStatus | null;
   projectTitle: string | null;
@@ -22,7 +24,7 @@ function buildWorkspaceData(
   editorialWorkspace: AuthorProjectViewModel | null,
 ): DashboardWorkspaceData {
   const selectedManuscript = requestContext?.manuscripts.find((manuscript) => manuscript.id === manuscriptId);
-  const resolvedRequestState: AuthorRequestState =
+  const resolvedRequestState: DashboardRequestState =
     selectedManuscript?.requestStatus === 'accepted'
       ? 'proposal'
       : requestContext?.state ?? (editorialWorkspace?.project ? 'active' : 'none');
@@ -41,8 +43,7 @@ function buildWorkspaceData(
 
 /**
  * Coordinates dashboard data for the currently selected manuscript.
- * The request phase remains available even when the editorial workspace
- * cannot yet materialize a Project (for example, while a proposal is being prepared).
+ * The request phase remains available even when a Project does not yet exist.
  */
 export async function getDashboardWorkspaceData(
   authorId: string | null,
