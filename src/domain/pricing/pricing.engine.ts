@@ -79,7 +79,7 @@ export function calculatePricing(
   const selections = input.selections ?? [];
   const selectionMap = new Map(selections.map((selection) => [selection.serviceCode, selection]));
 
-  const lines: PricingCalculationLine[] = [];
+  const serviceLines: PricingCalculationLine[] = [];
 
   for (const service of services.filter((item) => item.active)) {
     const selection = selectionMap.get(service.code);
@@ -93,7 +93,7 @@ export function calculatePricing(
     const price = calculateServicePrice(service, quantity, basePrice, audioHours, durationMinutes, chapterCount);
     const estimatedMinutes = calculateServiceTime(service, quantity, audioHours, durationMinutes, chapterCount);
 
-    lines.push({
+    serviceLines.push({
       serviceCode: service.code,
       name: service.name,
       quantity,
@@ -104,8 +104,9 @@ export function calculatePricing(
     });
   }
 
-  const serviceSubtotal = lines.reduce((sum, line) => sum + line.price, 0);
-  const uncappedRecommendedPrice = (basePrice + serviceSubtotal) * complexityMultiplier;
+  const serviceSubtotal = serviceLines.reduce((sum, line) => sum + line.price, 0);
+  const subtotalBeforeComplexity = basePrice + serviceSubtotal;
+  const uncappedRecommendedPrice = subtotalBeforeComplexity * complexityMultiplier;
   const priceCeiling = basePrice * settings.maxTotalPriceMultiplier;
   const recommendedPrice = roundMoney(Math.min(uncappedRecommendedPrice, priceCeiling));
 
@@ -116,8 +117,47 @@ export function calculatePricing(
   const finalPrice = roundMoney(Math.max(settings.minimumBasePriceUsd, recommendedPrice + adjustmentAmount));
 
   const baseWorkMinutes = audioHours * settings.baseWorkHoursPerAudioHour * 60;
-  const serviceWorkMinutes = lines.reduce((sum, line) => sum + line.estimatedMinutes, 0);
+  const serviceWorkMinutes = serviceLines.reduce((sum, line) => sum + line.estimatedMinutes, 0);
   const estimatedWorkMinutes = roundMinutes((baseWorkMinutes + serviceWorkMinutes) * complexityMultiplier);
+
+  const displayLines: PricingCalculationLine[] = [
+    {
+      serviceCode: '__base_production__',
+      name: 'Producción base',
+      quantity: 1,
+      unitLabel: 'proyecto',
+      price: roundMoney(basePrice),
+      estimatedMinutes: roundMinutes(baseWorkMinutes),
+      pricingModel: 'fixed',
+    },
+    ...serviceLines,
+  ];
+
+  const complexityAdjustmentAmount = roundMoney(recommendedPrice - subtotalBeforeComplexity);
+  if (Math.abs(complexityAdjustmentAmount) >= 0.01) {
+    displayLines.push({
+      serviceCode: '__complexity_adjustment__',
+      name: 'Ajuste por complejidad',
+      quantity: 1,
+      unitLabel: complexity,
+      price: complexityAdjustmentAmount,
+      estimatedMinutes: 0,
+      pricingModel: 'fixed',
+    });
+  }
+
+  const commercialAdjustmentAmount = roundMoney(adjustmentAmount);
+  if (Math.abs(commercialAdjustmentAmount) >= 0.01) {
+    displayLines.push({
+      serviceCode: '__commercial_adjustment__',
+      name: 'Ajuste comercial',
+      quantity: 1,
+      unitLabel: 'propuesta',
+      price: commercialAdjustmentAmount,
+      estimatedMinutes: 0,
+      pricingModel: 'fixed',
+    });
+  }
 
   return {
     wordCount,
@@ -130,7 +170,7 @@ export function calculatePricing(
     recommendedPrice,
     finalPrice,
     estimatedWorkMinutes,
-    lines,
+    lines: displayLines,
     currency: 'USD',
     pricingVersion: settings.version,
   };
