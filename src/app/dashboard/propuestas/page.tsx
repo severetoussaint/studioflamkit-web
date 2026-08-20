@@ -2,12 +2,36 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, ArrowLeft, CalendarDays, CheckCircle2, Clock3, FileText, Loader2, ShieldCheck, XCircle } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CheckCircle2, Clock3, FileText, Loader2, ShieldCheck, XCircle } from 'lucide-react';
 import { getUser } from '@/services/auth.service';
 import { acceptProposal, listProposalsForAuthor, rejectProposal } from '@/services/proposal.service';
 import type { Proposal } from '@/types/domain.types';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
+
+type PricingLine = {
+  serviceCode: string;
+  name: string;
+  quantity: number;
+  unitLabel: string | null;
+  price: number;
+  estimatedMinutes: number;
+};
+
+type ProposalPricingSnapshot = {
+  complexity?: 'standard' | 'medium' | 'high' | 'cinematic';
+  commercialAdjustment?: number;
+  calculation?: {
+    durationMinutes?: number;
+    basePrice?: number;
+    serviceSubtotal?: number;
+    recommendedPrice?: number;
+    finalPrice?: number;
+    estimatedWorkMinutes?: number;
+    lines?: PricingLine[];
+    pricingVersion?: string;
+  };
+};
 
 function formatDate(value: string | null): string {
   if (!value) return 'Sin fecha';
@@ -18,11 +42,67 @@ function formatDate(value: string | null): string {
   });
 }
 
-function serviceLines(value: unknown): string[] {
+function currency(value: number | undefined, currencyCode = 'USD'): string {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '—';
+  return value.toLocaleString('en-US', { style: 'currency', currency: currencyCode });
+}
+
+function complexityLabel(value: ProposalPricingSnapshot['complexity']): string {
+  switch (value) {
+    case 'medium': return 'Media';
+    case 'high': return 'Alta';
+    case 'cinematic': return 'Cinematográfica';
+    default: return 'Estándar';
+  }
+}
+
+function parsePricingSnapshot(value: unknown): ProposalPricingSnapshot | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const calculation = record.calculation && typeof record.calculation === 'object' && !Array.isArray(record.calculation)
+    ? record.calculation as Record<string, unknown>
+    : null;
+
+  const lines = calculation && Array.isArray(calculation.lines)
+    ? calculation.lines.flatMap((line) => {
+        if (!line || typeof line !== 'object' || Array.isArray(line)) return [];
+        const candidate = line as Record<string, unknown>;
+        if (typeof candidate.name !== 'string') return [];
+        return [{
+          serviceCode: typeof candidate.serviceCode === 'string' ? candidate.serviceCode : candidate.name,
+          name: candidate.name,
+          quantity: typeof candidate.quantity === 'number' ? candidate.quantity : 1,
+          unitLabel: typeof candidate.unitLabel === 'string' ? candidate.unitLabel : null,
+          price: typeof candidate.price === 'number' ? candidate.price : 0,
+          estimatedMinutes: typeof candidate.estimatedMinutes === 'number' ? candidate.estimatedMinutes : 0,
+        }];
+      })
+    : undefined;
+
+  return {
+    complexity: ['standard', 'medium', 'high', 'cinematic'].includes(String(record.complexity))
+      ? String(record.complexity) as ProposalPricingSnapshot['complexity']
+      : undefined,
+    commercialAdjustment: typeof record.commercialAdjustment === 'number' ? record.commercialAdjustment : undefined,
+    calculation: calculation
+      ? {
+          durationMinutes: typeof calculation.durationMinutes === 'number' ? calculation.durationMinutes : undefined,
+          basePrice: typeof calculation.basePrice === 'number' ? calculation.basePrice : undefined,
+          serviceSubtotal: typeof calculation.serviceSubtotal === 'number' ? calculation.serviceSubtotal : undefined,
+          recommendedPrice: typeof calculation.recommendedPrice === 'number' ? calculation.recommendedPrice : undefined,
+          finalPrice: typeof calculation.finalPrice === 'number' ? calculation.finalPrice : undefined,
+          estimatedWorkMinutes: typeof calculation.estimatedWorkMinutes === 'number' ? calculation.estimatedWorkMinutes : undefined,
+          lines,
+          pricingVersion: typeof calculation.pricingVersion === 'string' ? calculation.pricingVersion : undefined,
+        }
+      : undefined,
+  };
+}
+
+function fallbackServiceLines(value: unknown): string[] {
   if (Array.isArray(value)) return value.map(String);
   if (typeof value === 'string') return value.split(/\r?\n|,/).map((item) => item.trim()).filter(Boolean);
-  if (value && typeof value === 'object') return [JSON.stringify(value, null, 2)];
-  return ['Servicios no especificados'];
+  return [];
 }
 
 function statusLabel(status: Proposal['status']): string {
@@ -60,9 +140,25 @@ export default function DashboardPropuestasPage() {
   }
 
   useEffect(() => {
-    const timer = window.setTimeout(() => { void load(); }, 0);
-    return () => window.clearTimeout(timer);
-  }, []);
+    const run = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const user = await getUser();
+        if (!user) {
+          router.replace('/login');
+          return;
+        }
+        setProposals(await listProposalsForAuthor(user.id));
+      } catch (loadError) {
+        setError(loadError instanceof Error ? loadError.message : 'No se pudieron cargar tus propuestas.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void run();
+  }, [router]);
 
   const currentProposal = useMemo(
     () => proposals.find((proposal) => proposal.status === 'pending') ?? null,
@@ -112,7 +208,7 @@ export default function DashboardPropuestasPage() {
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">Propuestas</p>
               <h1 className="mt-1 font-serif text-3xl font-semibold">Tu propuesta editorial</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-muted">Aquí puedes revisar las condiciones comerciales de Studio FLAMKIT y decidir si quieres continuar con la obra.</p>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-muted">Aquí puedes revisar exactamente qué contempla la producción, la inversión y las condiciones de Studio FLAMKIT antes de decidir si quieres continuar con la obra.</p>
             </div>
           </div>
 
@@ -131,6 +227,12 @@ export default function DashboardPropuestasPage() {
               {proposals.map((proposal) => {
                 const isPending = proposal.status === 'pending';
                 const canAct = isPending && !busyId;
+                const snapshot = parsePricingSnapshot(proposal.services);
+                const pricingLines = snapshot?.calculation?.lines ?? [];
+                const fallbackLines = pricingLines.length === 0 ? fallbackServiceLines(proposal.services) : [];
+                const estimatedHours = typeof snapshot?.calculation?.estimatedWorkMinutes === 'number'
+                  ? snapshot.calculation.estimatedWorkMinutes / 60
+                  : null;
                 return (
                   <article key={proposal.id} className="rounded-3xl border border-edge/60 bg-surface/70 p-5 sm:p-6">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -143,21 +245,49 @@ export default function DashboardPropuestasPage() {
                       </div>
                       <div className="text-left sm:text-right">
                         <p className="text-xs uppercase tracking-wide text-ink-muted">Inversión</p>
-                        <p className="mt-1 font-serif text-3xl font-semibold text-accent">{proposal.amount.toLocaleString('en-US', { style: 'currency', currency: proposal.currency || 'USD' })}</p>
+                        <p className="mt-1 font-serif text-3xl font-semibold text-accent">{currency(proposal.amount, proposal.currency || 'USD')}</p>
                       </div>
                     </div>
 
-                    <div className="mt-6 grid gap-4 sm:grid-cols-3">
+                    <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                       <div className="rounded-2xl border border-edge/50 bg-surface p-4"><p className="text-[10px] font-semibold uppercase tracking-wide text-ink-muted">Revisiones incluidas</p><p className="mt-1 text-sm font-medium">{proposal.revisionsIncluded ?? 0}</p></div>
                       <div className="rounded-2xl border border-edge/50 bg-surface p-4"><p className="text-[10px] font-semibold uppercase tracking-wide text-ink-muted">Plazo</p><p className="mt-1 text-sm font-medium">{formatDate(proposal.deadline)}</p></div>
                       <div className="rounded-2xl border border-edge/50 bg-surface p-4"><p className="text-[10px] font-semibold uppercase tracking-wide text-ink-muted">Expira</p><p className="mt-1 text-sm font-medium">{formatDate(proposal.expiresAt)}</p></div>
+                      <div className="rounded-2xl border border-edge/50 bg-surface p-4"><p className="text-[10px] font-semibold uppercase tracking-wide text-ink-muted">Complejidad</p><p className="mt-1 text-sm font-medium">{complexityLabel(snapshot?.complexity)}</p></div>
                     </div>
 
+                    {snapshot?.calculation && (
+                      <div className="mt-6 rounded-2xl border border-edge/50 bg-surface p-4">
+                        <div className="flex items-center gap-2 text-sm font-semibold"><ShieldCheck className="h-4 w-4 text-accent" /> Resumen de producción</div>
+                        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                          <div><p className="text-[10px] uppercase tracking-wide text-ink-muted">Audio estimado</p><p className="mt-1 text-sm font-medium">{typeof snapshot.calculation.durationMinutes === 'number' ? `${snapshot.calculation.durationMinutes.toFixed(1)} min` : '—'}</p></div>
+                          <div><p className="text-[10px] uppercase tracking-wide text-ink-muted">Trabajo estimado</p><p className="mt-1 text-sm font-medium">{estimatedHours !== null ? `${estimatedHours.toFixed(1)} h` : '—'}</p></div>
+                          <div><p className="text-[10px] uppercase tracking-wide text-ink-muted">Precio propuesto</p><p className="mt-1 text-sm font-medium">{currency(proposal.amount, proposal.currency || 'USD')}</p></div>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="mt-6 rounded-2xl border border-edge/50 bg-surface p-4">
-                      <div className="flex items-center gap-2 text-sm font-semibold"><ShieldCheck className="h-4 w-4 text-accent" /> Servicios incluidos</div>
-                      <ul className="mt-3 space-y-2 text-sm text-ink-muted">
-                        {serviceLines(proposal.services).map((service, index) => <li key={`${service}-${index}`} className="flex gap-2"><span className="text-accent">•</span><span className="whitespace-pre-wrap">{service}</span></li>)}
-                      </ul>
+                      <div className="flex items-center gap-2 text-sm font-semibold"><ShieldCheck className="h-4 w-4 text-accent" /> Qué incluye la producción</div>
+                      {pricingLines.length > 0 ? (
+                        <div className="mt-3 space-y-2">
+                          {pricingLines.map((line, index) => (
+                            <div key={`${line.serviceCode}-${index}`} className="flex flex-col gap-1 rounded-xl border border-edge/40 bg-surface-elevated px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+                              <div>
+                                <p className="text-sm font-medium">{line.name}</p>
+                                <p className="text-[11px] text-ink-muted">{line.quantity} {line.unitLabel ?? 'unidad(es)'}</p>
+                              </div>
+                              <p className="text-sm font-medium">{currency(line.price, proposal.currency || 'USD')}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : fallbackLines.length > 0 ? (
+                        <ul className="mt-3 space-y-2 text-sm text-ink-muted">
+                          {fallbackLines.map((service, index) => <li key={`${service}-${index}`} className="flex gap-2"><span className="text-accent">•</span><span className="whitespace-pre-wrap">{service}</span></li>)}
+                        </ul>
+                      ) : (
+                        <p className="mt-3 text-sm text-ink-muted">El alcance detallado aparecerá aquí.</p>
+                      )}
                     </div>
 
                     {isPending && (
