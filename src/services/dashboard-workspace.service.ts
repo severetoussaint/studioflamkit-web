@@ -23,18 +23,13 @@ function buildWorkspaceData(
   requestContext: AuthorRequestContext | null,
   projectsOverview: AuthorProjectOverview[],
   editorialWorkspace: AuthorProjectViewModel | null,
-  requestStatusOverride: string | null = null,
-  requestIdOverride: string | null = null,
   proposalSentAt: string | null = null,
 ): DashboardWorkspaceData {
   const selectedManuscript = requestContext?.manuscripts.find((manuscript) => manuscript.id === manuscriptId);
-  const requestStatus = requestStatusOverride ?? selectedManuscript?.requestStatus;
-  const normalizedRequestContext = requestContext && requestIdOverride
-    ? { ...requestContext, requestId: requestIdOverride }
-    : requestContext;
+  const requestStatus = selectedManuscript?.requestStatus;
 
   let resolvedRequestState: DashboardRequestState =
-    normalizedRequestContext?.state ?? (editorialWorkspace?.project ? 'active' : 'none');
+    requestContext?.state ?? (editorialWorkspace?.project ? 'active' : 'none');
 
   if (requestStatus === 'accepted') {
     resolvedRequestState = proposalSentAt ? 'proposal_sent' : 'proposal';
@@ -42,13 +37,13 @@ function buildWorkspaceData(
 
   return {
     manuscriptId,
-    requestContext: normalizedRequestContext,
+    requestContext,
     projectsOverview,
     editorialWorkspace,
     requestState: resolvedRequestState,
-    projectId: editorialWorkspace?.project?.id ?? normalizedRequestContext?.projectId ?? null,
+    projectId: editorialWorkspace?.project?.id ?? requestContext?.projectId ?? null,
     projectStatus: editorialWorkspace?.project?.status ?? null,
-    projectTitle: normalizedRequestContext?.title ?? null,
+    projectTitle: requestContext?.title ?? null,
     proposalSentAt,
   };
 }
@@ -68,7 +63,7 @@ export async function getDashboardWorkspaceData(
     } catch (error) {
       console.error('Error loading editorial workspace:', error);
     }
-    return buildWorkspaceData(selectedManuscriptId, null, [], editorialWorkspace);
+    return buildWorkspaceData(selectedManuscriptId, null, [], editorialWorkspace, editorialWorkspace?.proposal?.sentAt ?? null);
   }
 
   if (!authorId) {
@@ -82,29 +77,20 @@ export async function getDashboardWorkspaceData(
 
   const manuscriptId = selectedManuscriptId ?? requestContext.manuscriptId ?? null;
   let editorialWorkspace: AuthorProjectViewModel | null = null;
-  let requestStatusOverride: string | null = null;
-  let requestIdOverride: string | null = null;
-  let proposalSentAt: string | null = null;
 
   if (manuscriptId) {
     try {
       editorialWorkspace = await getEditorialWorkspaceByManuscript(manuscriptId);
-      proposalSentAt = editorialWorkspace?.proposal?.sentAt ?? null;
     } catch (error) {
       console.error('Error loading editorial workspace:', error);
     }
-
-    const { data: requestRow, error: requestError } = await supabaseClient
-      .from('project_requests')
-      .select('id, status')
-      .eq('manuscript_id', manuscriptId)
-      .maybeSingle();
-
-    if (!requestError && requestRow) {
-      requestStatusOverride = requestRow.status;
-      requestIdOverride = requestRow.id;
-    }
   }
 
-  return buildWorkspaceData(manuscriptId, requestContext, projectsOverview, editorialWorkspace, requestStatusOverride, requestIdOverride, proposalSentAt);
+  return buildWorkspaceData(
+    manuscriptId,
+    requestContext,
+    projectsOverview,
+    editorialWorkspace,
+    editorialWorkspace?.proposal?.sentAt ?? null,
+  );
 }
