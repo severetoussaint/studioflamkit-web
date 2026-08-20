@@ -16,6 +16,7 @@ import {
   Bell,
   CheckCircle2,
   CheckCheck,
+  Settings2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { routes } from '@/config/routes';
@@ -307,7 +308,10 @@ export function Navbar() {
 
                     <div className="space-y-0.5">
                       {role === 'admin' ? (
-                        <Link href={routes.admin} onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-ink hover:bg-surface transition"><ShieldCheck className="h-3.5 w-3.5 text-accent" /><span>Panel de Admin</span></Link>
+                        <>
+                          <Link href={routes.admin} onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-ink hover:bg-surface transition"><ShieldCheck className="h-3.5 w-3.5 text-accent" /><span>Panel de Admin</span></Link>
+                          <Link href={routes.adminConfiguracion} onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-ink hover:bg-surface transition"><Settings2 className="h-3.5 w-3.5 text-accent" /><span>Configuración</span></Link>
+                        </>
                       ) : (
                         <Link href={routes.dashboard} onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-ink hover:bg-surface transition"><LayoutDashboard className="h-3.5 w-3.5 text-accent" /><span>Centro del Autor</span></Link>
                       )}
