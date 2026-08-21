@@ -7,6 +7,7 @@ import { submitManuscript } from '@/services/manuscript.service';
 import { getDashboardFileLibraryData, type DashboardFileLibraryData } from '@/services/file.service';
 import { useEditorialWorkspace } from '@/hooks/useEditorialWorkspace';
 import { useDashboardWorkspace } from '@/hooks/useDashboardWorkspace';
+import { createReview, resolveReview, discardReview } from '@/services/review.service';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   LayoutDashboard,
@@ -32,6 +33,8 @@ import {
   DollarSign,
   Lock,
   Disc,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { Footer } from '@/components/layout/Footer';
@@ -58,7 +61,7 @@ import { RevisionesModal } from '@/components/dashboard/RevisionesModal';
 import { AcompanamientoModal } from '@/components/dashboard/AcompanamientoModal';
 import { SupportChatModal } from '@/components/dashboard/SupportChatModal';
 import { ProjectBriefModal } from '@/components/dashboard/ProjectBriefModal';
-import type { Chapter } from '@/types/domain.types';
+import type { Chapter, Deliverable, Review } from '@/types/domain.types';
 
 type SectionId = 'resumen' | 'capitulos' | 'entregables' | 'pagos' | 'perfil';
 
@@ -78,14 +81,6 @@ interface ChapterItem {
   sampleUrl?: string;
 }
 
-interface CommentItem {
-  id: string;
-  author: 'Autor' | 'Productor';
-  text: string;
-  timecode?: string;
-  date: string;
-}
-
 interface InvoiceItem {
   id: string;
   date: string;
@@ -96,9 +91,85 @@ interface InvoiceItem {
   pdfAvailable: boolean;
 }
 
-const initialComments: Record<string, CommentItem[]> = {};
-
 const deliverables: { title: string; date: string; size: string; format: string }[] = [];
+
+/**
+ * Busca el entregable correspondiente a un capítulo según título o número.
+ */
+function findDeliverableForChapter(
+  chapter: { title: string; chapterNumber?: number; number?: number },
+  deliverablesList: Deliverable[]
+): Deliverable | null {
+  if (!deliverablesList || deliverablesList.length === 0) return null;
+  const chapNum = chapter.chapterNumber ?? chapter.number;
+
+  // 1. Coincidencia exacta de título
+  const exact = deliverablesList.find(
+    (d) => d.title.trim().toLowerCase() === chapter.title.trim().toLowerCase()
+  );
+  if (exact) return exact;
+
+  // 2. Coincidencia parcial de título
+  const partial = deliverablesList.find(
+    (d) =>
+      d.title.toLowerCase().includes(chapter.title.toLowerCase()) ||
+      chapter.title.toLowerCase().includes(d.title.toLowerCase())
+  );
+  if (partial) return partial;
+
+  // 3. Coincidencia por número de capítulo
+  if (chapNum !== undefined) {
+    const numMatch = deliverablesList.find((d) => {
+      const dLower = d.title.toLowerCase();
+      return (
+        dLower.includes(`capítulo ${chapNum}`) ||
+        dLower.includes(`capitulo ${chapNum}`) ||
+        dLower.includes(`cap ${chapNum}`) ||
+        dLower.includes(`cap. ${chapNum}`)
+      );
+    });
+    if (numMatch) return numMatch;
+  }
+
+  // 4. Si solo existe un entregable en el proyecto
+  if (deliverablesList.length === 1) {
+    return deliverablesList[0];
+  }
+
+  return null;
+}
+
+/**
+ * Cuenta las revisiones reales asociadas a un capítulo.
+ */
+function countReviewsForChapter(
+  chapter: Chapter,
+  reviewsList: Review[],
+  deliverablesList: Deliverable[]
+): number {
+  if (!reviewsList || reviewsList.length === 0) return 0;
+  const matchedDeliverable = findDeliverableForChapter(chapter, deliverablesList);
+
+  return reviewsList.filter((r) => {
+    if (matchedDeliverable && r.deliverableId === matchedDeliverable.id) {
+      return true;
+    }
+    if (r.chapterTitle && chapter.title) {
+      const rTitle = r.chapterTitle.trim().toLowerCase();
+      const cTitle = chapter.title.trim().toLowerCase();
+      if (rTitle === cTitle || rTitle.includes(cTitle) || cTitle.includes(rTitle)) {
+        return true;
+      }
+      if (
+        rTitle.includes(`capítulo ${chapter.chapterNumber}`) ||
+        rTitle.includes(`capitulo ${chapter.chapterNumber}`)
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }).length;
+}
 
 /**
  * Función pura para mapear un capítulo del dominio a su ViewModel de presentación,
@@ -107,6 +178,7 @@ const deliverables: { title: string; date: string; size: string; format: string 
 function toChapterViewModel(
   chapter: Chapter,
   revisionsIncluded: number,
+  reviewsCount: number = 0,
   localOverride?: Partial<ChapterItem>
 ): ChapterItem {
   let progress = 0;
@@ -140,7 +212,7 @@ function toChapterViewModel(
     number: chapter.chapterNumber,
     title: chapter.title,
     progress,
-    revisions: 0,
+    revisions: reviewsCount,
     maxRevisions: revisionsIncluded,
     status: statusLabel,
     rawStatus: chapter.status,
@@ -228,33 +300,73 @@ export default function DashboardPage() {
     }
   };
 
-  // Estados de gestión de capítulos y comentarios
+  // Estados de gestión de capítulos y notas de revisión
   const [localChapterOverrides, setLocalChapterOverrides] = useState<Record<string, Partial<ChapterItem>>>({});
-  const [commentsState, setCommentsState] = useState<Record<string, CommentItem[]>>(initialComments);
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null);
   const [newCommentText, setNewCommentText] = useState('');
   const [newCommentTime, setNewCommentTime] = useState('03:45');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [actionLoadingReviewId, setActionLoadingReviewId] = useState<string | null>(null);
   const [payingChapterId, setPayingChapterId] = useState<string | null>(null);
 
-  // Capítulos derivados directamente de editorialWorkspace (Fase 1B3.5.C)
+  const editorialData = editorialWorkspace.data;
+
+  // Capítulos derivados directamente de editorialWorkspace (Fase 1B3.5.C y 1B3.5.D)
   const chapters: ChapterItem[] = useMemo(() => {
-    const rawChapters = editorialWorkspace.data?.chapters;
-    const revisionsIncluded = editorialWorkspace.data?.revisionsIncluded ?? 0;
+    const rawChapters = editorialData?.chapters;
+    const revisionsIncluded = editorialData?.revisionsIncluded ?? 0;
+    const reviewsList = editorialData?.reviews ?? [];
+    const deliverablesList = editorialData?.deliverables ?? [];
 
     if (!rawChapters || rawChapters.length === 0) {
       return [];
     }
 
-    return rawChapters.map((c) =>
-      toChapterViewModel(c, revisionsIncluded, localChapterOverrides[c.id])
-    );
-  }, [editorialWorkspace.data?.chapters, editorialWorkspace.data?.revisionsIncluded, localChapterOverrides]);
+    return rawChapters.map((c) => {
+      const revCount = countReviewsForChapter(c, reviewsList, deliverablesList);
+      return toChapterViewModel(c, revisionsIncluded, revCount, localChapterOverrides[c.id]);
+    });
+  }, [editorialData, localChapterOverrides]);
 
   // Selección derivada reactivamente por ID (sin duplicar entidad)
   const selectedChapter = useMemo(
     () => (selectedChapterId ? chapters.find((c) => c.id === selectedChapterId) ?? null : null),
     [chapters, selectedChapterId]
   );
+
+  // Entregable asociado al capítulo seleccionado
+  const matchingDeliverable = useMemo(() => {
+    if (!selectedChapter || !editorialData?.deliverables) return null;
+    return findDeliverableForChapter(selectedChapter, editorialData.deliverables);
+  }, [selectedChapter, editorialData]);
+
+  // Revisiones del capítulo seleccionado obtenidas del dominio persistente
+  const selectedChapterReviews: Review[] = useMemo(() => {
+    if (!selectedChapter || !editorialData?.reviews) return [];
+    const allReviews = editorialData.reviews;
+
+    return allReviews.filter((r) => {
+      if (matchingDeliverable && r.deliverableId === matchingDeliverable.id) {
+        return true;
+      }
+      if (r.chapterTitle && selectedChapter.title) {
+        const rTitle = r.chapterTitle.trim().toLowerCase();
+        const sTitle = selectedChapter.title.trim().toLowerCase();
+        if (rTitle === sTitle || rTitle.includes(sTitle) || sTitle.includes(rTitle)) {
+          return true;
+        }
+        if (
+          selectedChapter.number !== undefined &&
+          (rTitle.includes(`capítulo ${selectedChapter.number}`) ||
+            rTitle.includes(`capitulo ${selectedChapter.number}`))
+        ) {
+          return true;
+        }
+      }
+      return false;
+    });
+  }, [selectedChapter, matchingDeliverable, editorialData]);
 
   // Capítulo en proceso de pago derivado reactivamente por ID
   const payingChapter = useMemo(
@@ -436,39 +548,71 @@ export default function DashboardPage() {
     }
   };
 
-  // Agregar comentario en la revisión
-  const handleAddComment = (chapterId: string) => {
-    if (!newCommentText.trim()) return;
+  // Agregar nota de revisión persistida
+  const handleAddComment = async (chapterId: string) => {
+    if (!newCommentText.trim() || isSubmittingReview) return;
 
     const currentChap = chapters.find((c) => c.id === chapterId);
     if (!currentChap) return;
 
-    // Verificar si queda cupo de revisiones si el estado cambia
-    const newComment: CommentItem = {
-      id: `c-${Date.now()}`,
-      author: 'Autor',
-      text: newCommentText.trim(),
-      timecode: newCommentTime,
-      date: 'Hoy, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
+    setReviewError(null);
 
-    setCommentsState((prev) => ({
-      ...prev,
-      [chapterId]: [...(prev[chapterId] || []), newComment],
-    }));
+    // Buscar el entregable real correspondiente al capítulo
+    const deliverable = matchingDeliverable;
+    if (!deliverable) {
+      setReviewError('No se encontró un entregable de audio asociado a este capítulo para registrar la revisión.');
+      return;
+    }
 
-    // Actualizar conteo de revisiones del capítulo
-    const updatedRevisions = Math.min(currentChap.maxRevisions, currentChap.revisions + 1);
-    setLocalChapterOverrides((prev) => ({
-      ...prev,
-      [chapterId]: {
-        ...prev[chapterId],
-        revisions: updatedRevisions,
-        status: 'Revisiones',
-      },
-    }));
+    const formattedComment = newCommentTime.trim()
+      ? `[${newCommentTime.trim()}] ${newCommentText.trim()}`
+      : newCommentText.trim();
 
-    setNewCommentText('');
+    setIsSubmittingReview(true);
+    try {
+      await createReview({
+        deliverableId: deliverable.id,
+        chapterTitle: currentChap.title,
+        comment: formattedComment,
+      });
+
+      setNewCommentText('');
+      // Recargar workspace para sincronizar el estado real desde Supabase
+      await editorialWorkspace.reload();
+    } catch (err) {
+      console.error('Error al crear review:', err);
+      setReviewError(err instanceof Error ? err.message : 'Error al registrar la nota de revisión.');
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
+  // Resolver una revisión persistida
+  const handleResolveReview = async (reviewId: string) => {
+    if (actionLoadingReviewId) return;
+    setActionLoadingReviewId(reviewId);
+    try {
+      await resolveReview(reviewId);
+      await editorialWorkspace.reload();
+    } catch (err) {
+      console.error('Error al resolver review:', err);
+    } finally {
+      setActionLoadingReviewId(null);
+    }
+  };
+
+  // Descartar una revisión persistida
+  const handleDiscardReview = async (reviewId: string) => {
+    if (actionLoadingReviewId) return;
+    setActionLoadingReviewId(reviewId);
+    try {
+      await discardReview(reviewId);
+      await editorialWorkspace.reload();
+    } catch (err) {
+      console.error('Error al descartar review:', err);
+    } finally {
+      setActionLoadingReviewId(null);
+    }
   };
 
   // Aprobar capítulo
@@ -1559,30 +1703,104 @@ export default function DashboardPage() {
                   </div>
 
                   <div className="space-y-3 max-h-56 overflow-y-auto rounded-2xl border-edge/50 bg-surface p-4">
-                    {(commentsState[selectedChapter.id] || []).map((comm) => (
-                      <div
-                        key={comm.id}
-                        className={`flex flex-col gap-1 rounded-xl p-3 text-xs ${
-                          comm.author === 'Autor'
-                            ? 'ml-auto max-w-[85%] border-accent/30 bg-accent/10 text-ink'
-                            : 'mr-auto max-w-[85%] border-edge/50 bg-surface-elevated text-ink'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-4 text-[10px] text-ink-muted font-medium">
-                          <span className="text-accent font-semibold">{comm.author}</span>
-                          <div className="flex items-center gap-2">
-                            {comm.timecode && (
-                              <span className="rounded-md bg-surface px-1.5 py-0.5 font-mono text-ink">
-                                ⏱️ {comm.timecode}
-                              </span>
-                            )}
-                            <span>{comm.date}</span>
-                          </div>
-                        </div>
-                        <p className="mt-1 leading-relaxed">{comm.text}</p>
+                    {selectedChapterReviews.length === 0 ? (
+                      <div className="py-6 text-center">
+                        <p className="text-xs text-ink-muted">No hay notas de revisión registradas para este capítulo.</p>
                       </div>
-                    ))}
+                    ) : (
+                      selectedChapterReviews.map((rev) => {
+                        const timecodeMatch = rev.comment.match(/^\[(.*?)\]\s*(.*)$/);
+                        const displayTimecode = timecodeMatch ? timecodeMatch[1] : null;
+                        const displayText = timecodeMatch ? timecodeMatch[2] : rev.comment;
+                        const formattedDate = rev.createdAt
+                          ? new Date(rev.createdAt).toLocaleDateString([], {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })
+                          : 'Reciente';
+
+                        return (
+                          <div
+                            key={rev.id}
+                            className={`flex flex-col gap-1.5 rounded-xl p-3 text-xs border ${
+                              rev.status === 'resolved'
+                                ? 'border-emerald-500/30 bg-emerald-500/5 text-ink'
+                                : rev.status === 'discarded'
+                                ? 'border-edge/40 bg-surface-elevated/50 text-ink-muted opacity-75'
+                                : 'border-accent/30 bg-accent/10 text-ink'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-4 text-[10px] text-ink-muted font-medium">
+                              <div className="flex items-center gap-1.5">
+                                <span
+                                  className={`font-semibold ${
+                                    rev.status === 'resolved'
+                                      ? 'text-emerald-600 dark:text-emerald-400'
+                                      : rev.status === 'discarded'
+                                      ? 'text-ink-muted'
+                                      : 'text-accent'
+                                  }`}
+                                >
+                                  {rev.status === 'resolved'
+                                    ? 'Resuelta'
+                                    : rev.status === 'discarded'
+                                    ? 'Descartada'
+                                    : 'Revisión'}
+                                </span>
+                                {rev.status === 'open' && (
+                                  <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-amber-600 dark:text-amber-400">
+                                    Abierta
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {displayTimecode && (
+                                  <span className="rounded-md bg-surface px-1.5 py-0.5 font-mono text-ink">
+                                    ⏱️ {displayTimecode}
+                                  </span>
+                                )}
+                                <span>{formattedDate}</span>
+                              </div>
+                            </div>
+                            <p className="mt-1 leading-relaxed">{displayText}</p>
+
+                            {/* Acciones para reviews abiertas */}
+                            {rev.status === 'open' && (
+                              <div className="mt-2 flex items-center justify-end gap-2 pt-1 border-t border-edge/30">
+                                <button
+                                  type="button"
+                                  onClick={() => handleDiscardReview(rev.id)}
+                                  disabled={actionLoadingReviewId === rev.id}
+                                  className="text-[10px] text-ink-muted hover:text-rose-600 transition cursor-pointer"
+                                >
+                                  {actionLoadingReviewId === rev.id ? 'Procesando...' : 'Descartar'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleResolveReview(rev.id)}
+                                  disabled={actionLoadingReviewId === rev.id}
+                                  className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition cursor-pointer"
+                                >
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  <span>{actionLoadingReviewId === rev.id ? 'Guardando...' : 'Marcar Resuelta'}</span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
+
+                  {/* Mensaje de error al enviar revisión */}
+                  {reviewError && (
+                    <div className="flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-600 dark:text-rose-400">
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                      <p>{reviewError}</p>
+                    </div>
+                  )}
 
                   {/* Caja para redactar observación/comentario */}
                   <div className="flex flex-col gap-2.5 rounded-2xl border-edge/50 bg-surface p-3">
@@ -1611,16 +1829,28 @@ export default function DashboardPage() {
                       <button
                         type="button"
                         onClick={() => handleAddComment(selectedChapter.id)}
-                        disabled={selectedChapter.revisions >= selectedChapter.maxRevisions}
+                        disabled={
+                          isSubmittingReview ||
+                          selectedChapter.revisions >= selectedChapter.maxRevisions ||
+                          !matchingDeliverable
+                        }
                         className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-medium transition cursor-pointer ${
-                          selectedChapter.revisions < selectedChapter.maxRevisions
+                          selectedChapter.revisions < selectedChapter.maxRevisions && matchingDeliverable && !isSubmittingReview
                             ? 'bg-accent text-surface hover:bg-accent-hover'
                             : 'bg-surface-elevated border-edge/50 text-ink-muted cursor-not-allowed'
                         }`}
                       >
-                        <Send className="h-3.5 w-3.5" />
+                        {isSubmittingReview ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Send className="h-3.5 w-3.5" />
+                        )}
                         <span>
-                          {selectedChapter.revisions < selectedChapter.maxRevisions
+                          {isSubmittingReview
+                            ? 'Guardando...'
+                            : !matchingDeliverable
+                            ? 'Sin entregable vinculado'
+                            : selectedChapter.revisions < selectedChapter.maxRevisions
                             ? 'Enviar Nota de Revisión'
                             : 'Límite de Revisiones Alcanzado'}
                         </span>
