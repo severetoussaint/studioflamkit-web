@@ -69,7 +69,6 @@ function getStatusChip(fileStatus: FileItemProps['status'], isLocked: boolean) {
 
 export function FilePanel({ files, isLocked = false, onUploadReplacement, projectTitle, acceptedPaymentAmount, currency = 'USD' }: FilePanelProps) {
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedFileDetail, setSelectedFileDetail] = useState<FileItemProps | null>(null);
 
   return (
     <>
@@ -128,7 +127,6 @@ export function FilePanel({ files, isLocked = false, onUploadReplacement, projec
                   key={file.id}
                   onClick={(e) => {
                     e.stopPropagation();
-                    setSelectedFileDetail(file);
                     setModalOpen(true);
                   }}
                   className="group flex flex-col gap-4 rounded-2xl border-edge/60 bg-surface/70 p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/20 hover:bg-surface hover:shadow-[0_10px_30px_rgba(0,0,0,0.03)] sm:flex-row sm:items-center sm:justify-between"
@@ -197,7 +195,6 @@ export function FilePanel({ files, isLocked = false, onUploadReplacement, projec
                 <button
                   onClick={() => {
                     setModalOpen(false);
-                    setSelectedFileDetail(null);
                   }}
                   className="rounded-full p-2 text-ink-muted hover:bg-surface hover:text-ink transition-colors duration-200 cursor-pointer"
                 >

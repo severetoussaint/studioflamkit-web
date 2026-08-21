@@ -7,7 +7,6 @@ import { routes } from '@/config/routes';
 import { 
   Shield, 
   Lock, 
-  Eye, 
   FileText, 
   Server, 
   RefreshCw, 
@@ -16,10 +15,8 @@ import {
   Cookie, 
   CreditCard, 
   Mail, 
-  Phone, 
   MapPin, 
   Layers, 
-  Download, 
   Volume2, 
   CheckCircle,
   AlertTriangle,

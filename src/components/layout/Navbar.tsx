@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -173,7 +174,7 @@ export function Navbar() {
     <header className="sticky top-0 z-20 border-b border-edge bg-surface/85 backdrop-blur-md">
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 lg:px-8">
         <Link href={routes.home} className="flex items-center gap-2.5 font-serif text-base sm:text-lg font-semibold tracking-[0.16em] text-ink uppercase hover:text-accent transition duration-150">
-          <img src="/logo.svg" alt="Studio Flamkit & Art" className="h-10 sm:h-14 w-auto object-contain rounded-md" referrerPolicy="no-referrer" />
+          <Image src="/logo.svg" alt="Studio Flamkit & Art" width={56} height={56} className="h-10 sm:h-14 w-auto object-contain rounded-md" referrerPolicy="no-referrer" priority />
           <span className="hidden sm:inline">Studio Flamkit & Art</span>
         </Link>
 

@@ -6,7 +6,6 @@ import { motion } from 'motion/react';
 import { Footer } from '@/components/layout/Footer';
 import { Navbar } from '@/components/layout/Navbar';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { routes } from '@/config/routes';
 import { Headphones, Mic2, Sparkles, Clock, CheckCircle2, ArrowRight, BookOpen, Palette } from 'lucide-react';
 
