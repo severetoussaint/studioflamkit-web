@@ -7,17 +7,6 @@ import { isReviewStatus } from '@/domain/review/reviewStatus';
 type ReviewRow = Database['public']['Tables']['reviews']['Row'];
 type DeliverableRow = Pick<Database['public']['Tables']['deliverables']['Row'], 'id'>;
 type ReviewTransitionStatus = Exclude<ReviewStatus, 'open'>;
-type ReviewRpcResult = {
-  data: string | null;
-  error: { message: string } | null;
-};
-
-type RpcClient = (
-  functionName: string,
-  args: Record<string, unknown>,
-) => Promise<ReviewRpcResult>;
-
-const rpcClient = supabaseClient.rpc as unknown as RpcClient;
 
 export interface CreateReviewInput {
   deliverableId: string;
@@ -95,7 +84,7 @@ export async function createReview(input: CreateReviewInput): Promise<Review> {
   if (!input.deliverableId) throw new Error('deliverableId is required to create a review.');
   if (!input.comment.trim()) throw new Error('Review comment is required.');
 
-  const { data: reviewId, error } = await rpcClient('create_review', {
+  const { data: reviewId, error } = await supabaseClient.rpc('create_review', {
     p_deliverable_id: input.deliverableId,
     p_chapter_title: input.chapterTitle ?? null,
     p_comment: input.comment,
@@ -115,10 +104,9 @@ async function updateReviewStatus(reviewId: string, status: ReviewTransitionStat
     throw new Error(`Invalid review transition status: ${status}`);
   }
 
-  const rpcName = status === 'resolved' ? 'resolve_review' : 'discard_review';
-  const { data: persistedReviewId, error } = await rpcClient(rpcName, {
-    p_review_id: reviewId,
-  });
+  const { data: persistedReviewId, error } = status === 'resolved'
+    ? await supabaseClient.rpc('resolve_review', { p_review_id: reviewId })
+    : await supabaseClient.rpc('discard_review', { p_review_id: reviewId });
 
   if (error) throw new Error(error.message);
   if (!persistedReviewId) throw new Error(`Review ${reviewId} did not return an id after transition.`);

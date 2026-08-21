@@ -866,9 +866,20 @@ export type Database = {
     }
     Functions: {
       accept_proposal: { Args: { p_proposal_id: string }; Returns: string }
+      create_review: {
+        Args: {
+          p_deliverable_id: string
+          p_chapter_title?: string | null
+          p_comment: string
+          p_file_path?: string | null
+        }
+        Returns: string
+      }
+      discard_review: { Args: { p_review_id: string }; Returns: string }
       expire_proposal: { Args: { p_proposal_id: string }; Returns: string }
       is_admin: { Args: never; Returns: boolean }
       reject_proposal: { Args: { p_proposal_id: string }; Returns: string }
+      resolve_review: { Args: { p_review_id: string }; Returns: string }
       send_proposal: { Args: { p_proposal_id: string }; Returns: string }
     }
     Enums: {
