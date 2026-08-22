@@ -6,6 +6,7 @@ import type {
   ConversationType,
   Message,
   MessageSenderType,
+  Proposal,
 } from '@/types/domain.types';
 import { createNotification } from '@/services/notification.service';
 
@@ -20,6 +21,7 @@ interface ConversationJoinedRow extends ConversationRow {
 export interface CreateConversationInput {
   authorId: string;
   projectId?: string | null;
+  proposalId?: string | null;
   type?: ConversationType;
   subject: string;
   initialMessage?: string;
@@ -37,6 +39,7 @@ export interface SendMessageInput {
 export interface ListConversationsParams {
   authorId?: string;
   projectId?: string;
+  proposalId?: string;
   status?: ConversationStatus;
   type?: ConversationType;
 }
@@ -61,12 +64,15 @@ function mapConversationRowToDomain(
     authorEmail?: string;
     projectTitle?: string;
     unreadCount?: number;
+    proposal?: Proposal | null;
   }
 ): Conversation {
   return {
     id: row.id,
     authorId: row.author_id,
     projectId: row.project_id,
+    proposalId: row.proposal_id ?? null,
+    proposal: extra?.proposal ?? null,
     type: (row.type as ConversationType) || 'support',
     subject: row.subject,
     status: (row.status as ConversationStatus) || 'open',
@@ -103,6 +109,7 @@ export async function listConversations(params?: ListConversationsParams): Promi
         id,
         author_id,
         project_id,
+        proposal_id,
         type,
         subject,
         status,
@@ -115,6 +122,7 @@ export async function listConversations(params?: ListConversationsParams): Promi
 
     if (params?.authorId) query = query.eq('author_id', params.authorId);
     if (params?.projectId) query = query.eq('project_id', params.projectId);
+    if (params?.proposalId) query = query.eq('proposal_id', params.proposalId);
     if (params?.status) query = query.eq('status', params.status);
     if (params?.type) query = query.eq('type', params.type);
 
@@ -162,6 +170,7 @@ export async function getConversation(conversationId: string): Promise<Conversat
         id,
         author_id,
         project_id,
+        proposal_id,
         type,
         subject,
         status,
@@ -194,6 +203,7 @@ export async function createConversation(input: CreateConversationInput): Promis
     .insert({
       author_id: input.authorId,
       project_id: input.projectId ?? null,
+      proposal_id: input.proposalId ?? null,
       type: input.type ?? 'support',
       subject: input.subject.trim(),
       status: 'open',

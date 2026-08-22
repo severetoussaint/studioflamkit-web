@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, ArrowLeft, CheckCircle2, Clock3, FileText, Loader2, ShieldCheck, XCircle } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CheckCircle2, Clock3, FileText, Loader2, MessageSquare, ShieldCheck, XCircle } from 'lucide-react';
 import { getUser } from '@/services/auth.service';
 import { acceptProposal, listProposalsForAuthor, rejectProposal } from '@/services/proposal.service';
 import type { Proposal } from '@/types/domain.types';
@@ -290,12 +290,23 @@ export default function DashboardPropuestasPage() {
                       )}
                     </div>
 
-                    {isPending && (
-                      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
-                        <button type="button" disabled={!canAct} onClick={() => void handleReject(proposal)} className="rounded-xl border border-rose-500/30 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-500/10 disabled:opacity-50">Rechazar</button>
-                        <button type="button" disabled={!canAct} onClick={() => setConfirmingId(proposal.id)} className="rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-50">Aceptar propuesta</button>
-                      </div>
-                    )}
+                    <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-edge/40 pt-4">
+                      <button
+                        type="button"
+                        onClick={() => router.push('/dashboard?tab=mensajes')}
+                        className="inline-flex items-center gap-2 text-xs font-medium text-accent hover:underline cursor-pointer"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                        <span>Abrir y conversar en Mensajes</span>
+                      </button>
+
+                      {isPending && (
+                        <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                          <button type="button" disabled={!canAct} onClick={() => void handleReject(proposal)} className="rounded-xl border border-rose-500/30 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-500/10 disabled:opacity-50 cursor-pointer">Rechazar</button>
+                          <button type="button" disabled={!canAct} onClick={() => setConfirmingId(proposal.id)} className="rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-50 cursor-pointer">Aceptar propuesta</button>
+                        </div>
+                      )}
+                    </div>
                   </article>
                 );
               })}

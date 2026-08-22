@@ -149,6 +149,8 @@ export interface Conversation {
   id: string;
   authorId: string;
   projectId: string | null;
+  proposalId?: string | null;
+  proposal?: Proposal | null;
   type: ConversationType;
   subject: string;
   status: ConversationStatus;

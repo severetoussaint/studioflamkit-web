@@ -247,9 +247,18 @@ export function Navbar() {
                               type="button"
                               onClick={() => {
                                 if (isUnread) void handleMarkAsRead(n.id);
+                                setNotificationsOpen(false);
                                 if (n.conversationId) {
-                                  setNotificationsOpen(false);
                                   router.push(`/dashboard?conversation=${encodeURIComponent(n.conversationId)}`);
+                                } else {
+                                  const text = (n.title + ' ' + n.message).toLowerCase();
+                                  if (text.includes('propuesta') || text.includes('mensaje') || text.includes('consulta')) {
+                                    router.push('/dashboard?tab=mensajes');
+                                  } else if (text.includes('entregable') || text.includes('revisión') || text.includes('revision') || text.includes('capítulo')) {
+                                    router.push('/dashboard?tab=entregables');
+                                  } else {
+                                    router.push('/dashboard?tab=mensajes');
+                                  }
                                 }
                               }}
                               className={`group relative flex w-full items-start gap-3 rounded-xl border p-3 text-left text-xs transition cursor-pointer ${

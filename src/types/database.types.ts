@@ -151,6 +151,7 @@ export type Database = {
           created_at: string | null
           id: string
           project_id: string | null
+          proposal_id: string | null
           status: string
           subject: string
           type: string
@@ -161,6 +162,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           project_id?: string | null
+          proposal_id?: string | null
           status?: string
           subject: string
           type?: string
@@ -171,6 +173,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           project_id?: string | null
+          proposal_id?: string | null
           status?: string
           subject?: string
           type?: string

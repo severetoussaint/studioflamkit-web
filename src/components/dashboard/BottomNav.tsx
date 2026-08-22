@@ -4,28 +4,39 @@ import React from 'react';
 import { motion } from 'motion/react';
 import {
   LayoutDashboard,
+  MessageSquare,
   BookOpen,
   Download,
   Wallet,
   Settings,
 } from 'lucide-react';
 
+export type DashboardNavSectionId = 'resumen' | 'mensajes' | 'capitulos' | 'entregables' | 'pagos' | 'perfil';
+
 export interface BottomNavProps {
-  activeSection: 'resumen' | 'capitulos' | 'entregables' | 'pagos' | 'perfil';
-  onSectionChange: (section: 'resumen' | 'capitulos' | 'entregables' | 'pagos' | 'perfil') => void;
+  activeSection: DashboardNavSectionId;
+  onSectionChange: (section: DashboardNavSectionId) => void;
   chaptersCount?: number;
+  unreadMessagesCount?: number;
 }
 
 export function BottomNav({
   activeSection,
   onSectionChange,
   chaptersCount = 0,
+  unreadMessagesCount = 0,
 }: BottomNavProps) {
   const navItems = [
     {
       id: 'resumen' as const,
       label: 'Resumen',
       icon: LayoutDashboard,
+    },
+    {
+      id: 'mensajes' as const,
+      label: 'Mensajes',
+      icon: MessageSquare,
+      badge: unreadMessagesCount > 0 ? String(unreadMessagesCount) : undefined,
     },
     {
       id: 'capitulos' as const,

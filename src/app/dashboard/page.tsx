@@ -1,13 +1,14 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { getUser } from '@/services/auth.service';
 import { submitManuscript } from '@/services/manuscript.service';
 import { getDashboardFileLibraryData, type DashboardFileLibraryData } from '@/services/file.service';
 import { useEditorialWorkspace } from '@/hooks/useEditorialWorkspace';
 import { useDashboardWorkspace } from '@/hooks/useDashboardWorkspace';
 import { createReview, resolveReview, discardReview } from '@/services/review.service';
+import { listConversations } from '@/services/conversation.service';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   LayoutDashboard,
@@ -57,13 +58,14 @@ import { SidebarNav } from '@/components/dashboard/SidebarNav';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DeliverableItemRow } from '@/components/dashboard/DeliverableItemRow';
 import { BottomNav } from '@/components/dashboard/BottomNav';
+import { MessagesSection } from '@/components/dashboard/MessagesSection';
 import { RevisionesModal } from '@/components/dashboard/RevisionesModal';
 import { AcompanamientoModal } from '@/components/dashboard/AcompanamientoModal';
 import { SupportChatModal } from '@/components/dashboard/SupportChatModal';
 import { ProjectBriefModal } from '@/components/dashboard/ProjectBriefModal';
 import type { Chapter, Deliverable, Review } from '@/types/domain.types';
 
-type SectionId = 'resumen' | 'capitulos' | 'entregables' | 'pagos' | 'perfil';
+type SectionId = 'resumen' | 'mensajes' | 'capitulos' | 'entregables' | 'pagos' | 'perfil';
 
 interface ChapterItem {
   id: string;
@@ -228,12 +230,18 @@ function toChapterViewModel(
   return base;
 }
 
-export default function DashboardPage() {
+function DashboardContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlConversation = searchParams.get('conversation');
+  const urlTab = searchParams.get('tab');
+
   const [isChecking, setIsChecking] = useState(true);
   const [authorId, setAuthorId] = useState<string | null>(null);
   const [selectedManuscriptId, setSelectedManuscriptId] = useState<string | null>(null);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+  const targetConversationId = urlConversation || null;
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
 
   // Integración de useDashboardWorkspace (Fase 1B3.6)
   const dashboardWorkspace = useDashboardWorkspace(authorId, selectedManuscriptId);
@@ -375,7 +383,16 @@ export default function DashboardPage() {
   );
 
   // Estados de navegación, audio y modales
-  const [active, setActive] = useState<SectionId>('resumen');
+  const [active, setActive] = useState<SectionId>(() => {
+    if (urlConversation) return 'mensajes';
+    if (
+      urlTab &&
+      ['resumen', 'mensajes', 'capitulos', 'entregables', 'pagos', 'perfil'].includes(urlTab)
+    ) {
+      return urlTab as SectionId;
+    }
+    return 'resumen';
+  });
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioProgress, setAudioProgress] = useState(35);
   const [uploaderModalOpen, setUploaderModalOpen] = useState(false);
@@ -471,8 +488,35 @@ export default function DashboardPage() {
     setIsPlaying(!isPlaying);
   };
 
+  // Cargar contador de mensajes sin leer del autor
+  useEffect(() => {
+    if (!authorId) return;
+    const currentAuthorId = authorId;
+    let isMounted = true;
+    async function loadUnreadCount() {
+      try {
+        const convList = await listConversations({ authorId: currentAuthorId });
+        if (!isMounted) return;
+        const total = convList.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
+        setUnreadMessagesCount(total);
+      } catch (err) {
+        console.warn('Error loading unread count:', err);
+      }
+    }
+    void loadUnreadCount();
+    return () => {
+      isMounted = false;
+    };
+  }, [authorId, active]);
+
   const sections: { id: SectionId; label: string; icon: React.ElementType; badge?: string }[] = [
     { id: 'resumen', label: 'Resumen', icon: LayoutDashboard },
+    {
+      id: 'mensajes',
+      label: 'Mensajes',
+      icon: MessageSquare,
+      badge: unreadMessagesCount > 0 ? String(unreadMessagesCount) : undefined,
+    },
     { id: 'capitulos', label: 'Capítulos', icon: BookOpen, badge: hasActiveProject ? `${chapters.length}` : undefined },
     { id: 'entregables', label: 'Entregables', icon: Download },
     { id: 'pagos', label: 'Pagos & Facturas', icon: Wallet },
@@ -669,6 +713,7 @@ export default function DashboardPage() {
             sections={sections}
             activeSection={active}
             onSectionChange={(sectionId) => setActive(sectionId)}
+            onContactClick={() => setActive('mensajes')}
           />
 
           {/* Contenido de la Sección Activa */}
@@ -866,12 +911,31 @@ export default function DashboardPage() {
                   <div>
                     <SupportPanel
                       onOpenMessageModal={() => {
-                        setSupportChatOpen(true);
+                        setActive('mensajes');
                       }}
                     />
                   </div>
                 </div>
               </div>
+            )}
+
+            {active === 'mensajes' && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25 }}
+              >
+                <MessagesSection
+                  authorId={authorId || ''}
+                  projectId={workspaceData?.projectId ?? null}
+                  projectTitle={projectTitle || requestContext?.title}
+                  initialConversationId={targetConversationId}
+                  onProposalAccepted={async () => {
+                    await editorialWorkspace.reload();
+                    await dashboardWorkspace.reload();
+                  }}
+                />
+              </motion.div>
             )}
 
             {active === 'capitulos' && (
@@ -2122,9 +2186,18 @@ export default function DashboardPage() {
         activeSection={active}
         onSectionChange={(section) => setActive(section)}
         chaptersCount={chapters.length}
+        unreadMessagesCount={unreadMessagesCount}
       />
 
       <Footer />
     </main>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<LoadingScreen message="Cargando panel del autor..." />}>
+      <DashboardContent />
+    </Suspense>
   );
 }

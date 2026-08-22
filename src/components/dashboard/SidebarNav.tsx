@@ -15,12 +15,14 @@ export interface SidebarNavProps<T extends string = string> {
   sections: NavSection<T>[];
   activeSection: T;
   onSectionChange: (sectionId: T) => void;
+  onContactClick?: () => void;
 }
 
 export function SidebarNav<T extends string = string>({
   sections,
   activeSection,
   onSectionChange,
+  onContactClick,
 }: SidebarNavProps<T>) {
   return (
     <aside className="hidden lg:block space-y-6 lg:sticky lg:top-20 self-start">
@@ -80,13 +82,24 @@ export function SidebarNav<T extends string = string>({
         <p className="mt-2 text-xs leading-relaxed text-ink-muted">
           ¿Tienes alguna consulta sobre la locución o edición? Tu productor asignado está disponible.
         </p>
-        <Link
-          href="/contacto"
-          className="group mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border-edge bg-surface px-3 py-2.5 text-xs font-medium text-ink transition-all duration-200 ease-out hover:border-accent/40 hover:text-accent hover:-translate-y-0.5 active:scale-[0.98] shadow-2xs"
-        >
-          <MessageCircle className="h-3.5 w-3.5 transition-transform duration-200 ease-out group-hover:scale-110" />
-          <span>Contactar Productor</span>
-        </Link>
+        {onContactClick ? (
+          <button
+            type="button"
+            onClick={onContactClick}
+            className="group mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border-edge bg-surface px-3 py-2.5 text-xs font-medium text-ink transition-all duration-200 ease-out hover:border-accent/40 hover:text-accent hover:-translate-y-0.5 active:scale-[0.98] shadow-2xs cursor-pointer"
+          >
+            <MessageCircle className="h-3.5 w-3.5 transition-transform duration-200 ease-out group-hover:scale-110" />
+            <span>Contactar Productor</span>
+          </button>
+        ) : (
+          <Link
+            href="/contacto"
+            className="group mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border-edge bg-surface px-3 py-2.5 text-xs font-medium text-ink transition-all duration-200 ease-out hover:border-accent/40 hover:text-accent hover:-translate-y-0.5 active:scale-[0.98] shadow-2xs"
+          >
+            <MessageCircle className="h-3.5 w-3.5 transition-transform duration-200 ease-out group-hover:scale-110" />
+            <span>Contactar Productor</span>
+          </Link>
+        )}
       </div>
     </aside>
   );
