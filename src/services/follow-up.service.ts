@@ -94,12 +94,15 @@ export async function listAdminFollowUps(): Promise<AdminFollowUpItem[]> {
         return null;
       }
 
+      // A rejected proposal needs two phases of follow-up:
+      // 1) send the official rejection email;
+      // 2) once communicated, make the same case available again for a new commercial proposal version.
       const category: FollowUpCategory =
         row.status === 'rejected' && !evaluation?.email_sent_at
           ? 'email_pending'
-          : row.status === 'accepted'
+          : row.status === 'rejected'
             ? 'proposal_ready'
-            : 'history';
+            : 'proposal_ready';
 
       return {
         request: mapRequest(row),
