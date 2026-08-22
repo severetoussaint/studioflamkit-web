@@ -6,6 +6,7 @@ export const PROPOSAL_STATUS_SEQUENCE: readonly ProposalStatus[] = [
   'accepted',
   'rejected',
   'expired',
+  'superseded',
 ] as const;
 
 export function isProposalStatus(value: string | null | undefined): value is ProposalStatus {

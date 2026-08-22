@@ -111,6 +111,7 @@ function statusLabel(status: Proposal['status']): string {
     case 'accepted': return 'Aceptada';
     case 'rejected': return 'Rechazada';
     case 'expired': return 'Expirada';
+    case 'superseded': return 'Reemplazada por versión posterior';
   }
 }
 
@@ -241,7 +242,7 @@ export default function DashboardPropuestasPage() {
                           {proposal.status === 'accepted' ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> : proposal.status === 'rejected' ? <XCircle className="h-3.5 w-3.5 text-rose-600" /> : proposal.status === 'expired' ? <AlertCircle className="h-3.5 w-3.5 text-amber-600" /> : <Clock3 className="h-3.5 w-3.5 text-accent" />}
                           {statusLabel(proposal.status)}
                         </div>
-                        <h2 className="mt-3 font-serif text-2xl font-semibold">Oferta para tu obra</h2>
+                        <h2 className="mt-3 font-serif text-2xl font-semibold">Oferta para tu obra (v{proposal.version ?? 1})</h2>
                       </div>
                       <div className="text-left sm:text-right">
                         <p className="text-xs uppercase tracking-wide text-ink-muted">Inversión</p>

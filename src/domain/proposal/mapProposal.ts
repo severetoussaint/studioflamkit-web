@@ -21,5 +21,7 @@ export function mapProposalRowToDomain(row: ProposalRow): Proposal {
     expiresAt: typedRow.expires_at,
     sentAt: typedRow.sent_at ?? null,
     createdAt: typedRow.created_at ?? '',
+    version: typeof typedRow.version === 'number' && typedRow.version > 0 ? typedRow.version : 1,
+    parentProposalId: typedRow.parent_proposal_id ?? null,
   };
 }

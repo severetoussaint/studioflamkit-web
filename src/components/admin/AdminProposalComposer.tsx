@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, FileText, Send, X } from 'lucide-react';
-import type { Proposal, ProposalStatus } from '@/types/domain.types';
-import { createProposal, getCurrentProposalForRequest, sendProposal, updateProposal } from '@/services/proposal.service';
+import type { Proposal } from '@/types/domain.types';
+import { createProposal, createProposalVersion, getProposal, listProposals, sendProposal, updateProposal } from '@/services/proposal.service';
 import type { AdminFollowUpItem } from '@/services/follow-up.service';
 import { listPricingServices, getPricingSettings } from '@/services/pricing.service';
 import { calculatePricing } from '@/domain/pricing/pricing.engine';
@@ -21,13 +21,16 @@ function toDateInput(value: string | null | undefined): string {
   return value.slice(0, 10);
 }
 
-function statusLabel(status: ProposalStatus): string {
-  switch (status) {
-    case 'pending': return 'Borrador / pendiente';
-    case 'accepted': return 'Aceptada';
-    case 'rejected': return 'Rechazada';
-    case 'expired': return 'Expirada';
+function statusLabel(proposal: Proposal | null | undefined): string {
+  if (!proposal) return '';
+  if (proposal.status === 'accepted') return 'Aceptada';
+  if (proposal.status === 'rejected') return 'Rechazada';
+  if (proposal.status === 'expired') return 'Expirada';
+  if (proposal.status === 'superseded') return 'Reemplazada';
+  if (proposal.status === 'pending') {
+    return proposal.sentAt ? 'Enviada' : 'Borrador';
   }
+  return proposal.status;
 }
 
 function currency(value: number): string {
@@ -65,6 +68,7 @@ const complexityLabels: Record<PricingComplexity, string> = {
 };
 
 export function AdminProposalComposer({ item, onClose, onChanged }: AdminProposalComposerProps) {
+  const [allProposals, setAllProposals] = useState<Proposal[]>([]);
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [loadedRequestId, setLoadedRequestId] = useState<string | null>(null);
   const [pricingSettings, setPricingSettings] = useState<PricingSettings | null>(null);
@@ -85,31 +89,70 @@ export function AdminProposalComposer({ item, onClose, onChanged }: AdminProposa
 
   const loading = loadedRequestId !== item.request.id;
 
+  function populateFormFromProposal(target: Proposal | null) {
+    const snapshot = getProposalSnapshot(target?.services);
+    setSelections(snapshot.selections ?? []);
+    setComplexity(snapshot.complexity ?? 'standard');
+    setCommercialAdjustment(snapshot.commercialAdjustment ?? 0);
+    setAmount(target ? String(target.amount) : '');
+    setRevisionsIncluded(String(target?.revisionsIncluded ?? 3));
+    setDeadline(toDateInput(target?.deadline));
+    setExpiresAt(toDateInput(target?.expiresAt));
+  }
+
+  function selectProposalVersion(p: Proposal) {
+    setProposal(p);
+    populateFormFromProposal(p);
+    setError(null);
+    setSuccess(null);
+  }
+
+  async function handleCreateVersion() {
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const newProposalId = await createProposalVersion(item.request.id, proposal?.id);
+      const updatedList = await listProposals(item.request.id);
+      setAllProposals(updatedList);
+      const newProp = updatedList.find((p) => p.id === newProposalId) ?? await getProposal(newProposalId);
+      if (!newProp) throw new Error('No se pudo cargar la nueva versión de la propuesta.');
+
+      setProposal(newProp);
+      populateFormFromProposal(newProp);
+      setSuccess(`Propuesta v${newProp.version} creada como borrador.`);
+      onChanged?.();
+    } catch (versionError) {
+      setError(versionError instanceof Error ? versionError.message : 'No se pudo crear la nueva versión.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   useEffect(() => {
     let mounted = true;
 
     void Promise.all([
-      getCurrentProposalForRequest(item.request.id),
+      listProposals(item.request.id),
       getPricingSettings(),
       listPricingServices({ activeOnly: true }),
       supabaseClient.from('manuscripts').select('word_count').eq('id', item.request.manuscriptId).maybeSingle(),
     ])
-      .then(([current, settings, servicesResult, manuscriptResult]) => {
+      .then(([proposalsList, settings, servicesResult, manuscriptResult]) => {
         if (!mounted) return;
+
+        setAllProposals(proposalsList);
+        const current = proposalsList.find((p) => p.status === 'pending')
+          ?? proposalsList.find((p) => p.status === 'accepted')
+          ?? proposalsList[0]
+          ?? null;
 
         setProposal(current);
         setPricingSettings(settings);
         setPricingServices(servicesResult);
         setWordCount(Number(manuscriptResult.data?.word_count ?? 0));
 
-        const snapshot = getProposalSnapshot(current?.services);
-        setSelections(snapshot.selections ?? []);
-        setComplexity(snapshot.complexity ?? 'standard');
-        setCommercialAdjustment(snapshot.commercialAdjustment ?? 0);
-        setAmount(current ? String(current.amount) : '');
-        setRevisionsIncluded(String(current?.revisionsIncluded ?? 3));
-        setDeadline(toDateInput(current?.deadline));
-        setExpiresAt(toDateInput(current?.expiresAt));
+        populateFormFromProposal(current);
         setError(null);
         setSuccess(null);
         setLoadedRequestId(item.request.id);
@@ -208,6 +251,9 @@ export function AdminProposalComposer({ item, onClose, onChanged }: AdminProposa
       setProposal(savedProposal);
       setAmount(String(savedProposal.amount));
       setSuccess('Propuesta guardada como pendiente con su cálculo congelado.');
+
+      const updatedList = await listProposals(item.request.id);
+      setAllProposals(updatedList);
       onChanged?.();
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'No se pudo guardar la propuesta.');
@@ -233,6 +279,9 @@ export function AdminProposalComposer({ item, onClose, onChanged }: AdminProposa
       const sent = await sendProposal(proposal.id);
       setProposal(sent);
       setSuccess('Propuesta enviada al autor.');
+
+      const updatedList = await listProposals(item.request.id);
+      setAllProposals(updatedList);
       onChanged?.();
     } catch (sendError) {
       setError(sendError instanceof Error ? sendError.message : 'No se pudo enviar la propuesta.');
@@ -241,7 +290,8 @@ export function AdminProposalComposer({ item, onClose, onChanged }: AdminProposa
     }
   }
 
-  const locked = !!proposal && proposal.status !== 'pending';
+  const locked = !proposal || proposal.status !== 'pending' || !!proposal.sentAt;
+  const canCreateNewVersion = !!proposal && proposal.status !== 'accepted';
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
@@ -264,9 +314,48 @@ export function AdminProposalComposer({ item, onClose, onChanged }: AdminProposa
               <div className="space-y-5">
                 <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)] p-4">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]"><FileText className="h-4 w-4" /> Configurador de producción</span>
-                    {proposal && <span className="rounded-full border border-[var(--color-border)] px-2.5 py-1 text-[10px] font-semibold text-[var(--color-text-secondary)]">{statusLabel(proposal.status)}</span>}
+                    <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                      <FileText className="h-4 w-4" /> Configurador de producción {proposal ? `(v${proposal.version ?? 1})` : ''}
+                    </span>
+                    {proposal && <span className="rounded-full border border-[var(--color-border)] px-2.5 py-1 text-[10px] font-semibold text-[var(--color-text-secondary)]">{statusLabel(proposal)}</span>}
                   </div>
+
+                  {allProposals.length > 0 && (
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--color-border-subtle)] pt-3">
+                      <div className="flex items-center gap-1.5 overflow-x-auto">
+                        <span className="text-[11px] font-medium text-[var(--color-text-muted)]">Versiones:</span>
+                        {allProposals.map((p) => {
+                          const isActive = proposal?.id === p.id;
+                          return (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => selectProposalVersion(p)}
+                              className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition ${
+                                isActive
+                                  ? 'bg-[var(--color-accent)] text-white shadow-xs'
+                                  : 'border border-[var(--color-border)] bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'
+                              }`}
+                            >
+                              v{p.version ?? 1} ({statusLabel(p)})
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {canCreateNewVersion && (
+                        <button
+                          type="button"
+                          disabled={saving || sending}
+                          onClick={() => void handleCreateVersion()}
+                          className="rounded-xl bg-[var(--color-accent-soft)] px-3 py-1 text-[11px] font-semibold text-[var(--color-accent)] transition hover:bg-[var(--color-accent)] hover:text-white disabled:opacity-50"
+                        >
+                          + Crear nueva versión
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   <p className="mt-2 text-xs leading-5 text-[var(--color-text-muted)]">El catálogo global calcula una recomendación. El precio que guardes en la propuesta queda congelado y no volverá a depender de cambios futuros del catálogo.</p>
                 </div>
 

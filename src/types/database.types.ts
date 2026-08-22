@@ -754,10 +754,12 @@ export type Database = {
           deadline: string | null
           expires_at: string | null
           id: string
+          parent_proposal_id: string | null
           request_id: string
           revisions_included: number | null
           services: Json | null
           status: string | null
+          version: number | null
         }
         Insert: {
           amount: number
@@ -766,10 +768,12 @@ export type Database = {
           deadline?: string | null
           expires_at?: string | null
           id?: string
+          parent_proposal_id?: string | null
           request_id: string
           revisions_included?: number | null
           services?: Json | null
           status?: string | null
+          version?: number | null
         }
         Update: {
           amount?: number
@@ -778,10 +782,12 @@ export type Database = {
           deadline?: string | null
           expires_at?: string | null
           id?: string
+          parent_proposal_id?: string | null
           request_id?: string
           revisions_included?: number | null
           services?: Json | null
           status?: string | null
+          version?: number | null
         }
         Relationships: [
           {
@@ -869,6 +875,13 @@ export type Database = {
     }
     Functions: {
       accept_proposal: { Args: { p_proposal_id: string }; Returns: string }
+      create_proposal_version: {
+        Args: {
+          p_request_id: string
+          p_source_proposal_id?: string | null
+        }
+        Returns: string
+      }
       create_review: {
         Args: {
           p_deliverable_id: string

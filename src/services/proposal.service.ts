@@ -115,6 +115,23 @@ function mapProposalMutation(input: UpdateProposalInput): ProposalMutationRow {
   };
 }
 
+export async function createProposalVersion(
+  requestId: string,
+  sourceProposalId?: string | null,
+): Promise<string> {
+  if (!requestId) throw new Error('requestId is required to create a proposal version.');
+
+  const { data, error } = await supabaseClient.rpc('create_proposal_version', {
+    p_request_id: requestId,
+    p_source_proposal_id: sourceProposalId ?? null,
+  });
+
+  if (error) throw error;
+  if (!data) throw new Error('Failed to create proposal version: no ID returned.');
+
+  return data;
+}
+
 export async function createProposal(input: CreateProposalInput): Promise<Proposal> {
   if (!input.requestId) throw new Error('requestId is required to create a proposal.');
   validateProposalInput(input);

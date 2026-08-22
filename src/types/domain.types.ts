@@ -23,7 +23,8 @@ export type ProposalStatus =
   | 'pending'
   | 'accepted'
   | 'rejected'
-  | 'expired';
+  | 'expired'
+  | 'superseded';
 
 export type ReviewStatus =
   | 'open'
@@ -218,6 +219,8 @@ export interface Proposal {
   expiresAt: string | null;
   sentAt: string | null;
   createdAt: string;
+  version: number;
+  parentProposalId: string | null;
 }
 
 export type ChapterStatus =

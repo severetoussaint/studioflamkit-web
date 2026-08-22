@@ -27,6 +27,7 @@ import {
 } from '@/services/conversation.service';
 import {
   getProposal,
+  listProposals,
   acceptProposal,
   rejectProposal,
 } from '@/services/proposal.service';
@@ -155,6 +156,7 @@ export function MessagesSection({
 
   // Proposal state associated with active conversation
   const [activeProposal, setActiveProposal] = useState<Proposal | null>(null);
+  const [proposalHistory, setProposalHistory] = useState<Proposal[]>([]);
   const [loadingProposal, setLoadingProposal] = useState(false);
   const [confirmingAcceptId, setConfirmingAcceptId] = useState<string | null>(null);
   const [proposalActionBusy, setProposalActionBusy] = useState(false);
@@ -294,7 +296,19 @@ export function MessagesSection({
         try {
           const prop = await getProposal(targetProposalId);
           if (!isCancelled) {
-            setActiveProposal(prop);
+            if (prop?.requestId) {
+              const allProps = await listProposals(prop.requestId);
+              if (!isCancelled) {
+                setProposalHistory(allProps);
+                const latest = allProps.find((p) => p.status === 'pending')
+                  ?? allProps.find((p) => p.status === 'accepted')
+                  ?? prop;
+                setActiveProposal(latest);
+              }
+            } else {
+              setActiveProposal(prop);
+              setProposalHistory(prop ? [prop] : []);
+            }
           }
         } catch (err) {
           console.warn('Error loading proposal for conversation:', err);
@@ -302,7 +316,10 @@ export function MessagesSection({
           if (!isCancelled) setLoadingProposal(false);
         }
       } else {
-        if (!isCancelled) setActiveProposal(null);
+        if (!isCancelled) {
+          setActiveProposal(null);
+          setProposalHistory([]);
+        }
       }
     }
 
@@ -835,6 +852,11 @@ export function MessagesSection({
                                   <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
                                   <span className="text-amber-700 dark:text-amber-300">Propuesta Expirada</span>
                                 </>
+                              ) : activeProposal.status === 'superseded' ? (
+                                <>
+                                  <AlertCircle className="h-3.5 w-3.5 text-slate-500" />
+                                  <span className="text-slate-500 font-semibold">Versión Reemplazada</span>
+                                </>
                               ) : (
                                 <>
                                   <Clock3 className="h-3.5 w-3.5 text-accent" />
@@ -843,11 +865,35 @@ export function MessagesSection({
                               )}
                             </div>
                             <h4 className="mt-3 font-serif text-2xl font-semibold text-ink">
-                              Propuesta de Producción Editorial
+                              Propuesta de Producción Editorial (v{activeProposal.version ?? 1})
                             </h4>
                             <p className="mt-1 text-xs text-ink-muted/90 max-w-lg">
                               Condiciones artísticas, técnicas y comerciales presentadas por Studio FLAMKIT para la producción de tu audiolibro.
                             </p>
+
+                            {proposalHistory.length > 1 && (
+                              <div className="mt-3 flex flex-wrap items-center gap-1.5 pt-2">
+                                <span className="text-[11px] font-medium text-ink-muted">Otras versiones:</span>
+                                {proposalHistory.map((p) => {
+                                  const isActive = activeProposal.id === p.id;
+                                  const vNum = p.version ?? 1;
+                                  return (
+                                    <button
+                                      key={p.id}
+                                      type="button"
+                                      onClick={() => setActiveProposal(p)}
+                                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition cursor-pointer ${
+                                        isActive
+                                          ? 'bg-accent text-white shadow-xs'
+                                          : 'border border-edge/60 bg-surface text-ink-muted hover:text-ink'
+                                      }`}
+                                    >
+                                      v{vNum} ({p.status === 'pending' ? 'Borrador' : p.status === 'accepted' ? 'Aceptada' : p.status === 'superseded' ? 'Reemplazada' : p.status === 'rejected' ? 'Rechazada' : p.status})
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
 
                           <div className="rounded-2xl border border-accent/20 bg-accent/5 p-4 sm:text-right shrink-0">
@@ -975,6 +1021,19 @@ export function MessagesSection({
                               <CheckCircle2 className="h-4 w-4" />
                               <span>Aceptar Propuesta</span>
                             </Button>
+                          </div>
+                        )}
+
+                        {/* Estado: Versión Reemplazada */}
+                        {activeProposal.status === 'superseded' && (
+                          <div className="relative z-10 mt-5 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 space-y-2">
+                            <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-semibold text-xs">
+                              <AlertCircle className="h-4 w-4 shrink-0" />
+                              <span>Esta versión ha sido reemplazada</span>
+                            </div>
+                            <p className="text-xs text-amber-900/80 dark:text-amber-200/80 leading-relaxed">
+                              Studio FLAMKIT ha emitido una revisión más reciente de esta propuesta. Revisa la versión actual para tomar una decisión sobre tu obra.
+                            </p>
                           </div>
                         )}
 
