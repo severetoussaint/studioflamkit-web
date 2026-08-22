@@ -1,13 +1,10 @@
 import { supabaseClient } from '@/lib/supabase/client';
-import type { Database } from '@/types/database.types';
+import type { Invoice, Invoice as InvoiceDomain, Payment, PaymentInsert, PaymentPlan, PaymentPlanInsert, PaymentPlanUpdate } from '@/types/payment';
 
-export type PaymentPlanRow = Database['public']['Tables']['payment_plans']['Row'];
-export type PaymentPlanInsert = Database['public']['Tables']['payment_plans']['Insert'];
-export type PaymentPlanUpdate = Database['public']['Tables']['payment_plans']['Update'];
-export type PaymentRow = Database['public']['Tables']['payments']['Row'];
-export type PaymentInsert = Database['public']['Tables']['payments']['Insert'];
-export type InvoiceRow = Database['public']['Tables']['invoices']['Row'];
-export type InvoiceInsert = Database['public']['Tables']['invoices']['Insert'];
+export type PaymentPlanRow = PaymentPlan;
+export type PaymentRow = Payment;
+export type InvoiceRow = InvoiceDomain;
+export type InvoiceInsertRow = Invoice;
 
 export async function listPaymentPlans(projectId: string): Promise<PaymentPlanRow[]> {
   const { data, error } = await supabaseClient
@@ -23,7 +20,7 @@ export async function getPaymentPlanForProposal(proposalId: string): Promise<Pay
   const { data, error } = await supabaseClient
     .from('payment_plans')
     .select('*')
-    .eq('proposal_id', proposalId)
+    .filter('proposal_id', 'eq', proposalId)
     .maybeSingle();
   if (error) throw error;
   return data as PaymentPlanRow | null;
@@ -82,7 +79,7 @@ export async function recordPayment(input: PaymentInsert): Promise<PaymentRow | 
   return data as PaymentRow | null;
 }
 
-export async function createInvoice(input: InvoiceInsert): Promise<InvoiceRow | null> {
+export async function createInvoice(input: InvoiceInsertRow): Promise<InvoiceRow | null> {
   const { data, error } = await supabaseClient
     .from('invoices')
     .insert(input as never)
