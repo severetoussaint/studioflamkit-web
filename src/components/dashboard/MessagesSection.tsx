@@ -296,17 +296,13 @@ export function MessagesSection({
         try {
           const prop = await getProposal(targetProposalId);
           if (!isCancelled) {
+            setActiveProposal(prop);
             if (prop?.requestId) {
               const allProps = await listProposals(prop.requestId);
               if (!isCancelled) {
                 setProposalHistory(allProps);
-                const latest = allProps.find((p) => p.status === 'pending')
-                  ?? allProps.find((p) => p.status === 'accepted')
-                  ?? prop;
-                setActiveProposal(latest);
               }
             } else {
-              setActiveProposal(prop);
               setProposalHistory(prop ? [prop] : []);
             }
           }
@@ -877,15 +873,23 @@ export function MessagesSection({
                                 {proposalHistory.map((p) => {
                                   const isActive = activeProposal.id === p.id;
                                   const vNum = p.version ?? 1;
+                                  const targetConv = conversations.find((c) => c.proposalId === p.id);
                                   return (
                                     <button
                                       key={p.id}
                                       type="button"
-                                      onClick={() => setActiveProposal(p)}
-                                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition cursor-pointer ${
+                                      onClick={() => {
+                                        if (targetConv) {
+                                          setSelectedConvId(targetConv.id);
+                                        }
+                                      }}
+                                      title={targetConv ? `Ir a la conversación de v${vNum}` : `Versión v${vNum}`}
+                                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition ${
                                         isActive
                                           ? 'bg-accent text-white shadow-xs'
-                                          : 'border border-edge/60 bg-surface text-ink-muted hover:text-ink'
+                                          : targetConv
+                                            ? 'border border-edge/60 bg-surface text-ink-muted hover:text-ink cursor-pointer'
+                                            : 'border border-edge/40 bg-surface/50 text-ink-muted/50 cursor-default'
                                       }`}
                                     >
                                       v{vNum} ({p.status === 'pending' ? 'Borrador' : p.status === 'accepted' ? 'Aceptada' : p.status === 'superseded' ? 'Reemplazada' : p.status === 'rejected' ? 'Rechazada' : p.status})
