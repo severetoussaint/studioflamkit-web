@@ -176,6 +176,11 @@ export function MessagesSection({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const selectedConvIdRef = useRef<string | null>(selectedConvId);
+  useEffect(() => {
+    selectedConvIdRef.current = selectedConvId;
+  }, [selectedConvId]);
+
   // 1. Cargar lista de conversaciones
   const loadConversations = React.useCallback(async (keepSelection = true) => {
     if (!authorId) return;
@@ -183,7 +188,8 @@ export function MessagesSection({
       const list = await listConversations({ authorId });
       setConversations(list);
 
-      if (!keepSelection || !selectedConvId) {
+      const currentSelected = selectedConvIdRef.current;
+      if (!keepSelection || !currentSelected) {
         if (initialConversationId) {
           const match = list.find((c) => c.id === initialConversationId);
           if (match) {
@@ -197,7 +203,7 @@ export function MessagesSection({
         }
       } else {
         // Verificar si la seleccionada sigue existiendo
-        const exists = list.some((c) => c.id === selectedConvId);
+        const exists = list.some((c) => c.id === currentSelected);
         if (!exists && list.length > 0) {
           setSelectedConvId(list[0].id);
         }
@@ -207,41 +213,24 @@ export function MessagesSection({
     } finally {
       setLoadingConv(false);
     }
-  }, [authorId, initialConversationId, selectedConvId]);
+  }, [authorId, initialConversationId]);
 
+  // Única carga inicial de conversaciones
   useEffect(() => {
-    let isMounted = true;
     if (!authorId) return;
-
-    async function initialLoad() {
+    let isMounted = true;
+    async function init() {
       try {
-        const list = await listConversations({ authorId });
-        if (!isMounted) return;
-        setConversations(list);
-        if (initialConversationId) {
-          const match = list.find((c) => c.id === initialConversationId);
-          if (match) {
-            setSelectedConvId(match.id);
-            setShowMobileChat(true);
-            return;
-          }
-        }
-        if (list.length > 0) {
-          setSelectedConvId(list[0].id);
-        }
+        await loadConversations(false);
       } catch (err) {
-        console.warn('Error loading conversations:', err);
-      } finally {
-        if (isMounted) setLoadingConv(false);
+        if (isMounted) console.warn('Error in initial loadConversations:', err);
       }
     }
-
-    void initialLoad();
-
+    void init();
     return () => {
       isMounted = false;
     };
-  }, [authorId, initialConversationId]);
+  }, [authorId, loadConversations]);
 
   // Suscripción Realtime a nuevas conversaciones
   useEffect(() => {
@@ -443,13 +432,6 @@ export function MessagesSection({
       if (onProposalAccepted) {
         onProposalAccepted();
       }
-      // Notificar en el chat automáticamente
-      await sendMessage({
-        conversationId: activeConv!.id,
-        senderType: 'author',
-        senderId: authorId,
-        body: 'He aceptado formalmente la propuesta editorial de producción.',
-      });
       await loadConversations(true);
     } catch (err) {
       setProposalActionError(err instanceof Error ? err.message : 'Error al aceptar la propuesta');
@@ -465,12 +447,6 @@ export function MessagesSection({
     try {
       const updated = await rejectProposal(proposalId);
       setActiveProposal(updated);
-      await sendMessage({
-        conversationId: activeConv!.id,
-        senderType: 'author',
-        senderId: authorId,
-        body: 'He declinado esta versión de la propuesta editorial.',
-      });
       await loadConversations(true);
     } catch (err) {
       setProposalActionError(err instanceof Error ? err.message : 'Error al rechazar la propuesta');
