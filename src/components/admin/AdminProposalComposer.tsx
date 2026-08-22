@@ -290,8 +290,13 @@ export function AdminProposalComposer({ item, onClose, onChanged }: AdminProposa
     }
   }
 
-  const locked = !proposal || proposal.status !== 'pending' || !!proposal.sentAt;
-  const canCreateNewVersion = !!proposal && proposal.status !== 'accepted';
+  const locked = !!proposal && (proposal.status !== 'pending' || !!proposal.sentAt);
+  const canCreateNewVersion = !!proposal && (
+    proposal.status === 'rejected' ||
+    proposal.status === 'expired' ||
+    proposal.status === 'superseded' ||
+    (proposal.status === 'pending' && !!proposal.sentAt)
+  );
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
