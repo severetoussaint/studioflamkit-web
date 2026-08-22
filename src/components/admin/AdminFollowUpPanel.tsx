@@ -167,7 +167,7 @@ export function AdminFollowUpPanel({ refreshKey = 0 }: AdminFollowUpPanelProps) 
                 {item.category === 'email_pending' && (
                   <div className="flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-3">
                     <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-                    <div><p className="font-medium text-[var(--color-text)]">Correo de rechazo pendiente</p><p className="mt-0.5 text-xs leading-5 text-[var(--color-text-muted)]">El rechazo está guardado y este caso permanece disponible para comunicación.</p></div>
+                    <div><p className="font-medium text-[var(--color-text)]">Correo de rechazo pendiente</p><p className="mt-0.5 text-xs leading-5 text-[var(--color-text-muted)]">El rechazo está guardado y este caso permanece disponible para comunicación y para preparar una nueva versión de la propuesta.</p></div>
                   </div>
                 )}
                 {item.category === 'proposal_ready' && (
@@ -182,7 +182,10 @@ export function AdminFollowUpPanel({ refreshKey = 0 }: AdminFollowUpPanelProps) 
 
               <div className="mt-5 flex flex-wrap gap-2">
                 {item.category === 'email_pending' && (
-                  <button type="button" onClick={() => openEmail(item)} className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-accent)] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[var(--color-accent-hover)]"><Mail className="h-3.5 w-3.5" /> Enviar correo</button>
+                  <>
+                    <button type="button" onClick={() => openEmail(item)} className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-accent)] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[var(--color-accent-hover)]"><Mail className="h-3.5 w-3.5" /> Enviar correo</button>
+                    <button type="button" onClick={() => setSelectedProposalItem(item)} className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-accent)] bg-[var(--color-accent-soft)] px-4 py-2.5 text-xs font-semibold text-[var(--color-accent)] hover:bg-[var(--color-accent)] hover:text-white"><Send className="h-3.5 w-3.5" /> Preparar nueva propuesta</button>
+                  </>
                 )}
                 {item.category === 'proposal_ready' && (
                   <button type="button" onClick={() => setSelectedProposalItem(item)} className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-accent)] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[var(--color-accent-hover)]"><Send className="h-3.5 w-3.5" /> Preparar propuesta</button>
