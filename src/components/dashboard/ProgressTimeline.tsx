@@ -56,7 +56,11 @@ export function ProgressTimeline({ steps, currentState, journey = null }: Progre
   const subtitle = journey ? 'Fase actual del manuscrito en el proceso editorial' : currentState === 'none' ? 'Aún no hay obra cargada para esta cuenta' : currentState === 'rejected' ? 'La solicitud terminó después del análisis editorial' : 'Fase actual del manuscrito en el proceso editorial';
   const activeIndex = activeSteps.findIndex((s) => s.status === 'activo');
   const proposalIsActive = journey?.currentPhase === 'proposal' || currentState === 'proposal' || currentState === 'proposal_sent';
-  const handleStepClick = (stepId: string, status: TimelineStep['status']) => { if (stepId === 'proposal' && proposalIsActive && status === 'activo') router.push('/dashboard/propuestas'); };
+  const handleStepClick = (stepId: string, status: TimelineStep['status']) => {
+    if (stepId === 'proposal' && proposalIsActive && status === 'activo') {
+      router.push('/dashboard?tab=mensajes');
+    }
+  };
 
   return (
     <div className="relative overflow-hidden rounded-3xl border-edge/50 bg-surface-elevated/95 p-5 sm:p-6 shadow-[0_12px_36px_rgba(0,0,0,0.20)] backdrop-blur-xs">
@@ -73,7 +77,7 @@ export function ProgressTimeline({ steps, currentState, journey = null }: Progre
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-edge/50 bg-surface/60 p-3"><div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-ink-muted"><Clock className="h-3.5 w-3.5 text-accent" /> Estado</div><p className="mt-1 text-xs text-ink">{activeIndex >= 0 ? activeSteps[activeIndex].title : 'Pendiente'}</p></div>
         <div className="rounded-2xl border border-edge/50 bg-surface/60 p-3"><div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-ink-muted"><Disc className="h-3.5 w-3.5 text-accent" /> Siguiente</div><p className="mt-1 text-xs text-ink">{activeIndex >= 0 && activeIndex + 1 < activeSteps.length ? activeSteps[activeIndex + 1].title : 'Continuar'}</p></div>
-        <div className="rounded-2xl border border-edge/50 bg-surface/60 p-3"><div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-ink-muted"><Sparkles className="h-3.5 w-3.5 text-accent" /> Acción</div><p className="mt-1 text-xs text-ink">{proposalIsActive ? (currentState === 'proposal_sent' ? 'Revisar propuesta' : 'Esperar envío') : activeIndex >= 0 ? 'Esperar siguiente etapa' : 'Enviar manuscrito'}</p></div>
+        <div className="rounded-2xl border border-edge/50 bg-surface/60 p-3"><div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-ink-muted"><Sparkles className="h-3.5 w-3.5 text-accent" /> Acción</div><p className="mt-1 text-xs text-ink">{proposalIsActive ? (currentState === 'proposal_sent' ? 'Revisar propuesta en Mensajes' : 'Esperar envío') : activeIndex >= 0 ? 'Esperar siguiente etapa' : 'Enviar manuscrito'}</p></div>
       </div>
     </div>
   );
